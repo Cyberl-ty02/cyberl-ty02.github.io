@@ -130,7 +130,7 @@ max_input_time = 300
 ```html
 <a href="https://beian.miit.gov.cn/" target="_blank">您的备案号</a>
 
-#比如以下示例
+# 比如以下示例
 <a href="https://beian.miit.gov.cn/" target="_blank">浙B2-20080101</a>
 ```
 
