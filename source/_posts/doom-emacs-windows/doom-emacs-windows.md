@@ -1,5 +1,5 @@
 ---
-title: doom-emacs-windows
+title: Doom Emacs Windows安装
 comments: true
 toc: true
 donate: true
@@ -9,7 +9,6 @@ categories: 段落摘抄
 tags:
 - 摘抄
 ---
-
 # Doom Emacs 实用命令
 
 原文来自[Installing Doom Emacs on Windows - DEV Community](https://dev.to/scarktt/installing-doom-emacs-on-windows-23ja)，现在对其中的命令进行一些整理。

@@ -1,5 +1,5 @@
 ---
-title: dotfiles-backup
+title: 配置文件备份
 comments: true
 toc: true
 donate: true
@@ -9,7 +9,6 @@ categories: 段落摘抄
 tags:
 - 摘抄
 ---
-
 本文用于存储部分软件的配置文件
 
 ## doas.conf
