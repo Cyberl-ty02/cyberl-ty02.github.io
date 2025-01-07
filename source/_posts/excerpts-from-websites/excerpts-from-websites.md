@@ -1,5 +1,5 @@
 ---
-title: excerpts-from-websites
+title: 一些网站的摘抄
 comments: true
 toc: true
 donate: true
@@ -9,7 +9,6 @@ categories: 段落摘抄
 tags:
 - 摘抄
 ---
-
 本文章摘录了一些可能比较有用的网站，以供安装和查询。
 
 ## Gentoo Linux部分教程

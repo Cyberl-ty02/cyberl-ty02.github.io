@@ -1,5 +1,5 @@
 ---
-title: web_establish_and_registration
+title: 网站的搭建和备案(Wordpress版)
 comments: true
 toc: true
 donate: true
@@ -9,8 +9,7 @@ categories: 实用技巧
 tags:
 - 技巧
 ---
-
-注意，本网站搭建环境是基于兼容centos的linux发行版和apache、mariadb、php8搭建的，如果需要使用Debian系或其他发行版(Arch、Gentoo、FreeBSD等）请使用搜索引擎搜索相应教程，并根据该教程以及具体实际来修改安装，不可完全照抄。
+注意，本网站搭建环境是基于兼容centos的linux发行版和apache、mariadb、php8搭建的，如果需要使用Debian系或其他发行版(Arch、Gentoo、FreeBSD等）请使用搜索引擎搜索相应教程，并根据该教程以及具体实际来修改安装，不可完全照抄。因搭建时间为3年前，可能会跟现有文档有出入。
 
 本页面将会对帮助页面进行一定的解释。
 

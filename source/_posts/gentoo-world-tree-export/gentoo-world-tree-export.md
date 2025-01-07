@@ -1,5 +1,5 @@
 ---
-title: gentoo-world-tree-export
+title: Gentoo Linux导入导出world tree里的文件
 comments: true
 toc: true
 donate: true
@@ -9,7 +9,6 @@ categories: 实用技巧
 tags:
 - 技巧
 ---
-
 在 Gentoo 中，**world** 文件包含了用户明确要安装的软件包。你可以使用 *grep* 命令来从 **world** 文件中提取软件包列表。以下是具体步骤
 
 ## 列出world内的软件包：
