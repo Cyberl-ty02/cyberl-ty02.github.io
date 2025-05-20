@@ -17,11 +17,11 @@ tags:
 
 来自[doomemacs/docs/getting_started.org at master · doomemacs/doomemacs](https://github.com/doomemacs/doomemacs/blob/master/docs/getting_started.org#the-bindoom-utility)
 
-1. Don't forget to run 'doom sync' and restart Emacs after modifying init.el or
+1. Don't forget to run '**doom sync**' and restart Emacs after modifying init.el or
    packages.el in ~/.config/doom. This is never necessary for config.el.
-2. If something goes wrong, run `doom doctor` to diagnose common issues with
+2. If something goes wrong, run **doom doctor** to diagnose common issues with
    your environment, setup, and config.
-3. Use 'doom upgrade' to update Doom. Doing it any other way will require
+3. Use '**doom upgrade**' to update Doom. Doing it any other way will require
    additional steps (see 'doom help upgrade').
 4. Access Doom's documentation from within Emacs via 'SPC h d h' or 'C-h d h'
    (or 'M-x doom/help').
