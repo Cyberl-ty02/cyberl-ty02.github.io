@@ -27,6 +27,8 @@ Gentoo 如何在启用安全启动的前提下安装（[setphaserstostun](https:
 
 因为WSL基于微软的Hyper-V技术，在电脑中会有性能损失，推荐不使用或者少使用桌面，优先选择对性能要求较低的发行版（如Gentoo，WSL中源码编译时间较长，推荐Debian或RedHat系二进制包发行版，有能力者可自行尝试如Arch、Slackware、Nixos等）。如有确有需要，建议使用Xfce、Lxqt、Lxde等桌面。当然，追求超级轻量的可考虑i3wm、dwm、openbox、awesome等窗口工具。
 
+[Gentoo WSL2 stage下载网站](https://wsl.gentoo.zip/)
+
 [WSL2中使用VcXsrv实现xfce4图形界面+声音传输](https://zhuanlan.zhihu.com/p/150555651)（[Dexter Lien](https://www.zhihu.com/people/lian-peng-wei-50)）:
 
 WSL2避坑deb（[jane-61-27](https://www.zhihu.com/people/jane-61-27)）：[ubuntu ：X server already running on display XXXX - 知乎 (zhihu.com)](https://zhuanlan.zhihu.com/p/500734107)
