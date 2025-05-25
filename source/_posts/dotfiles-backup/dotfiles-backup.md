@@ -13,7 +13,7 @@ tags:
 
 ## ccache.conf
 
-```
+```bash
 # Maximum cache size to maintain
 max_size = 4G
 
