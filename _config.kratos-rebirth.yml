@@ -106,30 +106,35 @@ comments:
       - page
     template:
       _shared: <div id="gitalk-container" class="kr-comments lazy-load" data-path="$PATH" data-path-hash="$PATH_HASH"></div>
-  count:
-    enable_at:
-      - index
-      - post
+
+  count: # 评论计数
+    enable_at: [] # 启用的位置
+    #  - index
+    #  - post
+    # - page
     template:
-      _shared: <span data-path="$PATH" class="waline-comment-count"> </span>
+      _shared: "" # 所有地方都共享的
       index: ""
       post: ""
+  path_hasher: "md5" # 对路径进行摘要使用的算法
 
 # 访问数量统计
 visit_count:
-  enable_at:
-    - index
-    - post
+  enable_at: []
+  #  - index
+  #  - post
   template:
-    _shared: <span data-path="$PATH" class="waline-pageview-count"> </span>
+    _shared: "" # 所有地方都共享的
     index: ""
     post: ""
+  path_hasher: "md5" # 对路径进行摘要使用的算法
 
 ################## 额外的注入代码 ##################
 # additional_injections:
 #   head: "" # 搜索引擎验证，或是追加的样式表
 #   footer: ""
 #   after_footer: "" # 站点分析，或是追加的脚本
+
 additional_injections:
   head: |
     <link rel="stylesheet" href="https://unpkg.com/gitalk/dist/gitalk.css">
@@ -137,3 +142,4 @@ additional_injections:
   after_footer: |
     <script src="https://unpkg.com/gitalk/dist/gitalk.min.js"></script>
     <script src="/comments/gitalk.js"></script>
+
