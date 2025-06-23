@@ -9,7 +9,7 @@ categories: 段落摘抄
 tags:
 - 摘抄
 ---
-本文用于存储部分软件的配置文件
+本文用于存储部分软件的配置文件,，更多文件详见[此仓库](https://github.com/Cyberl-ty02/dotfiles)
 
 ## ccache.conf
 
