@@ -33,6 +33,8 @@ Gentoo 如何在启用安全启动的前提下安装（[setphaserstostun](https:
 
 WSL2避坑deb（[jane-61-27](https://www.zhihu.com/people/jane-61-27)）：[ubuntu ：X server already running on display XXXX - 知乎 (zhihu.com)](https://zhuanlan.zhihu.com/p/500734107)
 
+Musl 语言设置:参考[Alpine安装gnome桌面环境和配置中文界面 - 哔哩哔哩](https://www.bilibili.com/opus/1033782964433977365)
+
 ## Seed Ubuntu实验部分摘录
 
 [嗯嗯哈哈哈哈哈哈嗯嗯哈哈哈](https://blog.csdn.net/qq_39678161)——[【SEED Labs 2.0】SQL Injection Attack Lab](https://blog.csdn.net/qq_39678161/article/details/119908354)
