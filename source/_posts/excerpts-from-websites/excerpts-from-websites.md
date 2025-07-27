@@ -35,8 +35,10 @@ WSL2避坑deb（[jane-61-27](https://www.zhihu.com/people/jane-61-27)）：[ubun
 
 Musl 语言设置:参考[Alpine安装gnome桌面环境和配置中文界面 - 哔哩哔哩](https://www.bilibili.com/opus/1033782964433977365)
 
-## 其他摘录摘录
+## 其他摘录
 
 Archlinux安装、部分配置可参考:[archlinux 简明指南](https://arch.icekylin.online/)
+
+Neovim中LazyVim配置: [lazy.nvim](https://lazy.folke.io/)
 
 [嗯嗯哈哈哈哈哈哈嗯嗯哈哈哈——](https://arch.icekylin.online/)[【SEED Labs 2.0】SQL Injection Attack Lab](https://blog.csdn.net/qq_39678161/article/details/119908354)
