@@ -1,5 +1,5 @@
 ---
-title: Python Pixi 使用技巧
+title: Python Pixi 简单使用
 comments: true
 toc: true
 donate: true
