@@ -22,7 +22,7 @@ tags:
 ### Windows
 
 ```powershell
-# 使用Power Hell
+# 使用Power Shell
 powershell -ExecutionPolicy ByPass -c "irm -useb https://pixi.sh/install.ps1 | iex"
 
 # 使用 scoop (注意pixi已经存在于main bucket里面)
