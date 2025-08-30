@@ -38,10 +38,7 @@ nav:
           url: https://wiki.krt.moe
     - label: 友链
       icon: paw
-      submenu:
-        - label: 友链列表
-          icon: link
-          url: /friends/
+      url: /friends/
 
 # Footer 页脚配置
 footer:

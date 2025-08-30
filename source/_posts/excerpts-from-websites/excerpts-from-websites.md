@@ -41,4 +41,6 @@ Archlinux安装、部分配置可参考:[archlinux 简明指南](https://arch.ic
 
 Neovim中LazyVim配置: [lazy.nvim](https://lazy.folke.io/)
 
+有关Kratos-Rebirth 主题添加友链: [Github: V3的页面问题 #215](https://github.com/Candinya/Kratos-Rebirth/issues/215)
+
 [嗯嗯哈哈哈哈哈哈嗯嗯哈哈哈——](https://arch.icekylin.online/)[【SEED Labs 2.0】SQL Injection Attack Lab](https://blog.csdn.net/qq_39678161/article/details/119908354)
