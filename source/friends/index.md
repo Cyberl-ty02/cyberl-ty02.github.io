@@ -1,6 +1,6 @@
 ---
 title: 伙伴们
-comments: false
+comments: true
 toc: false
 donate: false
 share: false
@@ -8,7 +8,7 @@ date: 2025-08-30 14:48:09
 ---
 {% linklist friends random %}
 
-申请友情连接的格式 ：
+申请友情连接的格式 如下：
 
 ```yaml
 - title: "站点名称" #请保留title前面的减号
