@@ -38,7 +38,13 @@ nav:
           url: https://wiki.krt.moe
     - label: 友链
       icon: paw
-      url: /friends/
+      submenu:
+      - label: 伙伴们
+        icon: users
+        url: /friends/
+      - label: 申友链
+        icon: plus-circle
+        url: https://github.com/Cyberl-ty02/friends
 
 # Footer 页脚配置
 footer:
