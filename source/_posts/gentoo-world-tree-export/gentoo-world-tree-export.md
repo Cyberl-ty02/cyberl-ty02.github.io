@@ -40,7 +40,7 @@ emerge --ask --verbose --update --deep --newuse $(cat world_packages.txt)
 
 以下为导出来的world_packages.txt示例文件
 
-```shell
+```bash
 # 示例目录
 app-admin/chezmoi
 app-admin/doas

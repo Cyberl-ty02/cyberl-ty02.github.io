@@ -9,11 +9,11 @@ categories: 实用技巧
 tags:
 - 技巧
 ---
-本篇文章将简单记录AUR (Arch User Repository)的一些优化事项，方便在WSL优化调整。
+本篇文章将简单记录AUR (Arch User Repository)的一些优化事项，以期方便在WSL优化调整。
 
 ## 多线程优化
 
-这个部分主要介绍使用多线程编译大型软件(比如AUR里的第三方内核)
+这个部分主要介绍如何使用一些命令，让aur makepkg使用多线程加快编译大型软件(比如AUR里的xanmod-lts内核)
 
 ```bash
 nano /etc/makepkg.conf #进入编译设置文件
@@ -37,7 +37,6 @@ COMPRESSGZ=(pigz -c -f -n)
 COMPRESSBZ2=(pbzip2 -c -f)
 COMPRESSLZ=(plzip -c -f)
 ```
-
 
 ## 小结
 
