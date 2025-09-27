@@ -46,11 +46,9 @@ wget -qO- https://pixi.sh/install.sh | sh
 pixi --version
 ```
 
-
-
 # 2. 创建示例项目
 
-以下文字说明主要针对笔者示例所用环境(**windows 11**)进行说明，可能与linux/Mac等环境有区别，敬请注意, 另请时长查阅最新文档，及时跟进
+以下文字说明主要针对笔者示例所用环境(**windows 11**)进行说明，可能与linux/Mac等环境有区别，敬请注意, 另请及时查阅最新文档，跟进最新用例
 
 ## 2.1 使用Pycharm创建示例项目
 
@@ -141,7 +139,7 @@ Invoke-Expression -Command (pixi shell-hook)
 
 我们将创建一个简单的 Python 文件，你可以在终端里用 VSCode 打开当前项目，也可以手动创建。
 
-创建一个名为***hello.py***的python文件，写入如下代码:
+创建一个名为***hello.py***的python文件(默认建在项目根目录)，写入如下代码:
 
 ```python
 print("Hello, World from Pixi!")
