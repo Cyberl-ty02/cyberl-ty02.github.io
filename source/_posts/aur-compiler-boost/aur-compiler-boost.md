@@ -25,8 +25,8 @@ nano /etc/makepkg.conf #进入编译设置文件
 # 自动使用计算机最多线程数编译，处理器较老建议改为“-j4"之类的小数字,否则容易内存溢出
 MAKEFLAGS="-j$(nproc)"
 
-# 允许根据计算机架构进行优化，特别是"-march=native"
-CFLAGS="-march=native -O2 -pipe ..."
+# 允许根据计算机架构进行优化，特别是"-march=native"，gcc的"-Os"优化
+CFLAGS="-march=native -Os -pipe ..."
 
 # 优化Rust编译, 特别是新增"-C target-cpu=native"部分
 RUSTFLAGS="... force-frame-pointers=yes -C target-cpu=native"
