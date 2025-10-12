@@ -9,7 +9,7 @@ categories: 实用技巧
 tags:
 - 技巧
 ---
-本篇文章将简单记录AUR (Arch User Repository)的一些优化事项，以期方便在WSL优化调整。
+本篇文章将简单记录AUR (Arch User Repository)的一些优化事项，以方便在WSL优化调整。
 
 ## 多线程优化
 
