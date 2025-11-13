@@ -39,6 +39,10 @@ Musl 语言设置:参考[Alpine安装gnome桌面环境和配置中文界面 - �
 
 Archlinux安装、部分配置可参考:[archlinux 简明指南](https://arch.icekylin.online/)
 
+bash的美化:[oh-my-bash](https://github.com/ohmybash/oh-my-bash)
+
+zsh的美化:[zim](https://github.com/zimfw/zimfw)
+
 Neovim中LazyVim配置: [lazy.nvim](https://lazy.folke.io/)
 
 有关Kratos-Rebirth 主题添加友链: [Github: V3的页面问题 #215](https://github.com/Candinya/Kratos-Rebirth/issues/215)
