@@ -16,6 +16,14 @@
   "hexo": {
     "version": "8.1.1"
   },
+
+  "pnpm":{
+    "overrides": {
+      "glob":"^10.3.10"
+    }
+  },
+
+
   "dependencies": {
     "hexo": "^8.1.1",
     "hexo-cli": "^4.3.2",
