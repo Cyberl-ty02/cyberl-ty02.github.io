@@ -1,2 +1,8 @@
+packages:
+  - '.'
+  - 'themes/*'
+  - 'packages/*'
+
 onlyBuiltDependencies:
   - hexo-util
+
