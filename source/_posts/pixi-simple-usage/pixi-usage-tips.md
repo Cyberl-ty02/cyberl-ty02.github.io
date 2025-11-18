@@ -17,9 +17,11 @@ tags:
 
 ## 1.1 安装命令
 
-以下仅列出部分安装命令，其他方法请点击安装指南进一步查看
+以下仅列出部分安装命令，其他方法请点击安装指南进一步查看或者查阅搜索引擎
 
 ### 1.1.1 Windows
+
+这个地方主要介绍Power Shell和soop, choco等安装方式也可考虑
 
 ```powershell
 # 使用Power Shell
@@ -30,6 +32,8 @@ scoop install pixi
 ```
 
 ### 1.1.2 Linux/Mac等
+
+注意，可以使用 apt, dnf, homebrew, pacman, portage等方式安装,依据具体系统而定
 
 ```bash
 # 使用curl
@@ -48,11 +52,13 @@ pixi --version
 
 # 2. 创建示例项目
 
-以下文字说明主要针对笔者示例所用环境(**windows 11**)进行说明，可能与linux/Mac等环境有区别，敬请注意, 另请及时查阅最新文档，跟进最新用例
+以下文字说明主要针对笔者示例所用环境(**windows 11**)进行说明，可能与linux/Mac等其他环境有区别，敬请注意, 另请及时查阅最新文档，跟进最新用例
 
 ## 2.1 使用Pycharm创建示例项目
 
 ### 2.1.1 生成并初始化项目
+
+以下命令主要针对从零开始的环境搭建，如果你想引入已经配置好的文件进项目根目录，请[查阅这个链接](https://pixi.sh/latest/tutorials/import/)
 
 ```bash
 # 在当前目录一键式生成子文件夹并在其中创建项目
@@ -67,6 +73,7 @@ pixi init my-pixi-project --format pyproject
 
 ```bash
 # 请注意，以下的操作命令可能会更新，请及时点击链接查阅文档
+# Pychram环境，在导入其他包之前优先安装pixi-pycharm
 
 # 请切换到项目文件夹内安装
 cd my-pixi-project
@@ -81,7 +88,7 @@ pixi run 'echo $CONDA_PREFIX\\libexec\\conda.bat'
 
 ```
 
-注意，因[文档时刻更新](https://pixi.sh/latest/integration/editor/jetbrains/#pycharm)，关于如何把PyChram当前解释器替换为pixi的，请**实时查阅**，跟着文档最新方法来
+注意，因[文档时刻更新](https://pixi.sh/latest/integration/editor/jetbrains/#pycharm)，关于如何把PyChram当前解释器替换为pixi的，请**实时**跟着文档最新方法来
 
 ## 2.2 使用VSCode创建项目
 
@@ -114,7 +121,7 @@ pixi init --python=3.11 # 替换为你想要的python版本
 
 ### 2.2.3 激活 Pixi 环境
 
-#### Bash
+#### sh的方式 (适用于类Unix和Windows的bash)
 
 ```bash
 pixi shell
@@ -168,6 +175,14 @@ python hello.py
 
 ```txt
 Hello, World from Pixi!
+```
+
+## 3.4 如何把环境导出给他人
+
+**假设**另一个人*使用Conda环境*
+
+```bash
+pixi workspace export conda-environment >> environment.yml
 ```
 
 # 4. 结尾
