@@ -11,6 +11,20 @@ tags:
 ---
 本文章摘录了一些可能比较有用的网站，以供安装和查询。
 
+## 编辑器/Shell等主题美化摘录
+
+Emacs主题美化1:[acdcbyl](https://github.com/acdcbyl)
+
+Emacs主题美化2:[DoomEmacs](https://github.com/doomemacs/doomemacs)
+
+Emacs主题美化3:[spacemacs](https://www.spacemacs.org/)
+
+Neovim中LazyVim配置: [lazy.nvim](https://lazy.folke.io/)
+
+bash的美化:[oh-my-bash](https://github.com/ohmybash/oh-my-bash)
+
+zsh的美化:[zim](https://github.com/zimfw/zimfw)
+
 ## Gentoo Linux部分教程
 
 Gentoo 安装教程1（[cwittlut菊苣](https://ume.ink/)）：[Gentoo Linux 安装及使用指南](https://bitbili.net/gentoo-linux-installation-and-usage-tutorial.html)
@@ -38,12 +52,6 @@ Musl 语言设置:参考[Alpine安装gnome桌面环境和配置中文界面 - �
 ## 其他摘录
 
 Archlinux安装、部分配置可参考:[archlinux 简明指南](https://arch.icekylin.online/)
-
-bash的美化:[oh-my-bash](https://github.com/ohmybash/oh-my-bash)
-
-zsh的美化:[zim](https://github.com/zimfw/zimfw)
-
-Neovim中LazyVim配置: [lazy.nvim](https://lazy.folke.io/)
 
 有关Kratos-Rebirth 主题添加友链: [Github: V3的页面问题 #215](https://github.com/Candinya/Kratos-Rebirth/issues/215)
 
