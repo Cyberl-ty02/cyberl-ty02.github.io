@@ -27,9 +27,7 @@ zsh的美化:[zim](https://github.com/zimfw/zimfw)
 
 ## Gentoo Linux部分教程
 
-Gentoo 安装教程1（[cwittlut菊苣](https://ume.ink/)）：[Gentoo Linux 安装及使用指南](https://bitbili.net/gentoo-linux-installation-and-usage-tutorial.html)
-
-Gentoo 安装教程2（[Houge菊苣](https://litterhougelangley.club/blog/)）：[Gentoo 安装](https://litterhougelangley.club/blog/2021/05/21/gentoo/)
+Gentoo 安装教程1（[cwittlut](https://ume.ink/)）：[Gentoo Linux 安装及使用指南](https://bitbili.net/gentoo-linux-installation-and-usage-tutorial.html)
 
 Gentoo 使用musl+llvm stage3包来安装（[Raymond Kwok](https://blog.zozx.top/about)）：[尝试以musl作为libc安装Gentoo之后的想法和建议 | Raymond&#39;s Blog (zozx.top)](https://blog.zozx.top/2021/11/27/feeling-after-installing-gentoo-with-musl-libc/)
 
