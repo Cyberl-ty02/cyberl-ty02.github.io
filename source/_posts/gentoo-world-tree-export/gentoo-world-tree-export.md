@@ -82,7 +82,6 @@ sys-kernel/linux-firmware
 sys-kernel/xanmod-kernel
 sys-process/btop
 sys-process/cronie
-
 ```
 
 如果 **world** 文件包含***依赖关系***，你可能**需要手动编辑文件**，只保留你明确要安装的软件包。确保在执行实际安装之前检查可能的依赖关系和其他变化。

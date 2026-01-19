@@ -23,7 +23,9 @@ permit nopass kl cmd shutdown
 permit nopass kl cmd eix-sync
 ```
 
-## wsl.conf([参见这里](https://wiki.gentoo.org/wiki/Gentoo_in_WSL))
+## wsl.conf
+
+本处为gentoo-openrc-nomultilib的/etc/wsl.conf[配置](https://wiki.gentoo.org/wiki/Gentoo_in_WSL)文档,使用systemd或者其它引导方式的请另行查阅
 
 ```ini
 [boot]
