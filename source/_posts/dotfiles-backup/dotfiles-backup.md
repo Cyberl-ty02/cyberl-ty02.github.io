@@ -11,46 +11,6 @@ tags:
 ---
 本文用于存储部分软件的配置文件,，更多文件详见[此仓库](https://github.com/Cyberl-ty02/dotfiles)
 
-## ccache.conf
-
-```bash
-# Maximum cache size to maintain
-max_size = 4G
-
-# Allow others to run 'ebuild' and share the cache.
-umask = 002
-
-# Don't include the current directory when calculating
-# hashes for the cache. This allows re-use of the cache
-# across different package versions, at the cost of
-# slightly incorrect paths in debugging info.
-# https://ccache.dev/manual/4.4.html#_performance
-hash_dir = false
-
-# Preserve cache across GCC rebuilds and
-# introspect GCC changes through GCC wrapper.
-#
-# We use -dumpversion here instead of -v,
-# see https://bugs.gentoo.org/872971.
-compiler_check = %compiler% -dumpversion
-
-# Logging setup is optional
-# Portage runs various phases as different users
-# so beware of setting a log_file path here: the file
-# should already exist and be writable by at least
-# root and portage. If a log_file path is set, don't
-# forget to set up log rotation!
-# log_file = /var/log/ccache.log
-# Alternatively, log to syslog
-# log_file = syslog
-log_file = syslogd
-
-# Enable zstd compression
-compression = true
-compression_level = 1
-
-```
-
 ## doas.conf
 
 ```bash
@@ -61,6 +21,18 @@ permit persist :wheel
 permit nopass kl cmd reboot
 permit nopass kl cmd shutdown
 permit nopass kl cmd eix-sync
+```
+
+## wsl.conf([参见这里](https://wiki.gentoo.org/wiki/Gentoo_in_WSL))
+
+```ini
+[boot]
+# https://learn.microsoft.com/en-us/windows/wsl/wsl-config#boot-settings
+# Set a command to run when a new WSL instance launches.
+# To enable systemd, if the system Gentoo profile supports it, uncomment the following line:
+# systemd = true
+# Additional commands. e.g. Run OpenRC:
+command = /sbin/openrc default
 ```
 
 ## .zimrc
