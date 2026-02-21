@@ -1,14 +1,15 @@
 ---
-title: excerpts-from-websites
+title: 一些网站的摘抄
 comments: true
 toc: true
 donate: true
 share: true
-date: 2026-02-21 17:02:34
+date: 2026-02-21 17:11:16
 categories: 段落摘抄
 tags:
 - 摘抄
 ---
+
 本文章摘录了一些可能比较有用的网站，以供安装和查询。
 
 ## 编辑器/Shell等主题美化摘录
