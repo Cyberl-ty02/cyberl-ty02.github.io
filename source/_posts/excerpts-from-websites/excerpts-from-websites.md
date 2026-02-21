@@ -1,6 +1,6 @@
 ---
 title: 一些网站的摘抄
-comments: true
+comments: false
 toc: true
 donate: true
 share: true
