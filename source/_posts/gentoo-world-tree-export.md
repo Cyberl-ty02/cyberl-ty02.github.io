@@ -1,10 +1,10 @@
 ---
-title: Gentoo Linux导入导出world tree里的文件
+title: gentoo-world-tree-export
 comments: true
 toc: true
 donate: true
 share: true
-date: 2025-01-07 11:40:51
+date: 2026-02-21 17:00:49
 categories: 实用技巧
 tags:
 - 技巧

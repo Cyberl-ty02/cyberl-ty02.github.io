@@ -1,10 +1,10 @@
 ---
-title: 一些网站的摘抄
+title: excerpts-from-websites
 comments: true
 toc: true
 donate: true
 share: true
-date: 2025-01-07 11:38:33
+date: 2026-02-21 17:02:34
 categories: 段落摘抄
 tags:
 - 摘抄
