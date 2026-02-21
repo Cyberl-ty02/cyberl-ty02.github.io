@@ -1,6 +1,6 @@
 ---
 title: Gentoo world tree 导入导出
-comments: true
+comments: flase
 toc: true
 donate: true
 share: true
