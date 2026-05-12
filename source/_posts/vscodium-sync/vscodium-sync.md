@@ -542,7 +542,7 @@ git ls-remote --heads git@github.com:Cyberl-ty02/settings.git main
 
 这几个命令能够快速判断是 GitHub SSH 问题，还是 Sync Settings 插件本身的问题。
 
-## 10. 小结
+## 9. 小结
 
 通过 Sync Settings 插件，可以比较方便地在 VSCodium / VSCode-OSS / VS Code 之间同步配置。
 
