@@ -19,8 +19,11 @@ jobs:
       - name: Install Hexo environment
         run: bun install --frozen-lockfile
 
+      - name: Clean Hexo cache
+        run: bun run clean
+
       - name: Hexo build site
-        run: bun run build:force
+        run: bun run build
 
       - name: Upload artifacts for pages
         uses: actions/upload-pages-artifact@v3
