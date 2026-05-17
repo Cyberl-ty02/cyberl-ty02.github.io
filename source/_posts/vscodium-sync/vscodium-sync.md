@@ -5,7 +5,7 @@ toc: true
 donate: true
 share: true
 date: 2026-05-12 18:03:17
-categories: 使用技巧
+categories: 实用技巧
 tags:
 - 技巧
 - ai
