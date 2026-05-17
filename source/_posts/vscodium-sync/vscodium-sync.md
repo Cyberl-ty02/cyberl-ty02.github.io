@@ -13,7 +13,7 @@ tags:
 本文章由ChatGpt协助整理和写作，主要描述了一些使用VSCodium同步设置的问题和解决方法
 参考了 VSCodium 迁移/扩展文档、Zokugun Sync Settings 项目说明。
 
-## 1. 为什么使用 Sync Settings？
+## 为什么使用 Sync Settings？
 
 [VSCodium](https://vscodium.com/) 是 VS Code 的开源二进制构建版本。相比微软版 VS Code，它默认使用 Open VSX 扩展源，因此部分微软专有功能或者扩展可能不完全一致。
 
@@ -43,7 +43,7 @@ webdav
 
 本文主要记录使用 GitHub remote git 仓库同步的方法。
 
-## 2. 创建 GitHub 同步仓库
+## 创建 GitHub 同步仓库
 
 首先在 GitHub 创建一个新的私有仓库，例如：
 
@@ -84,7 +84,7 @@ git config --global user.name "你的GitHub用户名"
 git config --global user.email "你的GitHub邮箱"
 ```
 
-## 3. 配置 Sync Settings
+## 配置 Sync Settings
 
 在 VSCodium 中安装 Sync Settings 插件后，打开命令面板：
 
@@ -137,7 +137,7 @@ hostname
 
 主要用于区分不同机器，方便查看提交记录或排查问题。
 
-## 4. GitHub SSH 测试
+## GitHub SSH 测试
 
 因为使用的是 [git@github.com](mailto:git@github.com) 形式的 SSH 地址，所以需要提前配置 SSH key。
 
@@ -188,9 +188,9 @@ git ls-remote git@github.com:Cyberl-ty02/settings.git
 
 如果能正常输出 commit hash 和 refs，说明 SSH 和 GitHub 仓库访问基本正常。
 
-## 5. 常见问题
+## 常见问题
 
-### 5.1 Host key verification failed
+### Host key verification failed
 
 可能报错：
 
@@ -222,7 +222,7 @@ ssh -T git@github.com
 
 然后重新确认 fingerprint。
 
-### 5.2 Permission denied publickey
+### Permission denied publickey
 
 如果出现：
 
@@ -268,7 +268,7 @@ ssh -vT git@github.com
 Offering public key: /home/xxx/.ssh/id_ed25519
 ```
 
-### 5.3 The repository wasn't successfully initialized
+### The repository wasn't successfully initialized
 
 可能报错：
 
@@ -324,7 +324,7 @@ mv ~/.config/VSCodium/User/globalStorage/zokugun.sync-settings \
 Sync Settings: Download (repository -> user)
 ```
 
-### 5.4 Gentoo 中外部终端正常，但 VSCodium 插件失败
+### Gentoo 中外部终端正常，但 VSCodium 插件失败
 
 Gentoo / OpenRC / Xfce / KDE 环境中，可能出现外部终端 SSH 正常，但从桌面菜单启动的 VSCodium 没有正确继承 ssh-agent 的情况。
 
@@ -357,7 +357,7 @@ git config --global core.sshCommand "ssh -i ~/.ssh/id_ed25519 -o IdentitiesOnly=
 git ls-remote git@github.com:Cyberl-ty02/settings.git
 ```
 
-### 5.5 第一次同步应该 Upload 还是 Download
+### 第一次同步应该 Upload 还是 Download
 
 如果 GitHub 仓库里已经有整理好的配置，那么新机器第一次应该执行：
 
@@ -375,7 +375,7 @@ Sync Settings: Download (repository -> user)
 确认无误后：再根据情况 Upload
 ```
 
-### 5.6 VSCodium 和 VS Code 配置目录不同
+### VSCodium 和 VS Code 配置目录不同
 
 如果要从微软版 VS Code 迁移到 VSCodium，可以参考 VSCodium 官方迁移文档。
 
@@ -419,7 +419,7 @@ Profiles: Import Profile
 默认
 ```
 
-## 6. 定时同步设置
+## 定时同步设置
 
 Sync Settings 支持通过 crons 定时执行同步任务。
 
@@ -480,7 +480,7 @@ review
 
 即每天晚上 22:00 自动上传一次。
 
-## 7. 建议忽略的设置
+## 建议忽略的设置
 
 如果 Windows 和 Linux 同步同一套配置，建议忽略部分系统相关设置，例如终端、字体、Python 解释器路径、代理等。
 
@@ -517,7 +517,7 @@ Linux 的 Python venv 路径
 
 如果全部同步，很容易出现 Windows 和 Linux 之间互相污染配置的问题。
 
-## 8. 推荐同步流程
+## 推荐同步流程
 
 个人建议流程如下：
 
@@ -542,7 +542,7 @@ git ls-remote --heads git@github.com:Cyberl-ty02/settings.git main
 
 这几个命令能够快速判断是 GitHub SSH 问题，还是 Sync Settings 插件本身的问题。
 
-## 9. 小结
+## 小结
 
 通过 Sync Settings 插件，可以比较方便地在 VSCodium / VSCode-OSS / VS Code 之间同步配置。
 

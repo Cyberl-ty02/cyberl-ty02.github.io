@@ -12,7 +12,7 @@ tags:
 ---
 本文章由ChatGpt协助整理和写作，简单记录一次在 FreeBSD 上安装 KDE Plasma 桌面时遇到的 Xorg / XLibre / SDDM 黑屏问题，以及最后的解决思路。
 
-## 1. 最初的问题：XLibre 与 Xorg 包冲突
+## 最初的问题：XLibre 与 Xorg 包冲突
 
 最开始尝试安装 KDE 桌面时，执行了类似下面的命令：
 
@@ -41,7 +41,7 @@ kde meta package 可能会拉取传统 Xorg
 因此在 FreeBSD 桌面初装阶段，建议先不要同时混用 Xorg 和 XLibre。
 为了减少变量，可以先使用传统 Xorg 路线，把 KDE 桌面跑起来后再考虑替换。
 
-### 1.2 SDDM 可以显示，但登录后黑屏
+### SDDM 可以显示，但登录后黑屏
 
 后来切换到 XLibre 后，SDDM 登录界面可以正常出现，也可以输入密码登录，但是登录后出现黑屏，只剩鼠标。
 
@@ -86,7 +86,7 @@ XLibre 完全不能用
 Intel KMS/DRM 没有起来，导致 KDE 无法在正常图形加速环境下运行
 ```
 
-### 1.2 安装并加载 Intel KMS/DRM 驱动
+### 安装并加载 Intel KMS/DRM 驱动
 
 如果机器使用 Intel 核显，可以安装以下包：
 
@@ -123,7 +123,7 @@ renderD128
 
 如果 `/dev/dri/card0` 出现，说明显卡 KMS/DRM 已经基本正常。
 
-## 2. 切回传统 Xorg 路线
+## 切回传统 Xorg 路线
 
 由于初装阶段 XLibre 变量较多，为了先让桌面成功启动，最后选择先回到传统 Xorg 路线。
 
@@ -183,7 +183,7 @@ Plasma X11
 暂时不要先选择 Wayland。
 在 FreeBSD 上，尤其是桌面刚装好的时候，X11 通常比 Wayland 更容易排错。
 
-### 2.1 进入会话后仍然黑屏：Plasma bash 没有正常启动
+### 进入会话后仍然黑屏：Plasma bash 没有正常启动
 
 在 KMS/DRM 修复后，系统已经可以进入图形会话，但是仍然出现黑屏。
 这时可以通过快捷键尝试打开运行框：
@@ -229,7 +229,7 @@ kwin_x11 --replace &
 
 这说明当时的问题已经从底层图形驱动问题，转变为 KDE 用户会话或 Plasma 组件启动问题。
 
-### 2.2 清理 KDE 用户配置
+### 清理 KDE 用户配置
 
 在多次切换 Xorg / XLibre、反复黑屏、手动启动 Plasma 后，用户目录中的 Plasma 配置可能会变得比较混乱。
 
@@ -255,7 +255,7 @@ chown -R cyb /home/cyb
 
 这里的 `cyb` 需要替换成自己的用户名。
 
-### 2.3 确认 dbus 和 procfs
+### 确认 dbus 和 procfs
 
 KDE Plasma 依赖 dbus，因此需要确认 dbus 已经启用：
 
@@ -288,7 +288,7 @@ proc    /proc    procfs    rw    0    0
 mount /proc
 ```
 
-### 2.4. 补充：Plasma 组件不完整时的处理
+### 补充：Plasma 组件不完整时的处理
 
 如果日志中出现类似：
 
@@ -321,7 +321,7 @@ pkg which /usr/local/share/plasma/plasmoids/org.kde.plasma.icontasks/contents/ui
 
 然后再重装对应包。
 
-## 3. 最终状态
+## 最终状态
 
 最后，桌面成功进入并正常显示。
 这次问题的主要解决路线可以概括为：
@@ -346,7 +346,7 @@ sysrc dbus_enable
 sysrc sddm_enable
 ```
 
-## 4. 对 XLibre 的一点展望
+## 对 XLibre 的一点展望
 
 虽然这次最后暂时回到了传统 Xorg 路线，但我个人对 XLibre 仍然是比较期待的。
 
@@ -390,7 +390,7 @@ XLibre 本身值得关注
 长期关注：XLibre 在 FreeBSD 桌面生态中的发展
 ```
 
-## 5. 小结
+## 小结
 
 这次 FreeBSD KDE 桌面黑屏问题，表面上看是 Xorg / XLibre 或 SDDM 的问题，但真正的关键点首先是 Intel KMS/DRM 没有正常加载，导致 `/dev/dri/card0` 不存在。
 
