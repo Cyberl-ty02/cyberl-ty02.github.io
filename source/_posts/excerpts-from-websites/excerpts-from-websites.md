@@ -1,21 +1,34 @@
 ---
 title: 一些网站的摘抄
-comments: true
+comments: false
 toc: true
 donate: true
 share: true
-date: 2025-01-07 11:38:33
+date: 2026-02-21 17:11:16
 categories: 段落摘抄
 tags:
 - 摘抄
 ---
+
 本文章摘录了一些可能比较有用的网站，以供安装和查询。
+
+## 编辑器/Shell等主题美化摘录
+
+Emacs主题美化1:[acdcbyl](https://github.com/acdcbyl)
+
+Emacs主题美化2:[DoomEmacs](https://github.com/doomemacs/doomemacs)
+
+Emacs主题美化3:[spacemacs](https://www.spacemacs.org/)
+
+Neovim中LazyVim配置: [lazy.nvim](https://lazy.folke.io/)
+
+bash的美化:[oh-my-bash](https://github.com/ohmybash/oh-my-bash)
+
+zsh的美化:[zim](https://github.com/zimfw/zimfw)
 
 ## Gentoo Linux部分教程
 
-Gentoo 安装教程1（[cwittlut菊苣](https://ume.ink/)）：[Gentoo Linux 安装及使用指南](https://bitbili.net/gentoo-linux-installation-and-usage-tutorial.html)
-
-Gentoo 安装教程2（[Houge菊苣](https://litterhougelangley.club/blog/)）：[Gentoo 安装](https://litterhougelangley.club/blog/2021/05/21/gentoo/)
+Gentoo 安装教程1（[cwittlut](https://ume.ink/)）：[Gentoo Linux 安装及使用指南](https://bitbili.net/gentoo-linux-installation-and-usage-tutorial.html)
 
 Gentoo 使用musl+llvm stage3包来安装（[Raymond Kwok](https://blog.zozx.top/about)）：[尝试以musl作为libc安装Gentoo之后的想法和建议 | Raymond&#39;s Blog (zozx.top)](https://blog.zozx.top/2021/11/27/feeling-after-installing-gentoo-with-musl-libc/)
 
@@ -33,6 +46,14 @@ Gentoo 如何在启用安全启动的前提下安装（[setphaserstostun](https:
 
 WSL2避坑deb（[jane-61-27](https://www.zhihu.com/people/jane-61-27)）：[ubuntu ：X server already running on display XXXX - 知乎 (zhihu.com)](https://zhuanlan.zhihu.com/p/500734107)
 
-## Seed Ubuntu实验部分摘录
+Musl 语言设置:参考[Alpine安装gnome桌面环境和配置中文界面 - 哔哩哔哩](https://www.bilibili.com/opus/1033782964433977365)
 
-[嗯嗯哈哈哈哈哈哈嗯嗯哈哈哈](https://blog.csdn.net/qq_39678161)——[【SEED Labs 2.0】SQL Injection Attack Lab](https://blog.csdn.net/qq_39678161/article/details/119908354)
+## 其他摘录
+
+Archlinux安装、部分配置可参考:[archlinux 简明指南](https://arch.icekylin.online/)
+
+有关Kratos-Rebirth 主题添加友链: [Github: V3的页面问题 #215](https://github.com/Candinya/Kratos-Rebirth/issues/215)
+
+有关一个好用的Rust升级工具: [cargo-update](https://github.com/nabijaczleweli/cargo-update)
+
+[嗯嗯哈哈哈哈哈哈嗯嗯哈哈哈——](https://arch.icekylin.online/)[【SEED Labs 2.0】SQL Injection Attack Lab](https://blog.csdn.net/qq_39678161/article/details/119908354)
