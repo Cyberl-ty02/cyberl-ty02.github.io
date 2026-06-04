@@ -32,11 +32,11 @@ USER=users文件夹里**你的用户名**
 
 mklink /j "C:\Users\USER\\.emacs.d" "C:\Users\USER\AppData\Roaming\\.emacs.d"
 
-```shell
+```bash
 git clone https://github.com/doomemacs/doomemacs C:\Users\USER\AppData\Roaming\\.emacs.d
 ```
 
-```shell
+```powershell
 cd C:\Users\USER\AppData\Roaming\\.emacs.d
 
 .\bin\doom install

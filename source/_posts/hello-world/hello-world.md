@@ -13,6 +13,6 @@ toc: true
 
 博客的搭建参考了：[快速开始 | Kratos : Rebirth 主题文档](https://wiki.krt.moe/posts/quickstart/)
 
-使用了[Kratos](https://github.com/Candinya/Kratos-Rebirth)主题，启用[Gitalk](https://github.com/gitalk/gitalk)作为评论插件。
+使用了[Kratos](https://github.com/Candinya/Kratos-Rebirth)主题，启用[Waline](https://waline.js.org/)作为评论插件， 包管理器切换到了[bun](https://github.com/oven-sh/bun)。
 
-使用VScode作为默认的博客编辑器（其他的编辑器也可以，主要看个人使用习惯）。
+使用VSCodium作为默认的博客编辑器（其他的编辑器也可以，主要看个人使用习惯）。
