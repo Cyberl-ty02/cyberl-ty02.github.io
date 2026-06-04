@@ -45,8 +45,8 @@ importers:
         specifier: ^3.0.0
         version: 3.0.0
       hexo-theme-kratos-rebirth:
-        specifier: 3.0.0-dev.9
-        version: 3.0.0-dev.9
+        specifier: 3.0.1
+        version: 3.0.1
 
 packages:
 
@@ -398,7 +398,7 @@ packages:
 
   glob@7.2.3:
     resolution: {integrity: sha512-nFR0zLpU2YCaRxwoCJvL6UvCH2JFyFVIvwTLsIf21AuHlMskA1hhTdk+LlYJtOlYt9v6dvszD2BGRqBL+iQK9Q==}
-    deprecated: Glob versions prior to v9 are no longer supported
+    deprecated: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
 
   gopd@1.2.0:
     resolution: {integrity: sha512-ZUKRh6/kUFoAiTAtTYPZJ3hw9wNxx+BIBOijnlG9PnrJsCcSjs1wyyD6vJpaYtgnzDrKYRSqf3OO6Rfa93xsRg==}
@@ -491,8 +491,8 @@ packages:
     resolution: {integrity: sha512-u4s0ty9Aew6jV+a9oMrXBwhrRpUQ0U8PWM/88a5aHgDru58VY81mVrxOFxs788NAsWQ8OvsJtF5m7mnXoRnSIA==}
     engines: {node: '>=12.13.0'}
 
-  hexo-theme-kratos-rebirth@3.0.0-dev.9:
-    resolution: {integrity: sha512-PdR9tKr+swxBFtqPz9xdx3yKfOWOSVujI4VV/wVzqQFVYOPy1skFYAcQkzwX1uWLWY37Ht3DcNPMr2SWhccmlg==}
+  hexo-theme-kratos-rebirth@3.0.1:
+    resolution: {integrity: sha512-+6c5TKK2MK6LPhT4vgQj1h1nsvCgqW7VR6uGJ/ulzcxLCffMTUQFJB7d4PUIE+AD2LdUM9rLcCS9FqY6yusEmw==}
 
   hexo-util@2.7.0:
     resolution: {integrity: sha512-hQM3h34nhDg0bSe/Tg1lnpODvNkz7h2u0+lZGzlKL0Oufp+5KCAEUX9wal7/xC7ax3/cwEn8IuoU75kNpZLpJQ==}
@@ -666,6 +666,7 @@ packages:
 
   moize@6.1.6:
     resolution: {integrity: sha512-vSKdIUO61iCmTqhdoIDrqyrtp87nWZUmBPniNjO0fX49wEYmyDO4lvlnFXiGcaH1JLE/s/9HbiK4LSHsbiUY6Q==}
+    deprecated: This library has been deprecated in favor of micro-memoize, which as-of version 5 incorporates most of the functionality that this library offers at nearly half the size and better speed.
 
   moment-timezone@0.5.45:
     resolution: {integrity: sha512-HIWmqA86KcmCAhnMAN0wuDOARV/525R2+lOLotuGFzn4HO+FH+/645z2wx0Dt3iDv6/p61SIvKnDstISainhLQ==}
@@ -945,6 +946,7 @@ packages:
   whatwg-encoding@3.1.1:
     resolution: {integrity: sha512-6qN4hJdMwfYBtE3YBTTHhoeuUrDBPZmbQaxWAqSALV/MeEnR5z1xd8UKud2RAkFoPkmB+hli1TZSnyi84xz1vQ==}
     engines: {node: '>=18'}
+    deprecated: Use @exodus/bytes instead for a more spec-conformant and faster implementation
 
   whatwg-mimetype@4.0.0:
     resolution: {integrity: sha512-QaKxh0eNIi2mE9p2vEdzfagOKHCcj1pJ56EEHGQOVxp8r9/iszLUUV7v89x9O1p/T+NlTM5W7jW6+cz4Fq1YVg==}
@@ -1452,7 +1454,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  hexo-theme-kratos-rebirth@3.0.0-dev.9: {}
+  hexo-theme-kratos-rebirth@3.0.1: {}
 
   hexo-util@2.7.0:
     dependencies:
