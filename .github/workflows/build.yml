@@ -10,30 +10,27 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Setup Node.js env
-      uses: actions/setup-node@v4
-      with:
-        node-version: 'latest'
+      - name: Checkout repo
+        uses: actions/checkout@v4
 
-    - name: Install pnpm
-      uses: pnpm/action-setup@v4
-      with:
-        version: 9
-        run_install: false
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
 
-    - name: Checkout repo
-      uses: actions/checkout@v4
+      - name: Install Hexo environment
+        run: bun install --frozen-lockfile
 
-    - name: Install Hexo environment
-      run: pnpm install
+      - name: Clean Hexo cache
+        run: bun run clean
 
-    - name: Hexo build site
-      run: npx hexo generate --force
+      - name: Hexo build site
+        run: bun run build
 
-    - name: Upload artifacts for pages
-      uses: actions/upload-pages-artifact@v3
-      with:
-        path: public
+      - name: Upload artifacts for pages
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
 
   deploy:
     needs: build
