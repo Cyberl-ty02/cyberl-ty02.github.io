@@ -19,6 +19,7 @@ import { pageviewCount } from 'https://unpkg.com/@waline/client@v3/dist/pageview
         serverURL,
         pageview: true,
         comment: true,
+        turnstileKey: '0x4AAAAAADfi8AljGZqoAdyH',
       });
     } else {
       pageviewCount({
