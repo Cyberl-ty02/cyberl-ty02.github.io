@@ -9,7 +9,7 @@ categories: 段落摘抄
 tags:
 - 摘抄
 ---
-本文用于存储部分软件的配置文件,，更多文件详见[此仓库](https://github.com/example-user/dotfiles)
+本文用于存放部分软件的配置文件，更多文件详见[此仓库](https://github.com/example-user/dotfiles)。
 
 ## doas.conf
 
@@ -25,7 +25,7 @@ permit nopass kl cmd eix-sync
 
 ## wsl.conf
 
-本处为gentoo-openrc-nomultilib的/etc/wsl.conf[配置](https://wiki.gentoo.org/wiki/Gentoo_in_WSL)文档,使用systemd或者其它引导方式的请另行查阅
+此处记录的是 gentoo-openrc-nomultilib 的 `/etc/wsl.conf` [配置](https://wiki.gentoo.org/wiki/Gentoo_in_WSL)。如果使用 systemd 或其他引导方式，请另行查阅对应文档。
 
 ```ini
 [boot]
