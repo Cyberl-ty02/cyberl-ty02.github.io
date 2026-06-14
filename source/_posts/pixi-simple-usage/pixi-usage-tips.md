@@ -9,11 +9,11 @@ categories: 实用技巧
 tags:
 - 技巧
 ---
-本篇文章将简单记述搭建pixi环境。
+本篇文章简单记录 Pixi 环境的搭建过程。
 
-# 安装pixi
+# 安装 Pixi
 
-官方网站详见[这里](https://pixi.sh/latest/)，点击[安装指南](https://pixi.sh/latest/installation/)即查询如何可快速安装
+官方网站详见[这里](https://pixi.sh/latest/)，也可以点击[安装指南](https://pixi.sh/latest/installation/)查看快速安装方式。
 
 ## 安装命令
 
@@ -21,19 +21,19 @@ tags:
 
 ### Windows
 
-这个地方主要介绍Power Shell和soop, choco等安装方式也可考虑
+这里主要介绍 PowerShell 和 scoop，choco 等安装方式也可以考虑。
 
 ```powershell
-# 使用Power Shell
+# 使用 PowerShell
 powershell -ExecutionPolicy ByPass -c "irm -useb https://pixi.sh/install.ps1 | iex"
 
-# 使用 scoop (注意pixi已经存在于main bucket里面)
+# 使用 scoop（注意 pixi 已经存在于 main bucket 中）
 scoop install pixi
 ```
 
-### Linux/Mac等
+### Linux / macOS 等
 
-注意，可以使用 apt, dnf, homebrew, pacman, portage等方式安装,依据具体系统而定
+注意，可以使用 apt、dnf、Homebrew、pacman、Portage 等方式安装，具体方式取决于所用系统。
 
 ```bash
 # 使用curl
@@ -46,15 +46,15 @@ wget -qO- https://pixi.sh/install.sh | sh
 ## 验证安装是否成功
 
 ```bash
-#执行以下命令，检查是否有输出
+# 执行以下命令，检查是否有输出
 pixi --version
 ```
 
 # 创建示例项目
 
-以下文字说明主要针对笔者示例所用环境(**windows 11**)进行说明，可能与linux/Mac等其他环境有区别，敬请注意, 另请及时查阅最新文档，跟进最新用例
+以下文字说明主要针对笔者示例所用环境（**Windows 11**）进行说明，可能与 Linux / macOS 等其他环境有区别，请以最新官方文档为准。
 
-## 使用Pycharm创建示例项目
+## 使用 PyCharm 创建示例项目
 
 ### 生成并初始化项目
 
@@ -65,15 +65,15 @@ pixi --version
 pixi init my-pixi-project --format pyproject
 ```
 
-操作完成后，启动PyCharm, 用它打开my-pixi-project这个项目文件夹
+操作完成后，启动 PyCharm，用它打开 `my-pixi-project` 这个项目文件夹。
 
-### 安装附属包，使PyCharm将其处理为Conda
+### 安装附属包，使 PyCharm 将其处理为 Conda
 
-本步操作安装[pixi-pycharm](https://github.com/pavelzw/pixi-pycharm),可以更加方便地在PyCharm里面使用Pixi
+本步操作安装 [pixi-pycharm](https://github.com/pavelzw/pixi-pycharm)，可以更方便地在 PyCharm 中使用 Pixi。
 
 ```bash
 # 请注意，以下的操作命令可能会更新，请及时点击链接查阅文档
-# Pychram环境，在导入其他包之前优先安装pixi-pycharm
+# PyCharm 环境中，在导入其他包之前优先安装 pixi-pycharm
 
 # 请切换到项目文件夹内安装
 cd my-pixi-project
@@ -88,7 +88,7 @@ pixi run 'echo $CONDA_PREFIX\\libexec\\conda.bat'
 
 ```
 
-注意，因[文档时刻更新](https://pixi.sh/latest/integration/editor/jetbrains/#pycharm)，关于如何把PyChram当前解释器替换为pixi的，请**实时**跟着文档最新方法来
+注意，因[文档时刻更新](https://pixi.sh/latest/integration/editor/jetbrains/#pycharm)，关于如何把 PyCharm 当前解释器替换为 Pixi，请以官方文档的最新方法为准。
 
 ## 使用VSCode创建项目
 
@@ -101,7 +101,7 @@ mkdir my-pixi-project
 cd my-pixi-project
 ```
 
-### 添加 Python和pixi环境
+### 添加 Python 和 Pixi 环境
 
 #### 初始化 Pixi
 
@@ -127,7 +127,7 @@ pixi init --python=3.11 # 替换为你想要的python版本
 pixi shell
 ```
 
-#### Power Shell
+#### PowerShell
 
 ```powershell
 # 确保你在项目根目录，即包含 pixi.toml 文件的目录
@@ -158,7 +158,7 @@ print("Hello, World from Pixi!")
 
 以下为可能的运行方式(方法不唯一)
 
-### IDE (如VSCode, PyCharm)
+### IDE（如 VS Code、PyCharm）
 
 * 在 hello.py 文件中，点击右上角“播放”按钮  (▶)
 * 在编辑器内右键选择 "Run Python File in Terminal"
@@ -179,7 +179,7 @@ Hello, World from Pixi!
 
 ## 如何把环境导出给他人
 
-**假设**另一个人*使用Conda环境*
+**假设**另一个人*使用 Conda 环境*
 
 ```bash
 pixi workspace export conda-environment >> environment.yml
@@ -187,7 +187,7 @@ pixi workspace export conda-environment >> environment.yml
 
 # 结尾
 
-如果要上传到github等代码托管平台，比如类似本文的样例, 您的仓库只需包含**最精要的资产**(比如.gitignore, pixi.toml, pixi.lock, 源码等)，而将所有依赖项交由 pixi 管理。有助于仓库的整洁与专业，有力保障可复现性。
+如果要上传到 GitHub 等代码托管平台，例如本文的样例，仓库只需包含**最精要的资产**（比如 `.gitignore`、`pixi.toml`、`pixi.lock`、源码等），并将所有依赖项交由 Pixi 管理。这样有助于保持仓库整洁，也能保障环境的可复现性。
 
 未来，任何一位开发者克隆您的项目后，无需担忧环境配置的琐碎问题，只需简单的：
 

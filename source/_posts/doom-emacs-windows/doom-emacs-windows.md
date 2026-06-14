@@ -1,5 +1,5 @@
 ---
-title: Doom Emacs Windows安装
+title: Doom Emacs Windows 安装
 comments: true
 toc: true
 donate: true
@@ -11,11 +11,11 @@ tags:
 ---
 # Doom Emacs 实用命令
 
-原文来自[Installing Doom Emacs on Windows - DEV Community](https://dev.to/scarktt/installing-doom-emacs-on-windows-23ja)，现在对其中的命令进行一些整理。
+原文来自 [Installing Doom Emacs on Windows - DEV Community](https://dev.to/scarktt/installing-doom-emacs-on-windows-23ja)，这里对其中的命令做一些整理。
 
 ## 原生命令
 
-来自[doomemacs/docs/getting_started.org at master · doomemacs/doomemacs](https://github.com/doomemacs/doomemacs/blob/master/docs/getting_started.org#the-bindoom-utility)
+来自 [doomemacs/docs/getting_started.org at master · doomemacs/doomemacs](https://github.com/doomemacs/doomemacs/blob/master/docs/getting_started.org#the-bindoom-utility)。
 
 1. Don't forget to run '**doom sync**' and restart Emacs after modifying init.el or
    packages.el in ~/.config/doom. This is never necessary for config.el.
@@ -26,9 +26,9 @@ tags:
 4. Access Doom's documentation from within Emacs via 'SPC h d h' or 'C-h d h'
    (or 'M-x doom/help').
 
-## 适用于Windows的命令——整理版
+## 适用于 Windows 的命令整理版
 
-USER=users文件夹里**你的用户名**
+`USER` 是 `C:\Users` 目录下的用户名，请根据实际情况替换。
 
 mklink /j "C:\Users\USER\\.emacs.d" "C:\Users\USER\AppData\Roaming\\.emacs.d"
 
@@ -50,4 +50,4 @@ cd C:\Users\USER\AppData\Roaming\\.emacs.d
 .\bin\doom up
 ```
 
-*P.S.* 后续在C:\Users\USER\\.emacs.d执行"**.\bin\*doom**"之类的命令即可
+*P.S.* 后续在 `C:\Users\USER\.emacs.d` 中执行 `.\bin\doom` 相关命令即可。

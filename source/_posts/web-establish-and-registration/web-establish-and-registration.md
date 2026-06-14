@@ -1,5 +1,5 @@
 ---
-title: 网站的搭建和备案(Wordpress版)
+title: 网站的搭建和备案（WordPress 版）
 comments: true
 toc: true
 donate: true
@@ -9,21 +9,21 @@ categories: 实用技巧
 tags:
 - 技巧
 ---
-注意，本网站搭建环境是基于兼容centos的linux发行版和apache、mariadb、php8搭建的，如果需要使用Debian系或其他发行版(Arch、Gentoo、FreeBSD等）请使用搜索引擎搜索相应教程，并根据该教程以及具体实际来修改安装，不可完全照抄。因搭建时间为3年前，可能会跟现有文档有出入。
+注意，本文记录的网站搭建环境基于兼容 CentOS 的 Linux 发行版，并使用 Apache、MariaDB 和 PHP 8 搭建。如果需要使用 Debian 系或其他发行版（Arch、Gentoo、FreeBSD 等），请搜索对应教程，并结合实际情况调整安装步骤，不要完全照抄。由于搭建时间较早，部分内容可能已经与现有文档有出入。
 
-本页面将会对帮助页面进行一定的解释。
+本文主要对当时的帮助页面和部署流程做一个补充说明。
 
 ## 搭建一个网站
 
 ### 选择服务器
 
-在中国大陆地区，请使用阿里云、腾讯云、华为云等搭建服务器，境外可选择谷歌、亚马逊、Oracle、Auzure等，当然也可自行组装服务器。建议选择Centos、Debian作为首选系统（教程多，遇到错误好百度）。
+在中国大陆地区，可以使用阿里云、腾讯云、华为云等云服务器；境外可以选择 Google Cloud、AWS、Oracle Cloud、Azure 等平台，也可以自行组装服务器。系统方面建议优先选择 CentOS 或 Debian，因为相关教程较多，遇到问题时更容易搜索到解决方案。
 
 注意，中国大陆需要包括购买域名、ICP备案以及公安备案。
 
 ### 搭建环境
 
-本篇将以Wordpress安装教程（[娄老师](https://home.cnblogs.com/u/rocedu/)）为[模板](https://www.cnblogs.com/rocedu/p/16929895.html)进行安装。
+本文以 WordPress 安装教程（[娄老师](https://home.cnblogs.com/u/rocedu/)）为[模板](https://www.cnblogs.com/rocedu/p/16929895.html)进行整理。
 
 ```shell
 # 安装Apache
@@ -32,7 +32,7 @@ tags:
 [root@ecs-dbxx ~]# systemctl start httpd.service
 ```
 
-安装MariaDB（mysql社区开源分支）
+安装 MariaDB（MySQL 社区开源分支）：
 
 ```shell
 # 安装命令
@@ -43,7 +43,7 @@ tags:
 ```
 
 ```shell
-# 通过下面命令给mariadb数据库的root账户设置密码<强密码>:
+# 通过下面命令给 MariaDB 数据库的 root 账户设置密码 <强密码>：
 mysqladmin -uroot password '<强密码>'
 
 # 修改数据库root密码
@@ -54,7 +54,7 @@ mysql_native_password BY '新密码';
 
 (注：*新密码*替换成**自己的密码**)
 
-通过下面命令安装PHP和PHP模块:
+通过下面命令安装 PHP 和 PHP 模块：
 
 ```shell
 [root@ecs-dbxx ~]# yum install -y php
@@ -63,13 +63,13 @@ php-curl php-dom php-exif php-fileinfo php-gd php-hash php-json php-mbstring \
 php-mysqli php-openssl php-pcre php-xml libsodium
 ```
 
-通过下面命令安装交互更加良好的nano 文本编辑器:
+通过下面命令安装交互更加友好的 nano 文本编辑器：
 
 ```shell
 [root@ecs-dbxx ~]# yum install -y nano
 ```
 
-### 安装部署wordpress
+### 安装部署 WordPress
 
 以下为部分工具的安装和部署
 
@@ -77,7 +77,7 @@ php-mysqli php-openssl php-pcre php-xml libsodium
 # 通过下面命令安装wget：
 [root@ecs-dbxx ~]# yum install -y wget
 
-# 通过下面命令请求wordpress安装包（.ZIP）：
+# 通过下面命令请求 WordPress 安装包（.zip）：
 [root@ecs-dbxx ~]# wget https://cn.wordpress.org/latest-zh_CN.zip
 
 # 通过下面命令安装unzip解压工具：
@@ -85,32 +85,32 @@ php-mysqli php-openssl php-pcre php-xml libsodium
 ```
 
 ```shell
-# 通过下面命令登录到mariadb：
+# 通过下面命令登录到 MariaDB：
 [root@ecs-dbxx ~]# mysql -uroot -p
 
-# 通过下面命令创建WordPress数据库：
+# 通过下面命令创建 WordPress 数据库：
 mysql> create database wordpressdb;
 ```
 
 解压和赋权
 
 ```shell
-# 解压latest-zh_CN.zip到/var/www目录下
-# 当然，如果仅安装一个博客，可以把wordpress中的所有文件直接放在www目录内
-# 再删掉wordpress文件夹
+# 解压 latest-zh_CN.zip 到 /var/www 目录下
+# 如果只安装一个博客，可以把 wordpress 中的所有文件直接放在 www 目录内
+# 再删掉 wordpress 文件夹
 [root@ecs-dbxx ~]# unzip latest-zh_CN.zip -d /var/www
 
 # 通过下面命令创建用户给Apache权限：
 [root@ecs-dbxx ~]# chown -R apache:apache /var/www/wordpress
 [root@ecs-dbxx ~]# chmod -R 755 /var/www/wordpress/
 
-# 访问你的服务器公网ip
+# 访问你的服务器公网 IP
 http://example.com/wp-config.php(www根目录安装)
 http://example.com/wordpress/wp-config.php(wordpress目录安装)
 ```
 
 ```ini
-# 修改php.ini来使得超过4mb大小的文件上传至wordpress（比如本网站的主题）
+# 修改 php.ini，使超过 4 MB 的文件也能上传至 WordPress（比如本网站的主题）
 # 推荐使用vim/nano修改以下代码后的数字（已经修改了的放在下面了）
 
 # 在php.ini内修改
@@ -121,7 +121,7 @@ max_execution_time = 300
 max_input_time = 300
 ```
 
-至此，简单的步骤说明已经完成，遇到问题可使用必应或百度或谷歌自行搜索。
+至此，简单的步骤说明已经完成。遇到问题时，可以使用必应、百度或谷歌继续搜索。
 
 ## 如何添加备案及示例
 
@@ -134,4 +134,4 @@ max_input_time = 300
 <a href="https://beian.miit.gov.cn/" target="_blank">浙B2-20080101</a>
 ```
 
-**PS**：复制含有备案信息的代码，回到自己的后台粘贴，修改为自己的备案号及图片地址即可。
+**P.S.** 复制含有备案信息的代码，回到自己的后台粘贴，并修改为自己的备案号及图片地址即可。

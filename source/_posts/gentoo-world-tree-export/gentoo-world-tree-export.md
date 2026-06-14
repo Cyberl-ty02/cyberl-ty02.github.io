@@ -1,5 +1,5 @@
 ---
-title: Gentoo world tree 导入导出
+title: Gentoo world 文件导入导出
 comments: false
 toc: true
 donate: true
@@ -9,16 +9,16 @@ categories: 实用技巧
 tags:
 - 技巧
 ---
-在 Gentoo 中，**world** 文件包含了用户明确要安装的软件包。你可以使用 *grep* 命令来从 **world** 文件中提取软件包列表。以下是具体步骤
+在 Gentoo 中，**world** 文件包含用户明确要求安装的软件包。可以从 **world** 文件中提取软件包列表，再在另一台 Gentoo 机器上进行检查和安装。以下是具体步骤。
 
-## 列出world内的软件包：
+## 列出 world 文件中的软件包
 
 ```shell
 # 这将显示 world 文件中的所有软件包。
 cat /var/lib/portage/world
 ```
 
-## 导出world内的软导件包到文件：
+## 导出 world 文件中的软件包
 
 ```shell
 # 这将把 world 文件中的软件包列表保存到 world_packages.txt 文件中。
@@ -28,7 +28,7 @@ cat /var/lib/portage/world > world_packages.txt
 ## 在另一台 Gentoo 机器上导入并安装软件包：
 
 1. 将 world_packages.txt 文件复制到新机器上。
-2. 在新机器上，使用 emerge --pretend --verbose $(cat world_packages.txt) 来模拟安装已列出的软件包：
+2. 在新机器上，使用 `emerge --pretend --verbose $(cat world_packages.txt)` 来模拟安装已列出的软件包：
 
 ```shell
 # 这将显示将要安装的软件包列表，但并不实际执行安装
@@ -38,7 +38,7 @@ emerge --pretend --verbose $(cat world_packages.txt)
 emerge --ask --verbose --update --deep --newuse $(cat world_packages.txt)
 ```
 
-以下为导出来的world_packages.txt示例文件
+以下为导出的 `world_packages.txt` 示例文件：
 
 ```bash
 # 示例目录
@@ -84,4 +84,4 @@ sys-process/btop
 sys-process/cronie
 ```
 
-如果 **world** 文件包含***依赖关系***，你可能**需要手动编辑文件**，只保留你明确要安装的软件包。确保在执行实际安装之前检查可能的依赖关系和其他变化。
+如果 **world** 文件包含了不想继续保留的软件包，可能需要手动编辑文件，只保留你明确要安装的软件包。执行实际安装前，建议先用 pretend 模式检查依赖关系和 USE 变化。

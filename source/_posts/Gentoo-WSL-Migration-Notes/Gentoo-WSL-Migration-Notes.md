@@ -502,6 +502,90 @@ yazi
 
 这样排错会轻松很多。
 
+## eix-sync 与 /var/cache/eix 权限问题
+
+在 Gentoo WSL 初始环境里安装好 `eix` 后，我一开始直接尝试：
+
+```bash
+doas eix-sync && doas emerge -ajvuDN @world
+```
+
+结果 `eix` 在写缓存数据库时失败：
+
+```text
+Writing database file /var/cache/eix/portage.eix...
+cannot open database file /var/cache/eix/portage.eix for writing (mode = 'wb')
+```
+
+继续看前面的日志还能发现另一个信号：
+
+```text
+cannot open /var/db/repos/gentoo/profiles/categories: 没有那个文件或目录
+```
+
+所以这里不是单纯的 `eix` 数据库损坏，而是两个问题叠在了一起：
+
+```text
+Portage tree 还没有同步完整
+/var/cache/eix 目录权限不适合写入
+```
+
+这种情况下不要急着反复跑 `eix-sync`，先把 Portage 主仓库同步下来：
+
+```bash
+doas emerge --sync
+```
+
+同步完成后，`gentoo`、`guru`、`gentoo-zh`、`xlibre` 等仓库目录都能正常出现在 `/var/db/repos` 中。此时再执行 `eix-update`，仓库内容已经可以读取，但如果仍然停在：
+
+```text
+Writing database file /var/cache/eix/portage.eix...
+cannot open database file /var/cache/eix/portage.eix for writing (mode = 'wb')
+```
+
+剩下就是 `/var/cache/eix` 的写权限问题。我的处理方式是把 eix 缓存目录交给 `portage` 用户和组管理：
+
+```bash
+doas install -d -o portage -g portage -m 0775 /var/cache/eix
+doas rm -f /var/cache/eix/portage.eix
+doas eix-update
+```
+
+修复后可以看到类似输出：
+
+```text
+Writing database file /var/cache/eix/portage.eix...
+Database contains 21922 packages in 183 categories
+```
+
+然后测试搜索：
+
+```bash
+eix git
+```
+
+可以正常返回包信息。
+
+这个坑的经验是，`eix-update` 报 `cannot open database file for writing` 时，不要只盯着 eix 本身。更稳的排查顺序是：
+
+```text
+/var/db/repos/gentoo 是否已经同步完整
+/var/cache/eix 目录是否存在
+/var/cache/eix 是否允许 portage/eix 写入
+```
+
+因此，WSL 初期配置 Gentoo 时，我更倾向先分步执行：
+
+```bash
+doas emerge --sync
+doas eix-update
+doas emerge -ajvuDN @world
+```
+
+而不是一开始就直接把 `eix-sync` 和 world 更新串起来。分步执行更容易判断到底是 sync、eix 缓存，还是 world 依赖解析出了问题。
+
+简单来说，这次不是 `eix` 数据库内容坏了，而是 Gentoo WSL 初始环境里 `/var/db/repos` 尚未同步完整，同时 `/var/cache/eix` 权限不适合写入。先同步主仓库，再修正 eix 缓存目录权限即可。
+
 ## WSL 中的 CUDA 思路
 
 一开始我把 `dev-util/nvidia-cuda-toolkit` 放进了 Gentoo WSL 的 world 列表里，后来发现这不是很合适。

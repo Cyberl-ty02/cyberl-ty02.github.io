@@ -10,7 +10,7 @@ tags:
 - 技巧
 - ai
 ---
-本文章由ChatGpt协助整理和写作，简单记录一次在 FreeBSD 上安装 KDE Plasma 桌面时遇到的 Xorg / XLibre / SDDM 黑屏问题，以及最后的解决思路。
+本文由 ChatGPT 协助整理和写作，简单记录一次在 FreeBSD 上安装 KDE Plasma 桌面时遇到的 Xorg / XLibre / SDDM 黑屏问题，以及最后的解决思路。
 
 ## 最初的问题：XLibre 与 Xorg 包冲突
 

@@ -10,7 +10,7 @@ tags:
 - 技巧
 - ai
 ---
-本文章由ChatGpt协助整理和写作，主要描述了一些使用VSCodium同步设置的问题和解决方法
+本文由 ChatGPT 协助整理和写作，主要记录使用 VSCodium 同步设置时遇到的问题和解决方法。
 参考了 VSCodium 迁移/扩展文档、Zokugun Sync Settings 项目说明。
 
 ## 为什么使用 Sync Settings？
@@ -19,7 +19,7 @@ tags:
 
 如果想在 Windows、Linux、Gentoo、Code-OSS、VSCodium 之间同步配置，可以考虑使用第三方插件。
 
-本文使用的插件为[Sync Settings](https://github.com/zokugun/vscode-sync-settings)：
+本文使用的插件为 [Sync Settings](https://github.com/zokugun/vscode-sync-settings)：
 
 该插件可以同步：
 
