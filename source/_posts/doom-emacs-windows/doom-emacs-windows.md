@@ -30,7 +30,9 @@ tags:
 
 `USER` 是 `C:\Users` 目录下的用户名，请根据实际情况替换。
 
+```powershell
 mklink /j "C:\Users\USER\\.emacs.d" "C:\Users\USER\AppData\Roaming\\.emacs.d"
+```
 
 ```bash
 git clone https://github.com/doomemacs/doomemacs C:\Users\USER\AppData\Roaming\\.emacs.d

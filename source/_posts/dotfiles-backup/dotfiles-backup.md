@@ -9,7 +9,7 @@ categories: 段落摘抄
 tags:
 - 摘抄
 ---
-本文用于存放部分软件的配置文件，更多文件详见[此仓库](https://github.com/example-user/dotfiles)。
+本文用于存放部分软件的配置文件。实际使用时，可以把这些片段整理到自己的 dotfiles 仓库中。
 
 ## doas.conf
 

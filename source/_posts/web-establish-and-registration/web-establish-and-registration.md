@@ -43,16 +43,16 @@ tags:
 ```
 
 ```shell
-# 通过下面命令给 MariaDB 数据库的 root 账户设置密码 <强密码>：
+# 通过下面命令给 MariaDB 数据库的 root 账户设置密码，请替换为自己的强密码：
 mysqladmin -uroot password '<强密码>'
 
 # 修改数据库root密码
 mysql> ALTER USER 'root'@'localhost' IDENTIFIED WITH \
-mysql_native_password BY '新密码';
+mysql_native_password BY '<新密码>';
 
 ```
 
-(注：*新密码*替换成**自己的密码**)
+（注：`<强密码>` 和 `<新密码>` 都需要替换成自己的实际密码。）
 
 通过下面命令安装 PHP 和 PHP 模块：
 
@@ -105,8 +105,8 @@ mysql> create database wordpressdb;
 [root@ecs-dbxx ~]# chmod -R 755 /var/www/wordpress/
 
 # 访问你的服务器公网 IP
-http://example.com/wp-config.php(www根目录安装)
-http://example.com/wordpress/wp-config.php(wordpress目录安装)
+http://example.com/wp-config.php(www 根目录安装)
+http://example.com/wordpress/wp-config.php(WordPress 目录安装)
 ```
 
 ```ini
