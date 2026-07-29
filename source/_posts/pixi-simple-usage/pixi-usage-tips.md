@@ -90,7 +90,7 @@ pixi run 'echo $CONDA_PREFIX\\libexec\\conda.bat'
 
 注意，因[文档时刻更新](https://pixi.sh/latest/integration/editor/jetbrains/#pycharm)，关于如何把 PyCharm 当前解释器替换为 Pixi，请以官方文档的最新方法为准。
 
-## 使用VSCode创建项目
+## 使用 VSCodium 创建项目
 
 ### 创建并进入项目目录
 
@@ -144,7 +144,7 @@ Invoke-Expression -Command (pixi shell-hook)
 
 ## 编写 Python 代码
 
-我们将创建一个简单的 Python 文件，你可以在终端里用 VSCode 打开当前项目，也可以手动创建。
+我们将创建一个简单的 Python 文件，可以在终端里用 VSCodium 打开当前项目，也可以直接在编辑器中创建。
 
 创建一个名为***hello.py***的python文件(默认建在项目根目录)，写入如下代码:
 
@@ -158,7 +158,7 @@ print("Hello, World from Pixi!")
 
 以下为可能的运行方式(方法不唯一)
 
-### IDE（如 VS Code、PyCharm）
+### IDE（如 VSCodium、PyCharm）
 
 * 在 hello.py 文件中，点击右上角“播放”按钮  (▶)
 * 在编辑器内右键选择 "Run Python File in Terminal"

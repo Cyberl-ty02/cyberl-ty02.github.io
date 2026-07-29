@@ -1,5 +1,5 @@
 ---
-title: VSCodium 同步插件简单配置
+title: VSCodium 与 Sync Settings 配置记录
 comments: true
 toc: true
 donate: true
@@ -8,563 +8,227 @@ date: 2026-05-12 18:03:17
 categories: 实用技巧
 tags:
 - 技巧
-- ai
+- vscodium
 ---
-本文由 ChatGPT 协助整理和写作，主要记录使用 VSCodium 同步设置时遇到的问题和解决方法。
-参考了 VSCodium 迁移/扩展文档、Zokugun Sync Settings 项目说明。
 
-## 为什么使用 Sync Settings？
+目前我重新把 [VSCodium](https://vscodium.com/) 作为日常编辑器，并使用 [Sync Settings](https://github.com/zokugun/vscode-sync-settings) 管理配置。
 
-[VSCodium](https://vscodium.com/) 是 VS Code 的开源二进制构建版本。相比微软版 VS Code，它默认使用 Open VSX 扩展源，因此部分微软专有功能或者扩展可能不完全一致。
+选择 VSCodium 主要是为了让编辑环境更安静一些。VS Code 的更新节奏对我来说偏快，有时一周会遇到一次或多次更新，容易打断正在进行的工作；部分不断加入的功能也会与现有插件重合，使设置和界面逐渐变得繁琐。相比之下，我更希望按自己的节奏更新编辑器，只保留实际需要的扩展。
 
-如果想在 Windows、Linux、Gentoo、Code-OSS、VSCodium 之间同步配置，可以考虑使用第三方插件。
+VSCodium 默认使用 Open VSX 扩展源，少数依赖微软专有服务或授权的扩展可能无法直接使用。迁移前应先确认自己真正依赖的扩展是否可用。
 
-本文使用的插件为 [Sync Settings](https://github.com/zokugun/vscode-sync-settings)：
+## 当前配置
 
-该插件可以同步：
+本文在 2026 年 7 月整理时，本机配置如下：
 
 ```text
-settings
-keybindings
-snippets
-tasks
-extensions
+VSCodium 1.126.04524
+Sync Settings 0.21.2
+同步方式：私有远程 Git 仓库
+分支：main
+Profile：main
+同步前确认：开启
 ```
 
-并且支持多种同步方式，例如：
+版本号只是当时环境的记录，不是必须照搬的要求。实际配置中没有启用定时上传、定时下载、外部文件同步或复杂的跨平台忽略规则。
+
+当前同步仓库会保存这些资源：
 
 ```text
-local file
-local git
-remote git
-rsync
-webdav
+扩展列表
+Windows 快捷键
+用户设置
+界面状态
 ```
 
-本文主要记录使用 GitHub remote git 仓库同步的方法。
+空的 snippets 和 tasks 没有必要为了“看起来完整”而专门写入文章。等真正开始使用这些资源时，再让插件正常同步即可。
 
-## 创建 GitHub 同步仓库
+## 安装插件
 
-首先在 GitHub 创建一个新的私有仓库，例如：
+可以在 VSCodium 的扩展面板中搜索 `Sync Settings`，确认发布者为 `zokugun`。也可以通过命令行安装：
+
+```powershell
+codium --install-extension zokugun.sync-settings
+```
+
+安装完成后，在命令面板中可以看到插件提供的命令：
 
 ```text
-settings
+Sync Settings: Open the repository settings
+Sync Settings: Upload (user -> repository)
+Sync Settings: Download (repository -> user)
+Sync Settings: View differences between actual and saved settings
 ```
 
-假设仓库地址为：
+## 准备私有 Git 仓库
+
+配置文件可能包含扩展列表、终端设置、远程主机别名和本机路径，因此同步仓库应设为私有。新建仓库时可以同时创建一个 README，使 `main` 分支从一开始就存在。
+
+本文使用 SSH 连接远程仓库。示例地址经过泛化：
 
 ```text
-# 实际执行前换成你自己的仓库地址
-git@github.com:example-user/settings.git
+git@github.com:example-user/editor-settings.git
 ```
 
-注意，如果仓库是空仓库，可能需要先建立一次初始提交，否则部分同步插件可能无法正常识别 main 分支。
-
-可以在本地执行：
+先在 VSCodium 内置终端确认系统 Git 能访问该仓库：
 
 ```bash
-mkdir -p ~/tmp-vscodium-sync
-cd ~/tmp-vscodium-sync
-
-git init -b main
-echo "# VSCodium Sync Settings" > README.md
-
-git add README.md
-git commit -m "init settings repository"
-
-#注意执行本命令前替换成你自己的用户名
-git remote add origin git@github.com:example-user/settings.git
-git push -u origin main
+ssh -T git@github.com
+git ls-remote git@github.com:example-user/editor-settings.git
 ```
 
-如果 git 提示没有设置用户名和邮箱，可以先执行：
+Sync Settings 不会替系统管理 Git 凭据。如果这两个命令失败，应先处理 SSH key、主机信任或网络问题。
 
-```bash
-git config --global user.name "你的GitHub用户名"
-git config --global user.email "你的GitHub邮箱"
-```
+## 配置同步仓库
 
-## 配置 Sync Settings
-
-在 VSCodium 中安装 Sync Settings 插件后，打开命令面板：
+打开命令面板：
 
 ```text
 Ctrl + Shift + P
 ```
 
-然后输入：
+运行：
 
 ```text
 Sync Settings: Open the repository settings
 ```
 
-可以写入以下配置：
+将配置整理为：
 
 ```yaml
-# current machine's name, optional
-hostname: "gentoo-legion"
-
-# selected profile, required
-profile: main
-
-# sync on remote git
-repository:
-  type: git
-  #注意替换成你自己的用户名
-  url: git@github.com:example-user/settings.git
-  branch: main
-```
-
-如果是在 Windows 上，可以写成：
-
-```yaml
-hostname: "windows-legion"
+# 使用不包含真实姓名或设备编号的普通别名
+hostname: "workstation"
 
 profile: main
 
 repository:
   type: git
-  #注意替换成你自己的用户名
-  url: git@github.com:example-user/settings.git
+  url: git@github.com:example-user/editor-settings.git
   branch: main
 ```
 
-其中：
+其中 `hostname` 是可选项，主要用于区分不同设备和生成提交信息。博客示例不应使用真实机器名。
+
+远程仓库地址不会随着 profile 一起同步，因此每台新设备仍然需要单独完成这一步。
+
+## 保持用户设置简单
+
+当前与插件直接相关的用户设置只有：
+
+```json
+{
+  "syncSettings.confirmSync": true
+}
+```
+
+开启确认可以避免误操作。插件支持手动指定 `resources`、`ignoredSettings`、`additionalFiles` 和定时任务，但当前配置并不需要这些选项，所以不在用户设置中重复声明默认值。
+
+尤其不建议一开始就配置自动上传。自动任务虽然省事，也可能在一台配置尚未整理好的设备上覆盖远程内容。
+
+## 第一次同步
+
+如果当前设备保存着准备作为基准的配置，执行：
 
 ```text
-hostname
+Sync Settings: Upload (user -> repository)
 ```
 
-主要用于区分不同机器，方便查看提交记录或排查问题。
-
-## GitHub SSH 测试
-
-因为使用的是 [git@github.com](mailto:git@github.com) 形式的 SSH 地址，所以需要提前配置 SSH key。
-
-可以在 VSCodium 内置终端中执行：
-
-```bash
-which git
-git --version
-which ssh
-ssh -T git@github.com
-#注意执行命令前替换成你自己的用户名
-git ls-remote git@github.com:example-user/settings.git
-git ls-remote --heads git@github.com:example-user/settings.git main
-```
-
-正常情况下，`ssh -T git@github.com` 会显示类似：
+在新设备上完成仓库配置后，先执行：
 
 ```text
-Hi example-user! You've successfully authenticated, but GitHub does not provide shell access.
+Sync Settings: View differences between actual and saved settings
 ```
 
-如果第一次连接 GitHub，会提示：
+确认方向无误，再执行：
 
 ```text
-The authenticity of host 'github.com (...)' can't be established.
-ED25519 key fingerprint is:
-SHA256:+DiY3wvvV6TuJJhbpZisF/zLDA0zPMSvHdkr4UvCOqU
-Are you sure you want to continue connecting (yes/no/[fingerprint])?
+Sync Settings: Download (repository -> user)
 ```
 
-确认指纹和 GitHub 官方文档一致后，输入：
+第一次同步最需要留意方向：
 
 ```text
-yes
+Upload：当前用户配置 -> 远程仓库
+Download：远程仓库 -> 当前用户配置
 ```
 
-GitHub 官方 ED25519 指纹为：
-
-```text
-SHA256:+DiY3wvvV6TuJJhbpZisF/zLDA0zPMSvHdkr4UvCOqU
-```
-
-之后再次执行：
-
-```bash
-git ls-remote git@github.com:example-user/settings.git
-```
-
-如果能正常输出 commit hash 和 refs，说明 SSH 和 GitHub 仓库访问基本正常。
+如果远程仓库已经有完整配置，新设备不应先 Upload，否则可能把空白或默认配置写入远程。
 
 ## 常见问题
 
 ### Host key verification failed
 
-可能报错：
-
-```text
-Sync Settings: Error: Host key verification failed.
-fatal: Could not read from remote repository.
-```
-
-这个通常不是插件本身的问题，而是本机 SSH 还没有信任 GitHub 主机密钥。
-
-解决方法是在 VSCodium 内置终端中执行：
+这通常说明当前系统尚未信任 GitHub 主机密钥。先在 VSCodium 内置终端执行：
 
 ```bash
 ssh -T git@github.com
 ```
 
-然后根据提示输入：
-
-```text
-yes
-```
-
-如果之前记录过错误的 known_hosts，可以执行：
-
-```bash
-ssh-keygen -R github.com
-ssh -T git@github.com
-```
-
-然后重新确认 fingerprint。
+核对提示中的指纹与 GitHub 官方文档一致后，再决定是否接受。不要在未核对指纹时直接确认。
 
 ### Permission denied publickey
 
-如果出现：
-
-```text
-Permission denied (publickey).
-```
-
-说明 GitHub 没有接受当前机器使用的 SSH key。
-
-可以检查本机是否有 SSH key：
-
-```bash
-ls -al ~/.ssh
-```
-
-如果没有，可以生成：
-
-```bash
-ssh-keygen -t ed25519 -C "你的GitHub邮箱"
-```
-
-然后查看公钥：
-
-```bash
-cat ~/.ssh/id_ed25519.pub
-```
-
-把输出内容添加到 GitHub：
-
-```text
-GitHub -> Settings -> SSH and GPG keys -> New SSH key
-```
-
-如果有多把 key，可以检查 SSH 实际使用了哪一把：
+这表示 GitHub 没有接受当前 SSH key。可以用下面的命令查看认证过程：
 
 ```bash
 ssh -vT git@github.com
 ```
 
-重点查看类似下面的输出：
+确认公钥已经添加到正确的 GitHub 账户，并检查 SSH 是否选择了预期的 key。
 
-```text
-Offering public key: /home/xxx/.ssh/id_ed25519
-```
+### 仓库初始化失败
 
-### The repository wasn't successfully initialized
-
-可能报错：
-
-```text
-Sync Settings: Error: The repository wasn't successfully initialized so the current operation can't continue. Please check the previous error.
-```
-
-这个报错有时只是后续报错，真正原因一般在 previous error 中。
-
-常见原因包括：
-
-```text
-1. SSH 之前失败过
-2. GitHub 仓库是空仓库
-3. main 分支不存在
-4. 插件本地缓存的仓库副本初始化失败
-5. GUI 启动的 VSCodium 没有拿到 ssh-agent 环境
-```
-
-可以先在 VSCodium 内置终端执行：
+先检查远程仓库和目标分支：
 
 ```bash
-ssh -T git@github.com
-git ls-remote git@github.com:example-user/settings.git
-git ls-remote --heads git@github.com:example-user/settings.git main
+git ls-remote git@github.com:example-user/editor-settings.git
+git ls-remote --heads git@github.com:example-user/editor-settings.git main
 ```
 
-如果这些命令都有正常输出，建议先执行：
+如果 Git 命令正常，可以先运行：
 
 ```text
-Ctrl + Shift + P
 Developer: Reload Window
 ```
 
-然后再执行：
+插件仍然保留错误状态时，应先备份再处理它的本地缓存目录：
 
 ```text
-Sync Settings: Download (repository -> user)
+Windows:
+%APPDATA%\VSCodium\User\globalStorage\zokugun.sync-settings
+
+Linux:
+~/.config/VSCodium/User/globalStorage/zokugun.sync-settings
 ```
 
-如果仍然不行，可以尝试重启 VSCodium。
+不要直接删除唯一的同步仓库或未经确认的本地配置。
 
-如果重启后还是失败，可以清理插件缓存。Gentoo / Linux 下可以备份：
+## 同步前的隐私检查
 
-```bash
-mv ~/.config/VSCodium/User/globalStorage/zokugun.sync-settings \
-   ~/.config/VSCodium/User/globalStorage/zokugun.sync-settings.bak
-```
-
-然后重新打开 VSCodium，再次确认 repository settings，之后执行：
+私有仓库能减少意外公开，但不能替代内容审查。上传前应检查 `settings.json` 是否包含：
 
 ```text
-Sync Settings: Download (repository -> user)
+真实用户名和绝对路径
+服务器 IP、主机名或 SSH 别名
+邮箱、账号和平台 handle
+API key、token、密码或连接字符串
+带有私有路径的自动批准命令
+内部项目目录或工作区名称
 ```
 
-### Gentoo 中外部终端正常，但 VSCodium 插件失败
-
-Gentoo / OpenRC / Xfce / KDE 环境中，可能出现外部终端 SSH 正常，但从桌面菜单启动的 VSCodium 没有正确继承 ssh-agent 的情况。
-
-可以先从终端启动 VSCodium 测试：
-
-```bash
-eval "$(ssh-agent -s)"
-ssh-add ~/.ssh/id_ed25519
-ssh -T git@github.com
-codium
-```
-
-然后在这个 VSCodium 窗口中运行：
-
-```text
-Sync Settings: Download (repository -> user)
-```
-
-如果这样正常，说明主要是 GUI 启动环境没有拿到 ssh-agent。
-
-也可以强制 git 使用指定 key：
-
-```bash
-git config --global core.sshCommand "ssh -i ~/.ssh/id_ed25519 -o IdentitiesOnly=yes"
-```
-
-然后重新测试：
-
-```bash
-git ls-remote git@github.com:example-user/settings.git
-```
-
-### 第一次同步应该 Upload 还是 Download
-
-如果 GitHub 仓库里已经有整理好的配置，那么新机器第一次应该执行：
-
-```text
-Sync Settings: Download (repository -> user)
-```
-
-不要先 Upload，否则可能把空配置推送到远程仓库。
-
-推荐流程：
-
-```text
-主力机器：Upload
-新机器：Download
-确认无误后：再根据情况 Upload
-```
-
-### VSCodium 和 VS Code 配置目录不同
-
-如果要从微软版 VS Code 迁移到 VSCodium，可以参考 VSCodium 官方迁移文档。
-
-VS Code 用户配置目录：
-
-```text
-Windows: %APPDATA%\Code\User
-Linux: ~/.config/Code/User
-macOS: ~/Library/Application Support/Code/User
-```
-
-VSCodium 用户配置目录：
-
-```text
-Windows: %APPDATA%\VSCodium\User
-Linux: ~/.config/VSCodium/User
-macOS: ~/Library/Application Support/VSCodium/User
-```
-
-可以手动复制：
-
-```text
-settings.json
-keybindings.json
-snippets
-tasks.json
-```
-
-也可以在 VS Code 中导出 Profile，再在 VSCodium 中导入。
-
-命令为：
-
-```text
-Profiles: Export Profile
-Profiles: Import Profile
-```
-
-导入后可以将 profile 命名为：
-
-```text
-默认
-```
-
-## 定时同步设置
-
-Sync Settings 支持通过 crons 定时执行同步任务。
-
-可以打开 VSCodium 的用户设置 JSON：
-
-```text
-Ctrl + Shift + P
-Preferences: Open User Settings (JSON)
-```
-
-添加类似配置：
-
-```json
-{
-  "syncSettings.confirmSync": true,
-  "syncSettings.openOutputOnActivity": true,
-  "syncSettings.showFinishAlert": true,
-  "syncSettings.showErrorAlert": true,
-
-  "syncSettings.resources": [
-    "extensions",
-    "keybindings",
-    "settings",
-    "snippets",
-    "tasks"
-  ],
-
-  "syncSettings.keybindingsPerPlatform": true,
-
-  "syncSettings.crons": {
-    "download": "0 */6 * * *",
-    "review": "30 */2 * * *"
-  }
-}
-```
-
-以上配置含义大致为：
-
-```text
-download: 每 6 小时自动从远程仓库下载一次
-review: 每 2 小时的第 30 分钟检查一次差异
-```
-
-我个人更建议先只开启：
-
-```text
-download
-review
-```
-
-而不要一开始就开启自动 upload。
-
-如果确认 Windows 和 Gentoo 的配置都比较稳定，再考虑添加：
-
-```json
-"upload": "0 22 * * *"
-```
-
-即每天晚上 22:00 自动上传一次。
-
-## 建议忽略的设置
-
-如果 Windows 和 Linux 同步同一套配置，建议忽略部分系统相关设置，例如终端、字体、Python 解释器路径、代理等。
-
-可以添加：
-
-```json
-{
-  "syncSettings.ignoredSettings": [
-    "terminal.integrated.fontFamily",
-    "terminal.integrated.defaultProfile.windows",
-    "terminal.integrated.defaultProfile.linux",
-    "python.defaultInterpreterPath",
-    "python.venvPath",
-    "window.zoomLevel",
-    "http.proxy",
-    "remote.SSH.remotePlatform"
-  ],
-  "syncSettings.keybindingsPerPlatform": true
-}
-```
-
-原因是这些配置经常与具体系统有关。
-
-例如：
-
-```text
-Windows 的 PowerShell / Git Bash
-Gentoo 的 zsh / bash
-Windows 的 Python venv 路径
-Linux 的 Python venv 路径
-不同系统的字体名称
-不同系统的代理端口
-```
-
-如果全部同步，很容易出现 Windows 和 Linux 之间互相污染配置的问题。
-
-## 推荐同步流程
-
-个人建议流程如下：
-
-```text
-1. 在主力机器整理好 VS Code / VSCodium 配置
-2. 执行 Sync Settings: Upload
-3. 在 GitHub 仓库中确认已经生成同步文件
-4. 在另一台机器安装插件
-5. 配置相同的 repository settings
-6. 先测试 ssh -T git@github.com
-7. 再执行 Sync Settings: Download
-8. 确认配置正常后，再考虑定时 review / download
-```
-
-如果后续遇到问题，可以优先检查：
-
-```bash
-ssh -T git@github.com
-git ls-remote git@github.com:example-user/settings.git
-git ls-remote --heads git@github.com:example-user/settings.git main
-```
-
-这几个命令能够快速判断是 GitHub SSH 问题，还是 Sync Settings 插件本身的问题。
+这些内容有些可以保留在私人同步仓库中，但不应直接复制到公开博客、Issue 或截图里。真正的密钥即使只进入过一次 Git 历史，也应立即轮换。
 
 ## 小结
 
-通过 Sync Settings 插件，可以比较方便地在 VSCodium / VSCode-OSS / VS Code 之间同步配置。
-
-本文使用的是：
+当前配置刻意保持简单：
 
 ```text
-VSCodium / VSCode-OSS
+VSCodium
 Zokugun Sync Settings
-GitHub private repository
-SSH key
-Windows 11 + Gentoo Linux
+私有远程 Git 仓库
+main 分支和 main profile
+手动 Upload / Download
+同步前确认
 ```
 
-整体体验如下：
-
-```text
-1. GitHub remote git 方式比较稳定
-2. SSH key 配好后跨系统使用较方便
-3. 第一次连接 GitHub 时需要确认 fingerprint
-4. Gentoo 中如果插件初始化失败，可以先 Reload Window 或清理插件缓存
-5. 新机器第一次同步建议 Download，不要直接 Upload
-6. 自动同步建议先开启 review/download，不要立刻开启自动 upload
-```
-
-相比直接依赖微软版 VS Code 的同步功能，这种方式更适合 VSCodium / VSCode-OSS，也更方便和 GitHub 仓库、坚果云 WebDAV、dotfiles 等个人配置管理方式结合。
+这套方式没有追求全自动，而是优先保证每次同步都能看清方向和差异。对我来说，编辑器是用来承载工作的工具；降低更新和重复功能带来的干扰，比不断增加配置更重要。

@@ -17,6 +17,6 @@ toc: true
 
 评论系统使用 [Waline](https://waline.js.org/)，早期曾经尝试过 Gitalk，后来迁回 Waline；历史评论已经迁移到新的评论系统中。
 
-包管理器使用 [Bun](https://bun.sh/)，构建流程也统一切换到了 Bun。日常编辑则重新回到 Visual Studio Code；VSCodium 相关内容仍会作为独立笔记保留，因为它在不同系统（比如FreeBSD）和配置同步场景下仍然很有参考价值。
+包管理器使用 [Bun](https://bun.sh/)，构建流程也统一切换到了 Bun。日常编辑目前使用 [VSCodium](https://vscodium.com/)：VS Code 的更新节奏对我来说过于频繁，有时一周会遇到一次或多次更新，容易打断专注状态；同时部分内置功能与已经安装的插件重合，也增加了整理配置的负担。VSCodium 配合独立的 Sync Settings 插件更符合我现在希望保持稳定、按需更新的使用方式。
 
 总之，欢迎来到这里。这个博客大概会继续保持“边用边修、边写边迁”的状态，像一间慢慢添置家具的小屋。

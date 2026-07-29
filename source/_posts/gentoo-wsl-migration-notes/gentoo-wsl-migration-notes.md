@@ -821,7 +821,7 @@ Portage
 Git / GPG / SSH
 Python / uv / pixi
 Rust
-Emacs / PyCharm / VSCode
+Emacs / PyCharm / VSCodium
 少量 GUI 运行库
 ```
 
