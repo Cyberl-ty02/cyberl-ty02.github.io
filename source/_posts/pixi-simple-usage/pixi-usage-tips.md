@@ -8,6 +8,7 @@ date: 2025-08-24 13:20:01
 categories: 实用技巧
 tags:
 - 技巧
+- python
 ---
 本篇文章简单记录 Pixi 环境的搭建过程。
 

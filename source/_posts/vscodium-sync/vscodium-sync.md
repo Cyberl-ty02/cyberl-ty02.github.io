@@ -8,7 +8,6 @@ date: 2026-05-12 18:03:17
 categories: 实用技巧
 tags:
 - 技巧
-- vscodium
 ---
 
 目前我重新把 [VSCodium](https://vscodium.com/) 作为日常编辑器，并使用 [Sync Settings](https://github.com/zokugun/vscode-sync-settings) 管理配置。
