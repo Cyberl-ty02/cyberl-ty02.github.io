@@ -1,0 +1,161 @@
+################## 系统配置 ##################
+
+search:
+  includes:
+    - post
+    - page
+
+################## 样式配置 ##################
+
+# 图片配置
+image:
+  favicon: "/assets/favicon.png" # 站点图标
+  avatar: "/assets/logo.webp" # 个人信息挂件上的头像
+  banner:
+    light: "https://dev.krt.moe/demo-assets/banner.webp"
+    dark: "https://dev.krt.moe/demo-assets/banner_dark.webp"
+  background:
+    light: "https://dev.krt.moe/demo-assets/bg.webp"
+    dark: "https://dev.krt.moe/demo-assets/bg.webp"
+
+# 顶部导航栏配置
+nav:
+  items:
+    - label: 首页
+      icon: home
+      url: /
+    - label: 档案馆
+      icon: file
+      url: /archives/
+    - label: 链接
+      icon: link
+      submenu:
+        - label: 代码仓库
+          icon: code
+          url: https://github.com/Candinya/Kratos-Rebirth
+        - label: 项目文档
+          icon: book
+          url: https://wiki.krt.moe
+    - label: 友链
+      icon: paw
+      submenu:
+      - label: 伙伴们
+        icon: users
+        url: /friends/
+      - label: 申友链
+        icon: plus-circle
+        url: https://github.com/Cyberl-ty02/friends
+
+# Footer 页脚配置
+footer:
+  links:
+    - icon: github
+      link: https://github.com/kratos-rebirth
+    - icon: rss
+      link: /atom.xml
+  components:
+    uptime:
+      since: "2025-01-07 11:30:00"
+      text: "本站已在风雨中飘摇"
+    author:
+      homepage: "https://github.com/Candinya/Kratos-Rebirth/graphs/contributors"
+    additional: # 托管信息等
+      - - 由 <a href="https://hexo.io" target="_blank" rel="nofollow">Hexo</a> 强力驱动
+        - 在 <a href="https://github.io" target="_blank">Github Pages</a> 暖心托管
+
+# 代码高亮
+# syntax_highlighter:
+#   theme: atom-dark # 代码高亮主题（请参照具体的高亮插件对应的主题样式）
+
+# Widgets 侧边栏小挂件
+sidebar:
+  widgets:
+    - about
+    - splitter
+    - toc
+    - category
+    - tagcloud
+    - posts
+
+# 分享组件设置
+share:
+  enable: true
+  title: "分享这一刻"
+  message: "让朋友们也来瞅瞅！"
+  platforms:
+    - name: "微博"
+      icon: "weibo"
+      color: "#e6162d"
+      link: "https://service.weibo.com/share/share.php?title=$TITLE&url=$URL"
+    - name: "QQ"
+      icon: "qq"
+      color: "#12b7f5"
+      link: "https://connect.qq.com/widget/shareqq/index.html?title=$TITLE&url=$URL&desc=$SUMMARY"
+    - name: "QQ空间"
+      icon: "star"
+      color: "#f9ce00"
+      link: "https://sns.qzone.qq.com/cgi-bin/qzshare/cgi_qzshare_onekey?title=$TITLE&url=$URL&desc=$SUMMARY"
+
+
+
+# 打赏组件设置
+donate:
+  enable: true
+  title: "赞助喵"
+  message: 非常感谢您的喜欢！ <i class="fa fa-heart" style="color:#d43f57"></i>
+  qrcode_placeholder: "https://dev.krt.moe/demo-assets/donate.webp"
+  platforms:
+    - name: "模拟支付"
+      icon: "credit-card"
+      color: "skyblue"
+      qrcode: "example_payment"
+
+# 版权说明
+copyright_notice:
+  in_page:
+    enable_at:
+      - post
+      - page
+
+# 评论系统
+comments:
+  core:
+    enable_at:
+      - post
+      - page
+    template:
+      _shared: <div id="w-comments" class="kr-comments lazy-load" data-path="$PATH"></div>
+
+  count: # 评论计数
+    enable_at:
+      - index
+      - post
+    template:
+      _shared: <span data-path="$PATH" class="waline-comment-count"> </span>
+      index: ""
+      post: ""
+  path_hasher: "md5" # 对路径进行摘要使用的算法
+
+# 访问数量统计
+visit_count:
+  enable_at:
+    - index
+    - post
+  template:
+    _shared: <span data-path="$PATH" class="waline-pageview-count"> </span>
+    index: ""
+    post: ""
+  path_hasher: "md5" # 对路径进行摘要使用的算法
+
+################## 额外的注入代码 ##################
+# additional_injections:
+#   head: "" # 搜索引擎验证，或是追加的样式表
+#   footer: ""
+#   after_footer: "" # 站点分析，或是追加的脚本
+
+additional_injections:
+  head: |
+    <link rel="stylesheet" href="https://unpkg.com/@waline/client@v3/dist/waline.css" />
+    <link rel="stylesheet" href="/comments/waline.css?v=20260604-1" />
+  after_footer: |
+    <script defer type="module" src="/comments/waline.js?v=20260604-1"></script>
