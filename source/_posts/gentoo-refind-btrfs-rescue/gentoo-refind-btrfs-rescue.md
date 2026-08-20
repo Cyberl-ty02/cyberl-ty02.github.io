@@ -211,7 +211,7 @@ initramfs-<kernel-release>.img
 
 rEFInd 可以按相同的版本字符串自动把内核与 initramfs 配对。因此当前 `refind_linux.conf` 只保留通用的 root、Btrfs 文件系统与 `subvol=/@` 参数，不再硬编码某个版本的 `initrd=`。以后更新内核时，只要版本化文件正确成对生成，就不必每次改写启动参数。
 
-这是从救援配置到稳定维护配置的后续细化，不是否定显式 initrd 的诊断用途。实际从 XanMod 切换到 Gentoo-Zh CJK 内核、保留旧物理 fallback 并完成 Secure Boot/NVIDIA 验证的过程，参见：[Gentoo 从 XanMod 迁移到 CJKTTY 内核：dist-kernel、NVIDIA 与 Secure Boot 实战](/posts/gentoo-xanmod-to-cjk-kernel-migration/gentoo-xanmod-to-cjk-kernel-migration/)。
+这是从救援配置到稳定维护配置的后续细化，不是否定显式 initrd 的诊断用途。从 XanMod 切到独立 CJK kernel、再因 Gentoo-Zh 恢复 CJKTTY 而切回 XanMod 的过程，参见：[Gentoo 内核迁移记录：XanMod、CJKTTY、NVIDIA 与 Secure Boot](/posts/gentoo-xanmod-to-cjk-kernel-migration/gentoo-xanmod-to-cjk-kernel-migration/)。
 
 ## 更新内核后的维护方式
 

@@ -11,12 +11,12 @@ tags:
 sticky: 1
 ---
 
-这篇文章整理我现在使用的 Gentoo 实体机安装路线：以 EndeavourOS LiveCD 作为安装环境，把 Gentoo 安装到 Btrfs 的 `@`、`@home` 子卷，使用 `genfstab` 生成挂载表，再通过 `arch-chroot` 进入新系统。目标系统采用 OpenRC、LLVM profile、Gentoo-Zh CJK distribution kernel、XLibre、SonicDE、NVIDIA，以及 shim + rEFInd Secure Boot 启动链。
+这篇文章整理我现在使用的 Gentoo 实体机安装路线：以 EndeavourOS LiveCD 作为安装环境，把 Gentoo 安装到 Btrfs 的 `@`、`@home` 子卷，使用 `genfstab` 生成挂载表，再通过 `arch-chroot` 进入新系统。目标系统采用 OpenRC、LLVM profile、Gentoo-Zh XanMod distribution kernel（启用 CJKTTY）、XLibre、SonicDE、NVIDIA，以及 shim + rEFInd Secure Boot 启动链。
 
 它不是 Gentoo Handbook 的替代品。Handbook 负责解释 Gentoo 安装中长期稳定的规则；本文则把这些规则落实到我的磁盘布局和公开配置仓库。涉及版本、overlay 和 USE flag 的内容会随时间变化，实际安装时应同时打开 [Gentoo AMD64 Handbook](https://wiki.gentoo.org/wiki/Handbook:AMD64) 核对。
 
 > **记录基线**
-> 本文写于 2026-08-18。配置仓库基线为 `Cyberl-ty02/dotfiles` 的 `ec095d8`；当时运行内核为 `7.1.8-gentoo-cjk-dist`。这些版本是记录，不是要求读者固定安装的版本。
+> 本文初稿写于 2026-08-18，当时运行内核为 `7.1.8-gentoo-cjk-dist`。2026-08-20 已切回 Gentoo-Zh 的 `sys-kernel/xanmod-kernel-7.1.9[cjk]`，实际启动 release 为 `7.1.9-x64v3`；内核与 NVIDIA 模块签名、Secure Boot、rEFInd 参数和 NVIDIA 610.57.04 均已验证。这里的版本是迁移记录，不要求读者固定安装相同版本。
 
 > **危险操作提醒**
 > 分区、格式化、生成 fstab 和安装 EFI 启动项都可能造成数据损失或启动失败。命令中的设备名全部是占位示例。执行前必须用 `lsblk -f`、`findmnt` 和固件启动模式确认自己的目标，双系统环境尤其不能格式化已有 Windows ESP。
@@ -32,7 +32,8 @@ init：OpenRC
 profile：default/linux/amd64/23.0/llvm
 工具链：Clang/LLVM，少数包按 package.env 回退 GCC
 文件系统：Btrfs，根子卷 @，家目录子卷 @home
-内核：sys-kernel/gentoo-cjk-kernel（dist-kernel）
+交换空间：zram swap，由 util-linux 的 zramctl 与 OpenRC local.d 动态创建
+内核：sys-kernel/xanmod-kernel[cjk]（Gentoo-Zh dist-kernel）
 桌面：SonicDE + XLibre/X11
 显卡：Intel modesetting + NVIDIA
 音频：PipeWire / PulseAudio compatibility
@@ -94,9 +95,10 @@ sudo timedatectl set-ntp true
 
 ```text
 /dev/nvme111111n1p1   EFI System Partition   FAT32   挂载到 /boot
-/dev/nvme111111n1p2   Linux swap             swap    可选
-/dev/nvme111111n1p3   Gentoo                 Btrfs  包含 @ 与 @home
+/dev/nvme111111n1p2   Gentoo                 Btrfs   包含 @ 与 @home
 ```
+
+本文不再预留实体 swap 分区，而是在目标系统中使用 zram swap。它的逻辑容量可以通过配置文件调整，不必重新分区；压缩页按实际使用占用 RAM，也不会在启动时一次性占满配置的全部容量。代价是 zram 位于易失内存，不能保存休眠镜像：如果需要 suspend-to-disk，仍需另行准备足够大的持久 swap，并配置正确的 `resume` 参数。
 
 设备号仅用于展示。先检查现有磁盘：
 
@@ -118,8 +120,7 @@ sudo cfdisk /dev/nvme111111n1
 以下仍是占位设备：
 
 ```bash
-sudo mkfs.btrfs -L Gentoo /dev/nvme111111n1p3
-sudo mkswap -L swap /dev/nvme111111n1p2
+sudo mkfs.btrfs -L Gentoo /dev/nvme111111n1p2
 ```
 
 只有全新创建的 ESP 才格式化为 FAT32：
@@ -135,7 +136,7 @@ sudo mkfs.fat -F 32 -n EFI /dev/nvme111111n1p1
 先临时挂载顶层 Btrfs 文件系统：
 
 ```bash
-sudo mount /dev/nvme111111n1p3 /mnt
+sudo mount /dev/nvme111111n1p2 /mnt
 sudo btrfs subvolume create /mnt/@
 sudo btrfs subvolume create /mnt/@home
 sudo btrfs subvolume list /mnt
@@ -147,13 +148,12 @@ sudo umount /mnt
 ```bash
 sudo mkdir -p /mnt/gentoo
 sudo mount -o subvol=/@,compress=zstd,noatime \
-  /dev/nvme111111n1p3 /mnt/gentoo
+  /dev/nvme111111n1p2 /mnt/gentoo
 
 sudo mkdir -p /mnt/gentoo/home /mnt/gentoo/boot
 sudo mount -o subvol=/@home,compress=zstd,noatime \
-  /dev/nvme111111n1p3 /mnt/gentoo/home
+  /dev/nvme111111n1p2 /mnt/gentoo/home
 sudo mount /dev/nvme111111n1p1 /mnt/gentoo/boot
-sudo swapon /dev/nvme111111n1p2
 ```
 
 这里把 ESP 直接挂载到 `/boot`，因为当前 rEFInd 和内核文件布局就是这样设计的。如果希望 ESP 位于 `/boot/efi`，启动配置、installkernel 和后文脚本都要相应调整，不能混用。
@@ -244,7 +244,7 @@ sudo sed -n '1,200p' /mnt/gentoo/etc/fstab
 /      使用 @ 子卷
 /home  使用 @home 子卷
 /boot  指向正确 ESP
-swap   指向正确交换分区（如果使用）
+没有已经弃用的实体 swap 条目
 没有 LiveCD 自身的挂载项
 没有重复条目
 ```
@@ -397,7 +397,7 @@ emaint sync -a
 
 ```bash
 eselect repository list -i
-emerge -pv sys-kernel/gentoo-cjk-kernel
+emerge -pv sys-kernel/xanmod-kernel
 emerge -pv sonicde-base/sonic-meta
 emerge -pv x11-base/xlibre-server
 ```
@@ -408,100 +408,179 @@ emerge -pv x11-base/xlibre-server
 
 这一阶段按“签名材料 → shim/rEFInd → 内核与外部模块 → linker”的顺序执行。这样首次安装内核时，Portage 已经知道使用哪组密钥，启动文件的落点也已经明确；但 MOK 的最终登记仍必须在重启后的 MokManager 中由用户确认。
 
-### 先准备 Secure Boot 本地密钥
+### 先理解 shim 与 rEFInd 的交汇点
 
-完成 profile、Portage 文件和 repository 初始化后，我会立即准备 Secure Boot，再进行任何可能安装内核或外部内核模块的 emerge。当前 `make.conf` 为内核、NVIDIA 模块和 rEFInd 指定本地 MOK。私钥不在 Git 仓库里，必须在目标机器生成，并保持 root-only。
+这里采用 Gentoo Wiki 所述的 shim + rEFInd 链，而不是直接让固件信任每个 EFI 程序：
 
-先把公开脚本复制到目标位置：
+```text
+UEFI 固件内置的 Microsoft 第三方 CA
+  → BOOTX64.EFI（Microsoft 签名的 shim）
+  → grubx64.efi（实际内容是本地 MOK 签名的 rEFInd）
+  → 已签名的内核
+  → 已签名的 NVIDIA 等外部内核模块
+```
+
+shim 会按约定加载同目录的 `grubx64.efi`。因此这个文件名只是 shim 的兼容接口，文件内容仍是 rEFInd；本方案既不安装也不生成 GRUB。MokManager 则让机器所有者在不替换固件出厂密钥的情况下登记自己的 Machine Owner Key（MOK）。
+
+### 逐行生成中立的本地 MOK
+
+完成 profile、Portage 文件和 repository 初始化后，先生成签名材料，再安装任何内核或外部模块。证书主题会出现在 EFI 签名或模块元数据中，因此不要照抄用户名、主机名或真名；这里使用中立的 `Gentoo Secure Boot MOK`。
 
 ```bash
 install -d -m 0700 /etc/kernel/secureboot
-cp -a /root/dotfiles/gentoo_setting/pc/kernel/secureboot/. \
-  /etc/kernel/secureboot/
+umask 077
+test ! -e /etc/kernel/secureboot/MOK.pem
+openssl req -new -nodes -utf8 -sha256 -x509 -days 3650 \
+  -newkey rsa:4096 \
+  -subj '/CN=Gentoo Secure Boot MOK/' \
+  -outform PEM \
+  -out /etc/kernel/secureboot/MOK.pem \
+  -keyout /etc/kernel/secureboot/MOK.pem
+chmod 0600 /etc/kernel/secureboot/MOK.pem
+openssl x509 \
+  -in /etc/kernel/secureboot/MOK.pem \
+  -outform DER \
+  -out /etc/kernel/secureboot/MOK.cer
+chmod 0644 /etc/kernel/secureboot/MOK.cer
+openssl x509 \
+  -in /etc/kernel/secureboot/MOK.pem \
+  -noout -subject -issuer -dates -fingerprint -sha256
 ```
 
-确认 `openssl` 可用，并阅读 [`Secure Boot README`](https://github.com/Cyberl-ty02/dotfiles/blob/main/gentoo_setting/pc/kernel/secureboot/README.md) 后生成 MOK：
+`MOK.pem` 同时包含私钥和证书，必须保持 root-only，绝不能进入 dotfiles、博客、备份网盘或工单附件；`MOK.cer` 是供 MokManager 导入的 DER 公钥证书，可以公开，但没有必要提交。`test ! -e` 是防误覆盖保护：若文件已存在，应先确认它是否仍是当前内核和模块所用的密钥，而不是直接重建。
+
+如果暂时不启用 Secure Boot，应从本地 `make.conf`、`package.env/secureboot` 和相关 USE 中一并移除签名要求，不能留下指向不存在私钥的配置。
+
+### 让 Portage 统一完成签名
+
+本机配置让 Portage 使用同一份 PEM 签名 distribution kernel、外部模块和 rEFInd。复制配置后逐项确认实际值，避免变量拼错或仍指向旧路径：
 
 ```bash
-command -v openssl
-/etc/kernel/secureboot/generate_mok.sh
-chmod 0600 /etc/kernel/secureboot/MOK.pem
+portageq envvar SECUREBOOT_SIGN_KEY
+portageq envvar SECUREBOOT_SIGN_CERT
+portageq envvar MODULES_SIGN_KEY
+portageq envvar MODULES_SIGN_CERT
+grep -R --line-number --fixed-strings 'secureboot' \
+  /etc/portage/package.use /etc/portage/package.env
+emerge -pv sys-boot/refind sys-boot/shim sys-kernel/installkernel
 ```
 
-私钥和含私钥的 PEM 文件绝不能提交到 dotfiles 或博客。MOK 的固件注册需要重启后通过 MokManager 完成；但在首次编译内核和 NVIDIA 模块前，签名文件本身应当已经存在。
+期望四个变量都指向 `/etc/kernel/secureboot/MOK.pem`，rEFInd 启用 `secureboot` USE，installkernel 则启用本教程需要的 `dracut` 与 `refind`。若检查结果不同，先修正 Portage 配置；不要靠安装脚本在最后偷偷补签。
 
-如果暂时不打算启用 Secure Boot，就应先从本地 `make.conf`、`package.env/secureboot` 和相关 USE 中移除签名要求，而不是保留指向不存在密钥的路径。
+### 逐行安装 shim + rEFInd 固定布局
 
-此时只需要先生成签名材料，不必等待 MOK 注册完成。`mokutil --import`、MokManager 确认和 Secure Boot 最终验证仍放在 shim+rEFInd 安装完成之后；否则尚未安装 `mokutil` 或启动文件时无法完成整条信任链。
-
-### 提前安装 shim + rEFInd 启动链
-
-本次顺序是在 repository 和 MOK 初始化后，先把 Secure Boot 启动链准备完整，再安装内核。此时仍使用上一节临时的非 mold LDFLAGS。
-
-先安装启动链工具：
+此时仍使用上一节临时的非 mold LDFLAGS。先安装启动链与检查工具：
 
 ```bash
 emerge --ask sys-boot/refind sys-boot/shim \
   sys-boot/mokutil sys-boot/efibootmgr app-crypt/sbsigntools
 ```
 
-再次确认 ESP 正确挂载：
+确认当前确实以 UEFI 模式启动，ESP 是 `/boot`，并且不会被 `refind-install` 误判为另一个目录：
 
 ```bash
-findmnt /boot
+test -d /sys/firmware/efi
+findmnt --target /boot
 grep -E '[[:space:]]/boot[[:space:]]' /etc/fstab
+mount | grep efivarfs
 ```
 
-当前配置提供两种安装方法，首次安装建议选择一种并始终沿用，不能交替运行后再猜测 ESP 里哪个文件生效。
-
-当前固定布局的文件语义如下：
-
-```text
-/boot/EFI/refind/BOOTX64.EFI   Gentoo 打包、Microsoft 签名的 shim
-/boot/EFI/refind/mmx64.efi     MokManager
-/boot/EFI/refind/grubx64.efi   使用本地 MOK 签名的 rEFInd payload
-/boot/EFI/refind/refind.conf   rEFInd 自身配置
-```
-
-shim 约定寻找同目录下的 `grubx64.efi`。这里该兼容文件名装的是 rEFInd，并不表示系统安装或使用 GRUB。
-
-使用 rEFInd 安装器：
+若 efivarfs 已挂载但只读，并且稍后 `efibootmgr` 无法写入 NVRAM，再执行：
 
 ```bash
-refind-install --shim /usr/share/shim/BOOTX64.EFI
+mount -o remount,rw -t efivarfs efivarfs /sys/firmware/efi/efivars
 ```
 
-或者使用 dotfiles 的固定 `/boot/EFI/refind` 布局脚本：
+先验证包内的 rEFInd 确实已经由 Portage 签名，再建立固定布局。若 ESP 中已有同名目录，先做带时间戳的可恢复备份：
 
 ```bash
-command -v sbsign
-/etc/kernel/secureboot/install_bootloader.sh
+sbverify --list /usr/lib64/refind/refind/refind_x64.efi
+test ! -e /boot/EFI/refind || \
+  cp -a /boot/EFI/refind "/boot/EFI/refind.backup.$(date +%Y%m%d-%H%M%S)"
+install -d -m 0755 /boot/EFI/refind
+install -m 0644 /usr/share/shim/BOOTX64.EFI \
+  /boot/EFI/refind/BOOTX64.EFI
+install -m 0644 /usr/share/shim/mmx64.efi \
+  /boot/EFI/refind/mmx64.efi
+install -m 0644 /usr/lib64/refind/refind/refind_x64.efi \
+  /boot/EFI/refind/grubx64.efi
+test -e /boot/EFI/refind/refind.conf || \
+  install -m 0644 /usr/lib64/refind/refind/refind.conf-sample \
+    /boot/EFI/refind/refind.conf
+test -d /boot/EFI/refind/icons || \
+  cp -a /usr/lib64/refind/refind/icons /boot/EFI/refind/icons
 ```
 
-完整差异见 [`kernel/secureboot/README.md`](https://github.com/Cyberl-ty02/dotfiles/blob/main/gentoo_setting/pc/kernel/secureboot/README.md)。执行后立即检查：
+这里故意不再调用 `sbsign`：启用 `secureboot` USE 并正确设置 `SECUREBOOT_SIGN_*` 后，包内的 `refind_x64.efi` 应已经签好。若第一条 `sbverify` 看不到期望证书，应修正 Portage 配置并重新 emerge rEFInd，而不是盲目叠加签名。
+
+为固定布局创建 NVRAM 项。以下磁盘名和分区号只是隐私安全的占位符，必须按 `findmnt`、`lsblk` 的真机结果替换；UEFI loader 路径使用反斜杠：
 
 ```bash
+lsblk -o NAME,PATH,FSTYPE,PARTTYPE,MOUNTPOINTS
+efibootmgr --create \
+  --disk /dev/nvme111111n1 \
+  --part 1 \
+  --loader '\EFI\refind\BOOTX64.EFI' \
+  --label 'rEFInd via shim'
 efibootmgr -v
-find /boot/EFI -maxdepth 3 -type f -print
+find /boot/EFI/refind -maxdepth 2 -type f -print
+sbverify --list /boot/EFI/refind/BOOTX64.EFI
 sbverify --list /boot/EFI/refind/grubx64.efi
 ```
 
-此时内核尚未安装，`refind_linux.conf` 可以等版本化内核/initramfs 出现后再完成；但 shim、MokManager、签名后的 rEFInd payload 和固件入口已经可以先核实。
+Gentoo Wiki 也提供 `refind-install --shim /usr/share/shim/BOOTX64.EFI`。本教程选择逐行安装，是为了让每个来源文件、目标文件和签名检查都清晰可审计；不要再混用安装器和旧脚本。更新 shim 或 rEFInd 后，应重复复制与 `sbverify` 步骤，并保留一个已知可启动的固件项和 LiveCD 作为回退。
+
+### 提交 MOK 登记请求
+
+安装 `mokutil` 和 MokManager 后，在 chroot 中提交 DER 证书并设置一次性密码：
+
+```bash
+mokutil --import /etc/kernel/secureboot/MOK.cer
+mokutil --list-new
+```
+
+若 `mokutil` 只因该证书已在当前内核 keyring 中而拒绝创建请求，Gentoo Wiki 给出的针对性选项是：
+
+```bash
+mokutil --ignore-keyring --import /etc/kernel/secureboot/MOK.cer
+mokutil --list-new
+```
+
+这仍只是写入待处理请求，不代表证书已经受信任。首次重启进入 MokManager 后依次选择 **Enroll MOK → Continue → Yes**，输入刚才的一次性密码并重启。不要在文章、终端截图或 shell history 中记录该密码。
+
+### 备份并退役旧包装脚本
+
+旧 `generate_mok.sh`、`install_bootloader.sh` 与 `import_mok.sh` 分别包装了上面的密钥生成、文件复制/签名和 MOK 导入。它们不是启动时依赖；逐行流程验证成功后可以退役，但必须保留 `MOK.pem`、`MOK.cer` 和 Portage 的签名配置。
+
+若以前已把脚本复制到 `/etc/kernel/secureboot`，先逐个移动到 root-only 备份目录，不使用可能误伤密钥的通配删除：
+
+```bash
+install -d -m 0700 /root/secureboot-script-backup
+test ! -e /etc/kernel/secureboot/generate_mok.sh || \
+  mv /etc/kernel/secureboot/generate_mok.sh /root/secureboot-script-backup/
+test ! -e /etc/kernel/secureboot/install_bootloader.sh || \
+  mv /etc/kernel/secureboot/install_bootloader.sh /root/secureboot-script-backup/
+test ! -e /etc/kernel/secureboot/import_mok.sh || \
+  mv /etc/kernel/secureboot/import_mok.sh /root/secureboot-script-backup/
+ls -la /etc/kernel/secureboot /root/secureboot-script-backup
+```
+
+确认至少 `MOK.pem` 和 `MOK.cer` 仍在原处。等新链路经过一次完整重启验证后，才考虑删除备份；dotfiles 中的公开脚本也应另行审阅或移除，不能把真实密钥一起操作。
 
 ### 安装内核、固件和 NVIDIA
 
-Gentoo Handbook 建议第一次启动优先使用 distribution kernel，以减少“系统配置错误”和“自定义内核漏选驱动”混在一起的概率。我的机器选择 Gentoo-Zh 的 CJK distribution kernel：
+Gentoo Handbook 建议第一次启动优先使用 distribution kernel，以减少“系统配置错误”和“自定义内核漏选驱动”混在一起的概率。我的机器选择 Gentoo-Zh 的 XanMod distribution kernel，并通过 `cjk` USE 应用 CJKTTY 补丁。当前 overlay 的 ebuild 会继承 `cjktty` eclass；`cjk` 负责补丁和 16×16 CJK 字体，体积更大的 `cjk32` 可按高分辨率 framebuffer 的实际需求选择，不是必需项。
 
 distribution kernel 通常依赖 initramfs 才能覆盖模块化的存储与文件系统驱动。当前 `package.use/secureboot` 已为 `sys-kernel/installkernel` 启用 `dracut` 和 `refind`；安装前仍要从 Portage 计划中确认这些 flag 生效：
 
 ```bash
-emerge -pv sys-kernel/installkernel sys-kernel/gentoo-cjk-kernel
+emerge -pv sys-kernel/installkernel sys-kernel/xanmod-kernel
 ```
 
 确认计划包含 initramfs 生成器后再安装：
 
 ```bash
-emerge --ask sys-kernel/linux-firmware sys-kernel/gentoo-cjk-kernel
+emerge --ask sys-kernel/linux-firmware sys-kernel/xanmod-kernel
 ```
 
 当前配置让 installkernel 生成版本化内核和 initramfs，并由 rEFInd 自动配对。安装后检查，而不是只看 emerge 返回值：
@@ -519,7 +598,7 @@ ls -ld /lib/modules/*
 emerge --ask x11-drivers/nvidia-drivers
 ```
 
-版本变化时 Portage 重建 NVIDIA 是正常的 subslot 行为。后续迁移与验证细节见：[Gentoo 从 XanMod 迁移到 CJKTTY 内核：dist-kernel、NVIDIA 与 Secure Boot 实战](/posts/gentoo-xanmod-to-cjk-kernel-migration/gentoo-xanmod-to-cjk-kernel-migration/)。
+版本变化时 Portage 重建 NVIDIA 是正常的 subslot 行为。XanMod、独立 CJK kernel、CJKTTY、回退内核与 Secure Boot 的双向迁移记录见：[Gentoo 内核迁移记录：XanMod、CJKTTY、NVIDIA 与 Secure Boot](/posts/gentoo-xanmod-to-cjk-kernel-migration/gentoo-xanmod-to-cjk-kernel-migration/)。
 
 内核和 initramfs 出现后，再检查或创建 `refind_linux.conf`。从 LiveCD 生成的内容可能继承 LiveCD 的 `/proc/cmdline`，必须删除 `archiso*` 等介质参数，并核对 Btrfs UUID 与 `rootflags=subvol=/@`。稳定布局依靠：
 
@@ -528,15 +607,19 @@ vmlinuz-<kernel-release>
 initramfs-<kernel-release>.img
 ```
 
-rEFInd 可自动配对版本化文件，kernel options 只保留通用 root/Btrfs 参数。然后发起 MOK 注册请求：
+rEFInd 可自动配对版本化文件，kernel options 只保留通用 root/Btrfs 参数。前文的 `mokutil --import` 已创建待处理请求，但只有在首次重启的 MokManager 中确认后，证书才真正进入信任链。
+
+成功启动 Gentoo 后完成闭环检查：
 
 ```bash
-/etc/kernel/secureboot/import_mok.sh
+mokutil --sb-state
+mokutil --test-key /etc/kernel/secureboot/MOK.cer
+sbverify --list /boot/EFI/refind/grubx64.efi
+modinfo -F signer nvidia
+dmesg | grep -Ei 'secure boot|integrity|verification|lockdown'
 ```
 
-注册要到首次重启的 MokManager 中完成；当前 chroot 阶段只创建请求。
-
-因此，“`mokutil --import` 已成功返回”只表示固件变量中已有待处理请求，并不表示证书已经受信任。必须在 MokManager 中确认、再次启动 Gentoo，并结合 `mokutil --sb-state`、内核及 NVIDIA 模块的签名信息完成最终验证。
+`mokutil --sb-state`、MOK 测试、EFI 签名和模块 signer 应相互印证。某一项失败时保留原固件启动项和 LiveCD，回到对应层排查，不要先删除已知可启动的 EFI 文件。
 
 ### 安装 mold 与基础维护工具
 
@@ -602,7 +685,7 @@ emerge -ajvuDN @world
 
 #### 核对原博客中不在 world_packages.txt 的内容
 
-在本文基线中，实时 `/var/lib/portage/world` 与仓库的 `world_packages.txt` 完全一致。可以在旧系统或恢复环境中自行核对：
+最初记录本文基线时，实时 `/var/lib/portage/world` 与仓库的 `world_packages.txt` 完全一致。可以在旧系统或恢复环境中自行核对：
 
 ```bash
 sort -u /var/lib/portage/world > /tmp/gentoo-selected.txt
@@ -611,7 +694,7 @@ sort -u /root/dotfiles/gentoo_setting/pc/world_packages.txt \
 comm -3 /tmp/gentoo-selected.txt /tmp/gentoo-tracked.txt
 ```
 
-本次核对没有输出，因此没有证据支持再添加一批“漏记的直接安装包”。`qlist -IC` 列出的其他大量软件多数是依赖，不应为了复刻旧机器而全部加入 world。
+当时核对没有输出，因此没有证据支持再添加一批“漏记的直接安装包”。`qlist -IC` 列出的其他大量软件多数是依赖，不应为了复刻旧机器而全部加入 world。后文的 zram 方案直接使用系统已有的 `sys-apps/util-linux` 和 OpenRC `local` 服务，也不会新增 world atom。
 
 原博客中仍需单独执行、但不是缺失 Portage atom 的内容包括：
 
@@ -622,9 +705,10 @@ Fcitx/Rime 用户 profile 和 custom.yaml
 zimfw、Powerlevel10k 与生成的 ~/.p10k.zsh
 fontconfig 的 /etc/fonts/local.conf
 MOK 注册和 rEFInd ESP 文件
+zram 的 OpenRC local.d 启停脚本
 ```
 
-其中 Portage 软件包本身已经在 `world_packages.txt` 中；用户层初始化统一放到首次成功启动之后。若未来旧博客出现新的明确 atom，应先用 `emerge -pv` 验证，再决定加入 world 清单。
+其中 Portage 软件包已经在原 `world_packages.txt` 中；用户层初始化统一放到首次成功启动之后。若未来旧博客出现新的明确 atom，应先用 `emerge -pv` 验证，再决定加入 world 清单。
 
 #### 新装系统中的 XLibre
 
@@ -845,7 +929,7 @@ efibootmgr -v
 我会把成功标准写成具体对象，而不是“命令都运行过”：
 
 ```text
-fstab 中 @、@home、ESP 与 swap 没有重复或指错
+fstab 中 @、@home 与 ESP 没有重复或指错，也没有遗留实体 swap 条目
 内核、initramfs、/lib/modules 的 release 一致
 rEFInd 能看到正确的版本化内核文件
 目标内核和 NVIDIA 模块已经签名
@@ -860,15 +944,14 @@ world 更新没有未处理的 blocker
 sync
 exit
 sudo umount -R /mnt/gentoo
-sudo swapoff /dev/nvme111111n1p2
 sudo reboot
 ```
 
 如果 `umount` 报 busy，不要强行断电；先检查仍停留在挂载树中的 shell、终端或文件管理器。
 
-## Stage 4：首次启动后配置用户环境
+## Stage 4：首次启动后完善运行环境与用户配置
 
-以下工作都在已经成功启动的 Gentoo 中完成。先验证根文件系统、服务和 Secure Boot，再以普通用户配置输入法、shell 与编辑器；这样用户目录问题不会干扰首次启动故障的定位。
+以下工作都在已经成功启动的 Gentoo 中完成。先验证根文件系统、服务和 Secure Boot，再补充 zram swap，最后以普通用户配置输入法、shell 与编辑器；这样首次启动问题、内存压力保护和用户目录问题可以分层定位。
 
 ### 启动后的验证
 
@@ -904,6 +987,87 @@ fc-match 'sans-serif:lang=zh-cn'
 如果新入口失败，先从保留的旧 EFI 入口或 LiveCD 回到系统，检查 `fstab`、`refind_linux.conf`、内核/initramfs 配对和签名。不要在第一次失败后立即删除旧启动文件或重装。
 
 只有上述底层验证通过后，我才恢复输入法、shell 和编辑器等用户层配置。这样即使某个用户配置导致登录程序报错，也不会和内核、Secure Boot、网络或显示管理器问题混在一起。
+
+### 配置小容量 zram swap
+
+实体 swap 分区会固定占用磁盘布局，后续调整还涉及重新分区；这里改用一个 2 GiB 的 zram swap，主要在大型 C/C++、Rust 或内核编译短时超过物理内存时提供缓冲。它不是扩充内存的替代品：zram 仍消耗 RAM，只是先压缩换出的页面；遇到不可压缩数据或持续高负载时，仍可能触发 OOM。
+
+Gentoo Wiki 给出的基础方式是使用 `zramctl` 创建设备；它属于系统已有的 `sys-apps/util-linux`，因此这里不需要安装 `sys-block/zram-init` 或面向 systemd 的 `sys-apps/zram-generator`。单设备配置直接交给 OpenRC 的 `local` 服务即可。
+
+先确认当前启动内核提供 zram 与 Zstd backend。本机实际启动的 `7.1.9-x64v3` 已验证为 `CONFIG_ZRAM=m`、`CONFIG_ZRAM_BACKEND_ZSTD=y`；其他版本仍应现场检查，不能只依据 ebuild USE：
+
+```bash
+if test -r /proc/config.gz; then
+  zgrep -E '^(CONFIG_ZRAM|CONFIG_ZRAM_BACKEND_ZSTD)=' /proc/config.gz
+else
+  grep -E '^(CONFIG_ZRAM|CONFIG_ZRAM_BACKEND_ZSTD)=' \
+    "/boot/config-$(uname -r)"
+fi
+modinfo zram
+```
+
+至少应看到 `CONFIG_ZRAM=y` 或 `CONFIG_ZRAM=m`，以及 `CONFIG_ZRAM_BACKEND_ZSTD=y`。如果选择其他压缩算法，也必须先确认内核支持。再确认 Wiki 使用的工具已经由 util-linux 提供：
+
+```bash
+command -v zramctl mkswap swapon swapoff
+zramctl --version
+```
+
+`zramctl` 创建的设备会在重启后消失。按照 Gentoo Wiki，为 OpenRC 分别创建启动和停止脚本。`/etc/local.d/zram.start` 内容为：
+
+```bash
+#!/bin/bash
+set -e
+
+modprobe zram
+zramctl /dev/zram0 --size 2G --algorithm zstd
+mkswap -L zram_swap /dev/zram0
+swapon /dev/zram0 --priority 100
+```
+
+`/etc/local.d/zram.stop` 内容为：
+
+```bash
+#!/bin/bash
+set -e
+
+swapoff /dev/zram0
+echo 1 > /sys/block/zram0/reset
+modprobe -r zram
+```
+
+`set -e` 很重要：如果 `swapoff` 因内存不足而失败，脚本不会继续重置仍承载页面的设备。赋予执行权限，并确保 OpenRC 的 `local` 服务位于默认运行级别：
+
+```bash
+chmod 0755 /etc/local.d/zram.start /etc/local.d/zram.stop
+rc-update add local default
+```
+
+首次配置时直接运行启动脚本，再检查结果：
+
+```bash
+/etc/local.d/zram.start
+zramctl
+swapon --show
+free -h
+```
+
+预期能看到 `/dev/zram0`、`zstd`、约 `2G` 的 `DISKSIZE`，并在 `swapon --show` 中看到相同设备。2 GiB 是未压缩逻辑容量，不是开机立即预留 2 GiB 物理内存，也不会占用 Btrfs 或 ESP 空间。刚启用时 `DATA`、`COMPR` 和实际 swap 使用量接近零是正常的；只有内核确实换出页面后才会增长。优先级 `100` 在当前没有其他 swap 时主要用于明确策略。
+
+需要调整容量时，先确认系统有足够可用内存把已换出的页面收回，再运行停止脚本、修改 `zram.start` 中的 `--size` 并重新启动：
+
+```bash
+free -h
+swapon --show
+/etc/local.d/zram.stop
+# 修改 /etc/local.d/zram.start 中的 --size
+/etc/local.d/zram.start
+zramctl
+```
+
+不要在系统已经接近 OOM 或 zram 使用量很高时强制停止；`swapoff` 需要把页面搬回 RAM，内存不足时会失败或进一步加剧压力。2 GiB 只是本文为“编译峰值兜底”选择的小起点，可在实际观察 `zramctl` 和构建负载后调整，而不需要改动分区表。
+
+zram 是易失的，不能用于休眠镜像。如果将来需要 suspend-to-disk，应单独规划持久 swap，并重新核对 initramfs、`resume` 参数和磁盘加密策略。
 
 ### 配置 Fcitx 5 与 Rime
 
@@ -1126,6 +1290,8 @@ emerge --pretend --verbose --update --deep --newuse @world
 - [Gentoo Wiki：Fcitx](https://wiki.gentoo.org/wiki/Fcitx)：X11 输入法环境变量、图形会话启动和配置工具说明。
 - [Gentoo Wiki：ClamAV](https://wiki.gentoo.org/wiki/ClamAV)：ClamAV、freshclam、clamd 与病毒库维护的入口；当前 Gentoo 1.5.x 文件路径应以本机包内容为准。
 - [Gentoo Wiki：Shim](https://wiki.gentoo.org/wiki/Shim) 与 [rEFInd](https://wiki.gentoo.org/wiki/REFInd)：Secure Boot pre-loader、MOK 注册和 rEFInd 安装参考。
+- [Secure Boot on Gentoo with shim and GRUB](https://www.setphaserstostun.org/posts/secure-boot-on-gentoo-with-shim-grub/)：本文借鉴其合并 PEM、DER 证书转换、Portage 签名变量与 MOK 登记思路；GRUB 生成和引导命令未用于本文的 rEFInd 链。
+- [Gentoo Wiki：Zram](https://wiki.gentoo.org/wiki/Zram)：zram 的工作方式、内核支持，以及使用 `zramctl` 和 OpenRC `local.d` 脚本持久化的配置方法。
 - [ArchWiki：arch-chroot](https://man.archlinux.org/man/arch-chroot.8)：从 EndeavourOS LiveCD 进入 Gentoo 目标根目录时使用的工具说明。
 - [ArchWiki：genfstab](https://man.archlinux.org/man/genfstab.8)：根据现有挂载树生成 fstab 的工具说明。
 - [rEFInd 官方安装文档](https://www.rodsbooks.com/refind/installing.html) 与 [Secure Boot 文档](https://www.rodsbooks.com/refind/secureboot.html)：rEFInd 文件布局和签名链参考。

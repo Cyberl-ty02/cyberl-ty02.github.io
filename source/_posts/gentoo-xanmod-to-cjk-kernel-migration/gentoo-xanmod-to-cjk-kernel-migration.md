@@ -1,5 +1,5 @@
 ---
-title: Gentoo 从 XanMod 迁移到 CJKTTY 内核：dist-kernel、NVIDIA 与 Secure Boot 实战
+title: Gentoo 内核迁移记录：XanMod、CJKTTY、NVIDIA 与 Secure Boot
 comments: true
 toc: true
 donate: true
@@ -8,16 +8,96 @@ date: 2026-08-09 20:00:00
 categories: 实用技巧
 tags:
 - 技巧
+- Gentoo
+- XanMod
+- CJKTTY
+- Secure Boot
 ---
 
-这次内核迁移把机器上唯一由包管理器安装的 `sys-kernel/xanmod-kernel-7.1.6` 替换为 Gentoo-Zh 提供的 `sys-kernel/gentoo-cjk-kernel-7.1.7`。最终启动的是 `7.1.7-gentoo-cjk-dist`，NVIDIA 模块、Secure Boot 和 Linux VT 中文显示都完成了实际验证。
+这篇文章最初记录从 `sys-kernel/xanmod-kernel-7.1.6` 迁移到 Gentoo-Zh `sys-kernel/gentoo-cjk-kernel-7.1.7` 的过程；当时 `7.1.7-gentoo-cjk-dist`、NVIDIA、Secure Boot 和 Linux VT 中文显示均已实际验证。Gentoo-Zh 后来重新为 `sys-kernel/xanmod-kernel` 加入 CJKTTY，本机因此在 2026-08-20 开始切回 XanMod。本文保留第一次迁移的历史证据，同时补记反向迁移，避免把已经变化的包选择写成永久结论。
 
 > **版本说明**
-> 文中的版本只对应 2026-08-09 记录的这次迁移，不表示其他时间或其他机器应选择同一版本。设备标识和 UUID 均已省略或使用占位值。
+> 文中的 `7.1.7` 对应 2026-08-09 已完成的迁移；`xanmod-kernel-7.1.9` 对应 2026-08-20 的反向迁移，实际运行 release 为 `7.1.9-x64v3`。设备标识和 UUID 均已省略或使用占位值。
 
 较早的 Btrfs 与 rEFInd 救援过程见：[Gentoo 在 Btrfs 与 rEFInd 环境下的启动修复记录](/posts/gentoo-refind-btrfs-rescue/gentoo-refind-btrfs-rescue/)。本文从系统已经稳定可启动的状态继续，重点记录换内核时如何保留回退路径并验证外围模块。
 
-## 最初的 NVIDIA 重建不是故障
+## 2026-08-20：切回带 CJKTTY 的 XanMod
+
+这次回切不是放弃 CJKTTY。同步后的 Gentoo-Zh overlay 已提供 `sys-kernel/xanmod-kernel-7.1.9`，ebuild 描述明确包含 Gentoo patches 与 CJKTTY，继承 `cjktty` eclass，并在准备源码时调用 `cjktty_apply_patches`。其 `cjk` USE 会启用 16×16 CJK 字体；`cjk32` 还会加入约 8 MiB 的 32×32 字体数据，当前配置没有启用后者。
+
+先以本机仓库和 Portage 计划核实，不能只依据文章中的版本号：
+
+```bash
+eix sys-kernel/xanmod-kernel
+emerge -pv sys-kernel/xanmod-kernel
+grep -R --line-number 'cjktty\|cjktty_apply_patches' \
+  /var/db/repos/gentoo-zh/sys-kernel/xanmod-kernel
+```
+
+本次 `emerge -pv` 计划的关键部分为：
+
+```text
+sys-kernel/xanmod-kernel-7.1.9::gentoo-zh
+USE="cjk clang initramfs modules-sign secureboot strip -cjk32 -savedconfig"
+virtual/dist-kernel-7.1.9-r100::gentoo-zh
+```
+
+对应的公开配置把 XanMod 写入 world，并将签名与构建环境绑定到它：
+
+```text
+world_packages.txt:                 sys-kernel/xanmod-kernel
+package.use/secureboot:             sys-kernel/xanmod-kernel cjk clang
+package.env/secureboot:             sys-kernel/xanmod-kernel ... secureboot_key_access
+```
+
+安装或更新时先保留当前可启动的 CJK distribution kernel，不在构建过程中卸载它：
+
+```bash
+uname -r
+eselect kernel list
+emerge -pv sys-kernel/xanmod-kernel x11-drivers/nvidia-drivers
+emerge --ask sys-kernel/xanmod-kernel
+```
+
+构建完成后仍不能立即把“已安装”写成“迁移成功”。先检查新内核、initramfs、模块树和签名，并确认 rEFInd 没有硬编码旧 release：
+
+```bash
+ls -l /boot/vmlinuz-* /boot/initramfs-*.img
+ls -ld /lib/modules/*
+eselect kernel list
+XANMOD_RELEASE='replace-with-release-from-lib-modules'
+XANMOD_IMAGE='/boot/vmlinuz-replace-with-exact-filename'
+sbverify --list "${XANMOD_IMAGE}"
+modinfo -k "${XANMOD_RELEASE}" -F signer nvidia
+sed -n '1,120p' /boot/refind_linux.conf
+```
+
+将两个 `replace-with-...` 值分别替换为 `/lib/modules` 中实际生成的 release 和 `/boot` 中的精确文件名。重启后至少验证：
+
+```bash
+uname -r
+mokutil --sb-state
+nvidia-smi
+modinfo -F signer nvidia
+```
+
+本次重启后的实际检查结果为：
+
+```text
+uname release：7.1.9-x64v3
+Secure Boot：enabled
+内核 PE 签名：存在
+NVIDIA 模块：针对 7.1.9-x64v3 构建且带签名
+NVIDIA 运行态：GeForce RTX 4060 Laptop GPU，驱动 610.57.04
+rEFInd：没有旧 release 或 LiveCD 参数硬编码
+CJKTTY 静态配置：CONFIG_FONT_CJK_16x16=y
+```
+
+Linux VT 中文显示仍应由用户切换到真实 VT 目视确认，因为图形会话和自动化检查不能替代 framebuffer console 的实际输出。当前旧 CJK kernel 已从包数据库和 `/boot` 清除，只保留 XanMod 的版本化内核与 initramfs；因此后续升级应先保留这份已知可启动的 XanMod，再测试下一版本，不能在新版本验证前重复清空回退文件。
+
+以下章节保留 2026-08-09 从 XanMod 切到独立 CJK kernel 的原始过程，供比较和回退时参考。
+
+## 2026-08-09 历史阶段：NVIDIA 重建不是故障
 
 Portage 预览中出现了 distribution-kernel subslot 迁移：
 
@@ -185,7 +265,7 @@ uname -r
 
 切换到真实 Linux VT 后，中文提示 `请输入密码` 能够直接显示，不再变成缺字方框。这一步才是 CJK 控制台支持的最终成功标准；只看 `.config` 不能替代实际输出验证。
 
-## 成功启动后再清理
+## 2026-08-09 历史阶段：成功启动后再清理
 
 只有在以下四项全部确认后，才用 `eclean-kernel` 清理旧 XanMod 内核文件：
 
@@ -196,10 +276,12 @@ Secure Boot 仍为 enabled
 CJKTTY 在真实 VT 中正常显示中文
 ```
 
-包缓存和 distfile 缓存随后另行清理。删除 `/var/cache/distfiles/*` 或 `/var/cache/binpkgs/*` 不是移除旧内核的必要步骤，也不应当作为通用迁移命令。最终只保留 `gentoo-cjk-kernel`、`virtual/dist-kernel` 和 `7.1.7-gentoo-cjk-dist` 的模块树，不再保留旧 XanMod 文件。
+包缓存和 distfile 缓存随后另行清理。删除 `/var/cache/distfiles/*` 或 `/var/cache/binpkgs/*` 不是移除旧内核的必要步骤，也不应当作为通用迁移命令。该历史阶段最终只保留 `gentoo-cjk-kernel`、`virtual/dist-kernel` 和 `7.1.7-gentoo-cjk-dist` 的模块树；这不是 2026-08-20 回切 XanMod 后的目标状态。
 
-## 收尾整理 Portage 配置
+## 两次迁移中的 Portage 配置卫生
 
-启动验证完成后，还应清除已经失效的 XanMod 专用规则：从 `package.accept_keywords`、`package.env` 和 `package.use` 中移除 XanMod 项，把签名密钥访问范围收窄到 `gentoo-cjk-kernel`，并同步 [`world_packages.txt`](https://github.com/Cyberl-ty02/dotfiles/blob/main/gentoo_setting/pc/world_packages.txt) 与内核说明。当前 Secure Boot 工具与公开示例集中在 [`kernel/secureboot`](https://github.com/Cyberl-ty02/dotfiles/tree/main/gentoo_setting/pc/kernel/secureboot)。
+2026-08-09 切到独立 CJK kernel 后，曾从 `package.accept_keywords`、`package.env` 和 `package.use` 中移除 XanMod 项，并把签名密钥访问范围收窄到 `gentoo-cjk-kernel`。2026-08-20 的方向相反：当前公开配置重新把 `sys-kernel/xanmod-kernel` 写入 `world_packages.txt`，恢复其关键字、`cjk clang` USE 和签名环境，并 mask 不再选用的独立 CJK/官方 distribution kernel。相关文件应以 [`Cyberl-ty02/dotfiles`](https://github.com/Cyberl-ty02/dotfiles/tree/main/gentoo_setting/pc) 的当前版本和本机 `emerge -pv` 结果为准。
+
+旧 CJK kernel 在 XanMod 完成重启验证前仍是回退项，因此不应提前从包数据库、ESP 或 `/lib/modules` 删除。若旧 `virtual/dist-kernel` 精确 subslot 阻挡迁移，应先阅读 Portage 依赖计划，并准备不受 unmerge 影响的物理回退文件；不能仅为让 resolver 通过就删掉当前唯一可启动内核。Secure Boot 工具与公开示例集中在 [`kernel/secureboot`](https://github.com/Cyberl-ty02/dotfiles/tree/main/gentoo_setting/pc/kernel/secureboot)。
 
 这部分只是迁移后的配置卫生：先验证新系统，再删除旧规则和回退文件，避免把“清理得很干净”放在“确认能够启动”之前。
