@@ -1,0 +1,110 @@
+name: Check quickstart upstream
+
+on:
+  schedule:
+    - cron: "17 4 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: check-quickstart-upstream
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout blog
+        uses: actions/checkout@v7
+
+      - name: Compare recorded and current upstream revisions
+        id: upstream
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          baseline="$(tr -d '[:space:]' < .github/quickstart-upstream.sha)"
+          latest="$(git ls-remote https://github.com/kratos-rebirth/quickstart.git refs/heads/main | cut -f1)"
+
+          if [[ ! "${baseline}" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "Invalid baseline revision: ${baseline}" >&2
+            exit 1
+          fi
+
+          if [[ ! "${latest}" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "Unable to resolve quickstart main" >&2
+            exit 1
+          fi
+
+          echo "baseline=${baseline}" >> "${GITHUB_OUTPUT}"
+          echo "latest=${latest}" >> "${GITHUB_OUTPUT}"
+
+          if [[ "${baseline}" == "${latest}" ]]; then
+            echo "changed=false" >> "${GITHUB_OUTPUT}"
+          else
+            echo "changed=true" >> "${GITHUB_OUTPUT}"
+          fi
+
+      - name: Create or update upstream review issue
+        if: steps.upstream.outputs.changed == 'true'
+        uses: actions/github-script@v8
+        env:
+          BASELINE_SHA: ${{ steps.upstream.outputs.baseline }}
+          LATEST_SHA: ${{ steps.upstream.outputs.latest }}
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const label = "upstream-sync";
+            const title = "Review updates from kratos-rebirth/quickstart";
+            const baseline = process.env.BASELINE_SHA;
+            const latest = process.env.LATEST_SHA;
+            const compare = `https://github.com/kratos-rebirth/quickstart/compare/${baseline}...${latest}`;
+            const body = [
+              "The quickstart template has changed since the last reviewed revision.",
+              "",
+              `- Reviewed baseline: \`${baseline}\``,
+              `- Current upstream: \`${latest}\``,
+              `- Compare: ${compare}`,
+              "",
+              "Review and port useful changes file by file. Do not merge the unrelated template history or overwrite the blog's Bun-based workflow and private configuration blindly.",
+              "",
+              "After the selected changes pass a local build, update `.github/quickstart-upstream.sha` to the reviewed upstream SHA and close this issue."
+            ].join("\n");
+
+            try {
+              await github.rest.issues.getLabel({ owner, repo, name: label });
+            } catch (error) {
+              if (error.status !== 404) throw error;
+              await github.rest.issues.createLabel({
+                owner,
+                repo,
+                name: label,
+                color: "1d76db",
+                description: "Review changes from the quickstart template"
+              });
+            }
+
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner,
+              repo,
+              state: "open",
+              labels: label,
+              per_page: 100
+            });
+            const existing = issues.find(issue => !issue.pull_request && issue.title === title);
+
+            if (existing) {
+              await github.rest.issues.update({
+                owner,
+                repo,
+                issue_number: existing.number,
+                body
+              });
+            } else {
+              await github.rest.issues.create({ owner, repo, title, body, labels: [label] });
+            }
