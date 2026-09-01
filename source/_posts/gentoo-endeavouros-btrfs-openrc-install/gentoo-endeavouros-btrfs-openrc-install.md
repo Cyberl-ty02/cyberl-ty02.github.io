@@ -2,12 +2,13 @@
 title: Gentoo 定制安装指南：从 EndeavourOS LiveCD 到 Btrfs、OpenRC、SonicDE 与 rEFInd
 comments: true
 toc: true
-donate: true
+donate: false
 share: true
 date: 2026-08-18 20:00:00
-categories: 实用技巧
+categories: Linux 与 BSD
 tags:
-- 技巧
+- Linux
+- Gentoo
 sticky: 1
 ---
 
@@ -1275,6 +1276,66 @@ emerge --pretend --verbose --update --deep --newuse @world
 
 确认依赖图后再执行更新。内核更新完成后核对版本化内核、initramfs、模块和签名；只有新内核实际启动成功，才使用 `eclean-kernel` 清理旧版本。
 
+### Portage 国内镜像分工
+
+当前 PC 配置没有把“镜像”视作一个可互换的地址，而是按 Portage 的不同数据层分别处理：
+
+| 数据层 | 当前首选 | 仍然保留的验证或回退 |
+| --- | --- | --- |
+| Gentoo ebuild 主树 | 南京大学 rsync | OpenPGP MetaManifest 校验；必要时恢复 Gentoo 官方 rsync |
+| distfiles 源码包 | CERNET → 华为 → 阿里 | 最后回退 `distfiles.gentoo.org` |
+| 官方 binhost | CERNET 的 `x86-64_llvm`，PC 另有华为来源 | `verify-signature = true`；来源必须匹配当前 LLVM profile |
+| gentoo-zh | CERNET Git 联合入口 | Git 提交与 ebuild 自身的校验链不因镜像而关闭 |
+| GURU、SonicDE、XLibre | 各自上游 | 不为追求形式统一而改写没有对应镜像的仓库 |
+
+[MirrorZ Gentoo 帮助页](https://help.mirrors.cernet.edu.cn/gentoo/) 也特别区分了 stage3、distfiles、binhost 与 Portage ebuild 主树。`mirrors.cernet.edu.cn` 是联合镜像的动态调度入口，不是 MirrorZ 自己存放所有内容的单一站点，后端高校节点可能变化。这里记录的是 2026-09-01 的本机可达性实测，不应理解为“永久稳定”。
+
+PC 的核心配置形如：
+
+```ini
+# /etc/portage/repos.conf/gentoo.conf
+[gentoo]
+sync-type = rsync
+sync-uri = rsync://mirror.nju.edu.cn/gentoo-portage
+sync-rsync-verify-metamanifest = yes
+```
+
+```bash
+# /etc/portage/make.conf
+GENTOO_MIRRORS="https://mirrors.cernet.edu.cn/gentoo https://mirrors.huaweicloud.com/gentoo https://mirrors.aliyun.com/gentoo https://distfiles.gentoo.org"
+```
+
+```ini
+# /etc/portage/binrepos.conf/gentoo.conf
+[gentoo]
+sync-uri = https://mirrors.cernet.edu.cn/gentoo/releases/amd64/binpackages/23.0/x86-64_llvm
+priority = 1
+verify-signature = true
+```
+
+复制这些片段时不能只改 URI：binhost 的 profile/ABI 必须与目标系统一致，MetaManifest 与二进制包签名验证也应保留。WSL 使用 `x86-64` binhost、没有 PC 的华为 binhost，并保留兼容初始 stage3 的 wget 下载方式；因此两套 Portage 目录不能直接覆盖彼此。
+
+如果怀疑 distfiles 镜像尚未同步，可以让单次抓取只走官方源：
+
+```bash
+GENTOO_MIRRORS=https://distfiles.gentoo.org emerge --fetchonly --ask CATEGORY/PACKAGE
+```
+
+主树同步异常时，应临时把 `gentoo.conf` 的 `sync-uri` 改回 Gentoo 官方 rsync，完成 `emerge --sync` 后再决定是否恢复南京大学镜像；不要同时堆叠多个 `[gentoo]` 段。binhost 也应切换到 [Gentoo 官方下载页](https://www.gentoo.org/downloads/) 为当前 profile 提供的对应地址，而不是关闭签名验证来绕过错误。镜像延迟、动态调度和网络故障都不构成关闭 TLS、Manifest、签名或校验和的理由。
+
+### 用户级开发工具镜像
+
+Portage 之外的镜像集中在 dotfiles 的 [`development_mirrors/`](https://github.com/Cyberl-ty02/dotfiles/tree/main/gentoo_setting/development_mirrors) 中：Bun/npm 使用 CERNET npm，pip/uv 使用 CERNET PyPI，Cargo 使用 CERNET crates.io 稀疏索引，Pixi 使用 CERNET Conda/PyPI。Python/uv 只设置一个默认 PyPI 索引，不叠加 `extra-index-url`，以降低同名依赖从非预期索引解析的 dependency-confusion 风险。
+
+CERNET Go Proxy 在 2026-09-01 的本机测试中不兼容，因此 Go 采用保留校验数据库的分层回退：
+
+```ini
+GOPROXY=https://mirrors.huaweicloud.com/repository/goproxy/|https://mirrors.aliyun.com/goproxy/|https://proxy.golang.org|direct
+GOSUMDB=sum.golang.org
+```
+
+竖线表示遇到任意错误都继续尝试下一项，适合处理镜像超时；其行为与只在 404/410 时回退的逗号不同，详见 [Go Modules Reference](https://go.dev/ref/mod)。各工具的目标文件、部署命令和临时切回官方源方法都记录在 [`development_mirrors/README.md`](https://github.com/Cyberl-ty02/dotfiles/blob/main/gentoo_setting/development_mirrors/README.md)。镜像配置只应包含公开索引地址，不要把 token、密码、私有 registry 或代理订阅复制进仓库。
+
 本机配置继续以 [Cyberl-ty02/dotfiles](https://github.com/Cyberl-ty02/dotfiles) 为准。恢复系统时可以把 [`world_packages.txt`](https://github.com/Cyberl-ty02/dotfiles/blob/main/gentoo_setting/pc/world_packages.txt) 复制到新环境，但它应当作为可审阅的目标清单，而不是不经检查就执行的安装脚本。
 
 ## 参考资料
@@ -1283,6 +1344,7 @@ emerge --pretend --verbose --update --deep --newuse @world
 - [Gentoo Handbook：配置内核](https://wiki.gentoo.org/wiki/Handbook:AMD64/Installation/Kernel)：distribution kernel、initramfs 与 installkernel 的官方说明。
 - [Gentoo Handbook：配置系统](https://wiki.gentoo.org/wiki/Handbook:AMD64/Installation/System)：主机名、网络和 OpenRC 系统配置。
 - [Gentoo 下载与镜像](https://www.gentoo.org/downloads/)：安装介质和官方 stage3 入口。
+- [MirrorZ：Gentoo](https://help.mirrors.cernet.edu.cn/gentoo/) 与 [gentoo-zh](https://help.mirrors.cernet.edu.cn/gentoo-zh/)：CERNET 联合镜像中 distfiles、binhost 与 overlay 的使用边界。
 - [Arch Linux 简明指南：基础安装](https://arch.icekylin.online/guide/rookie/basic-install.html)：本文借鉴其 Btrfs 子卷、按实际挂载生成 fstab，以及进入目标根目录前复查的思路；包管理和 Gentoo 配置仍以 Handbook 为准。
 - [Arch Linux 简明指南：可选配置（基础篇）](https://arch.icekylin.online/guide/advanced/optional-cfg-1.html)：Fcitx/Rime 与 Zsh 使用思路；本文已将 Arch 包名和 systemd 命令替换为 Gentoo/OpenRC 实际配置。
 - [Arch Linux 简明指南：系统美化（终端篇）](https://arch.icekylin.online/guide/advanced/beauty-3.html)：zimfw、Powerlevel10k、Nerd Font 与 `p10k configure` 的配置路线。

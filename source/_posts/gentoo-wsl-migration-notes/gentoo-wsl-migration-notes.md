@@ -2,13 +2,13 @@
 title: Gentoo 真机与 WSL 迁移踩坑记录
 comments: true
 toc: true
-donate: true
+donate: false
 share: true
 date: 2026-06-04 17:07:55
-categories: 实用技巧
+categories: Linux 与 BSD
 tags:
-- 技巧
-- ai
+- Linux
+- Gentoo
 ---
 本文章由 ChatGPT 协助整理和写作，主要记录最近一次从 Gentoo 真机环境转向 Gentoo WSL 环境时遇到的一些问题和解决思路。
 
@@ -352,27 +352,27 @@ wsl -d Gentoo
 在 WSL 中，我最后更倾向选择：
 
 ```text
-default/linux/amd64/23.0
+default/linux/amd64/23.0/desktop
 ```
 
-也就是：
+当前列表中的编号会随仓库状态改变，因此先查找再选择，不要长期照抄某个数字：
 
 ```bash
-doas eselect profile set 1
+eselect profile list
+doas eselect profile set PROFILE_INDEX
 ```
 
-理由比较简单：
-
-```text
-stable
-OpenRC 默认
-保留 multilib 可能性
-不带 desktop/plasma/gnome
-不带 systemd
-不走 llvm experimental profile
-```
+这里的 `PROFILE_INDEX` 要替换成列表中 `default/linux/amd64/23.0/desktop` 的实际编号。当前配置保留 stable、OpenRC 和 multilib，不采用 systemd、LLVM experimental profile 或具体桌面环境的子 profile。`desktop` 只提供较通用的桌面/开发 USE 基线，并不意味着必须在 WSL 中安装完整图形桌面。
 
 WSL 的目标不是再装一套完整 Gentoo 桌面，而是作为开发环境使用。
+
+### WSL 与 PC 的镜像配置不要合并
+
+当前两套配置都通过南京大学 rsync 同步 Gentoo 主树，并保留 OpenPGP MetaManifest 校验；distfiles 的顺序都是 CERNET、华为、阿里和 Gentoo 官方源，gentoo-zh 则使用 CERNET 联合入口。GURU、XLibre 等没有对应配置的 overlay 仍直连各自上游。
+
+差异也很明确：WSL 使用与 `default/linux/amd64/23.0/desktop` 对应的 `x86-64` 官方 binhost；PC 的 LLVM profile 使用 `x86-64_llvm`，并额外保留华为 binhost。两边都要求验证二进制包签名。PC 已有 curl，所以显式设置了 Portage 下载命令；WSL 要兼容刚解压、可能尚无 curl 的 stage3，继续使用 Portage 的 wget 默认值。SonicDE overlay 也只属于 PC 配置。
+
+Bun/npm、pip/uv、Cargo、Go 与 Pixi 的用户级镜像可以共用，具体文件和临时切回官方源的方法集中记录在 [development_mirrors/README](https://github.com/Cyberl-ty02/dotfiles/blob/main/gentoo_setting/development_mirrors/README.md)。其中 Go 没有使用 2026-09-01 实测不兼容的 CERNET Go Proxy，而按“华为 → 阿里 → `proxy.golang.org` → `direct`”回退；`GOSUMDB` 仍保持 `sum.golang.org`。镜像同步或动态调度出现延迟时，应临时切回官方源排查，不要关闭 TLS、Manifest、签名或校验和。
 
 ## Gentoo WSL 中的 Portage / Python 迁移问题
 

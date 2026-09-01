@@ -2,12 +2,13 @@
 title: Windows 11 修复安装失败 0xC1900101-0x20017：从 DISM 0x800f0915 到定位 TAP/Wintun 驱动
 comments: true
 toc: true
-donate: true
+donate: false
 share: true
 date: 2026-08-02 12:00:00
 categories: Windows
 tags:
-- 技巧
+- Windows
+- 系统维护
 ---
 
 最近这台 Windows 11 的任务栏、右键菜单等系统组件开始出现异常。最初看起来只是组件存储损坏，但从 DISM 修复失败一路排查到 Windows 就地修复安装，最后经历了两层问题：卡巴斯基残留先造成注册表迁移错误，清理后，旧 TAP-Windows 与 Wintun 网络驱动又导致 SAFE_OS 启动阶段失败。

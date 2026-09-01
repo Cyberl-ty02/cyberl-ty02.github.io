@@ -2,14 +2,13 @@
 title: Typst 长文档与 Python 工具链踩坑记录
 comments: true
 toc: true
-donate: true
+donate: false
 share: true
 date: 2026-06-23 17:00:00
-categories: 实用技巧
+categories: 开发工具
 tags:
-- 技巧
-- typst
-- python
+- Python
+- 开发工具
 ---
 
 最近使用 Typst 编写较长的技术文档，并用 Python 处理少量构建和检查任务。Typst 的编译速度很快，但“成功生成 PDF”只是第一步：参考文献编码、交叉引用、表格布局、生成文件和 Python 环境仍然可能带来不少问题。
@@ -189,6 +188,38 @@ uv run python scripts/build.py
 ```
 
 具体命令应以项目实际使用的环境工具为准。关键不是选择哪一种工具，而是避免全局包、虚拟环境和多个锁文件同时参与同一次构建。
+
+### uv 与 Cargo 国内镜像
+
+当前 `~/.config/uv/uv.toml` 只声明一个默认 PyPI 索引：
+
+```toml
+[[index]]
+name = "cernet"
+url = "https://mirrors.cernet.edu.cn/pypi/web/simple"
+default = true
+```
+
+不再设置 `extra-index-url`，是为了让同一个包名只从预期索引解析，降低 dependency-confusion 风险。若镜像尚未同步所需版本，可以只让当前命令使用官方 PyPI：
+
+```bash
+UV_DEFAULT_INDEX=https://pypi.org/simple uv sync
+```
+
+用 Cargo 安装或重建 Rust/Typst 周边工具时，`~/.cargo/config.toml` 将 crates.io 替换为 CERNET 的稀疏索引：
+
+```toml
+[registries.cernet]
+index = "sparse+https://mirrors.cernet.edu.cn/crates.io-index/"
+
+[source.crates-io]
+replace-with = "cernet"
+
+[source.cernet]
+registry = "sparse+https://mirrors.cernet.edu.cn/crates.io-index/"
+```
+
+这个替换只影响依赖下载，不替代 `Cargo.lock` 与 crate 校验和。CERNET 动态入口的后端节点可能变化；上述可达性为 2026-09-01 实测。临时切回官方稀疏索引的方法，以及完整用户级文件，可查阅 [development_mirrors/README](https://github.com/Cyberl-ty02/dotfiles/blob/main/gentoo_setting/development_mirrors/README.md)。技术细节见 [uv 索引文档](https://docs.astral.sh/uv/concepts/indexes/)、[Cargo source replacement](https://doc.rust-lang.org/cargo/reference/source-replacement.html) 和 [MirrorZ crates.io-index 帮助页](https://help.mirrors.cernet.edu.cn/crates.io-index/)。
 
 ## 在动态输入的边界处理 Unknown 类型
 

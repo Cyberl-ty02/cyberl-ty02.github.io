@@ -5,9 +5,10 @@ toc: true
 donate: false
 share: true
 date: 2025-09-13 18:03:47
-categories: 实用技巧
+categories: Linux 与 BSD
 tags:
-- 技巧
+- Linux
+- 开发工具
 ---
 本篇文章简单记录 AUR（Arch User Repository）软件包编译时的一些优化事项，主要用于在 WSL 环境中提高编译效率。
 

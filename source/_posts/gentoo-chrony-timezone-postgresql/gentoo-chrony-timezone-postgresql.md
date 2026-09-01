@@ -2,12 +2,13 @@
 title: Gentoo OpenRC 的时间同步、时区切换与 PostgreSQL 18 初始化
 comments: true
 toc: true
-donate: true
+donate: false
 share: true
 date: 2026-08-05 19:30:00
-categories: 实用技巧
+categories: Linux 与 BSD
 tags:
-- 技巧
+- Linux
+- Gentoo
 ---
 
 这篇文章整理 Gentoo OpenRC 环境中的三项相关配置：用 chrony 同步多组时间源、绕过 KDE 日期时间模块手工切换时区，以及初始化 PostgreSQL 18 并收紧本机认证。

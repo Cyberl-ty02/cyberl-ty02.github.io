@@ -2,13 +2,12 @@
 title: FreeBSD KDE 桌面黑屏与 Xorg / XLibre 调试记录
 comments: true
 toc: true
-donate: true
+donate: false
 share: true
 date: 2026-05-17 04:29:19
-categories: 实用技巧
+categories: Linux 与 BSD
 tags:
-- 技巧
-- ai
+- 系统维护
 ---
 本文由 ChatGPT 协助整理和写作，简单记录一次在 FreeBSD 上安装 KDE Plasma 桌面时遇到的 Xorg / XLibre / SDDM 黑屏问题，以及最后的解决思路。
 

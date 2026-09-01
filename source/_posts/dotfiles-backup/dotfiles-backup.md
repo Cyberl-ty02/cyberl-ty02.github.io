@@ -2,15 +2,22 @@
 title: 配置文件备份
 comments: true
 toc: true
-donate: true
+donate: false
 share: true
 date: 2025-01-07 11:43:31
-categories: 段落摘抄
+categories: 开发工具
 tags:
-- 摘抄
+- 开发工具
+- 系统维护
 ---
 
 本文保留几份常用配置片段。当前维护中的完整配置以 [Cyberl-ty02/dotfiles](https://github.com/Cyberl-ty02/dotfiles) 仓库为准；下方每节标题直接指向对应文件。部分片段自 2025 年初写下后已经与当前配置不同，相关位置会明确标为历史或最小示例。
+
+## [开发工具镜像配置](https://github.com/Cyberl-ty02/dotfiles/tree/main/gentoo_setting/development_mirrors)
+
+2026-09-01 起，Bun/npm、pip/uv、Cargo、Go 与 Pixi 的用户级镜像配置统一归档到 `gentoo_setting/development_mirrors/`。这样可以复用开发工具配置，又不会把 PC 与 WSL 的 Portage 文件错误合并：两套系统使用不同 profile 和 binhost，仍分别保存在 `gentoo_setting/pc/portage/` 与 `gentoo_setting/wsl/portage/`。
+
+目录中的 [README](https://github.com/Cyberl-ty02/dotfiles/blob/main/gentoo_setting/development_mirrors/README.md) 记录了目标路径、部署方式和临时切回官方源的命令。公开备份时只保存 registry/index 地址，不应提交 npm token、PyPI 凭据、私有仓库地址或代理订阅。CERNET 联合镜像是动态调度入口，实际后端高校节点可能变化；本文所述可达性是 2026-09-01 的本机实测，不代表长期可用性。
 
 ## [`doas.conf`](https://github.com/Cyberl-ty02/dotfiles/blob/main/doas_dot_conf)
 

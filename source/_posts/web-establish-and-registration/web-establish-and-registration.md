@@ -2,12 +2,13 @@
 title: 网站的搭建和备案（WordPress 版）
 comments: true
 toc: true
-donate: true
+donate: false
 share: true
 date: 2025-01-07 11:36:37
-categories: 实用技巧
+categories: 网站与博客
 tags:
-- 技巧
+- 博客
+- 系统维护
 ---
 注意，本文记录的网站搭建环境基于兼容 CentOS 的 Linux 发行版，并使用 Apache、MariaDB 和 PHP 8 搭建。如果需要使用 Debian 系或其他发行版（Arch、Gentoo、FreeBSD 等），请搜索对应教程，并结合实际情况调整安装步骤，不要完全照抄。由于搭建时间较早，部分内容可能已经与现有文档有出入。
 

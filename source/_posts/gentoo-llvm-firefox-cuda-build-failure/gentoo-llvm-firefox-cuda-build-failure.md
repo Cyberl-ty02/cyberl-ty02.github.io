@@ -2,12 +2,13 @@
 title: Gentoo 中 Firefox 与 CUDA 安装被旧 LLVM 构建失败阻塞的排查
 comments: true
 toc: true
-donate: true
+donate: false
 share: true
 date: 2026-08-05 19:45:00
-categories: 实用技巧
+categories: Linux 与 BSD
 tags:
-- 技巧
+- Linux
+- Gentoo
 ---
 
 > **待验证**

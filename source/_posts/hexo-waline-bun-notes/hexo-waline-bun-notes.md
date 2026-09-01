@@ -2,12 +2,13 @@
 title: Hexo 博客迁移 Waline 与 Bun 的踩坑记录
 comments: true
 toc: true
-donate: true
+donate: false
 share: true
 date: 2026-06-23 12:00:00
-categories: 实用技巧
+categories: 网站与博客
 tags:
-- 技巧
+- 博客
+- 开发工具
 ---
 这次调整博客时，我同时更换了评论系统和前端包管理器：评论从 Gitalk 迁移到 Waline，构建工具则从 pnpm 统一到了 Bun。两件事看似互不相关，实际都牵涉到旧配置清理、数据迁移、浏览器缓存和 GitHub Actions，过程中遇到了不少容易重复踩到的小坑。
 
@@ -279,6 +280,30 @@ bun run build
 ```
 
 这组命令和 GitHub Actions 保持一致。若本地成功而 CI 失败，再检查 Bun 版本、环境变量和 Linux/Windows 差异；若两边使用的命令本身不同，排错会多出一层没有必要的变量。
+
+### Bun/npm 国内镜像
+
+当前用户级配置让 Bun 与 npm 都使用 CERNET npm 入口：
+
+```toml
+# ~/.bunfig.toml
+[install]
+registry = "https://mirrors.cernet.edu.cn/npm/"
+```
+
+```ini
+# ~/.npmrc
+registry=https://mirrors.cernet.edu.cn/npm/
+```
+
+单次需要排除镜像同步延迟时，可以只对当前命令切回官方 registry，而不修改配置文件：
+
+```bash
+BUN_CONFIG_REGISTRY=https://registry.npmjs.org bun install
+npm --registry=https://registry.npmjs.org install
+```
+
+这里的可达性是 2026-09-01 的本机实测；CERNET 是动态调度入口，后端节点可能变化。`bun install --frozen-lockfile` 仍负责约束锁文件，TLS 与包完整性校验也不应关闭。配置中只应出现 registry 地址，认证 token 必须留在本机的私密凭据存储中。更多字段可参考 [Bun 的 registry 文档](https://bun.com/docs/pm/scopes-registries)；CERNET 当前节点可从 [MirrorZ 的 npm 项目页](https://mirrors.cernet.edu.cn/list/npm) 查看。
 
 ## 清理旧系统残余
 
