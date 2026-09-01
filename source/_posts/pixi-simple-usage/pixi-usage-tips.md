@@ -2,13 +2,13 @@
 title: Python Pixi 简单使用
 comments: true
 toc: true
-donate: true
+donate: false
 share: true
 date: 2025-08-24 13:20:01
-categories: 实用技巧
+categories: 开发工具
 tags:
-- 技巧
-- python
+- Python
+- 开发工具
 ---
 本篇文章简单记录 Pixi 环境的搭建过程。
 
@@ -177,6 +177,28 @@ python hello.py
 ```txt
 Hello, World from Pixi!
 ```
+
+## Pixi 国内镜像
+
+当前 Linux 用户级配置位于 `~/.pixi/config.toml`：
+
+```toml
+[mirrors]
+"https://conda.anaconda.org/" = ["https://mirrors.cernet.edu.cn/anaconda/cloud"]
+
+[pypi-config]
+index-url = "https://mirrors.cernet.edu.cn/pypi/web/simple"
+```
+
+`mirrors` 把 Conda channel 请求优先映射到 CERNET；`pypi-config` 则让新初始化项目采用一个默认 PyPI 索引。现有项目仍要检查自己的 `pixi.toml`，因为项目配置会与用户配置合并。Python 侧不再叠加 `extra-index-url`，避免同名包同时来自多个索引所带来的 dependency-confusion 风险。
+
+若怀疑镜像同步延迟，可以在单次操作中忽略用户级配置：
+
+```bash
+PIXI_NO_CONFIG=1 pixi install
+```
+
+这不会覆盖项目自身的配置；如项目内也写了镜像，仍应先审阅 `pixi.toml`。CERNET 联合入口会动态调度后端节点，2026-09-01 的可达性实测不能替代长期监控，也不应因此关闭 TLS 或锁文件、repodata 的校验。可进一步参考 [Pixi 配置参考](https://pixi.prefix.dev/latest/reference/pixi_configuration/)、[MirrorZ Anaconda 帮助页](https://help.mirrors.cernet.edu.cn/anaconda/) 和 [MirrorZ PyPI 帮助页](https://help.mirrors.cernet.edu.cn/pypi/)。
 
 ## 如何把环境导出给他人
 

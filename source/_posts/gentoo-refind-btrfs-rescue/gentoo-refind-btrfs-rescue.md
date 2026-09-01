@@ -2,12 +2,13 @@
 title: Gentoo 在 Btrfs 与 rEFInd 环境下的启动修复记录
 comments: true
 toc: true
-donate: true
+donate: false
 share: true
 date: 2026-08-05 19:00:00
-categories: 实用技巧
+categories: Linux 与 BSD
 tags:
-- 技巧
+- Linux
+- Gentoo
 ---
 
 最近在 Gentoo 真机环境中把启动链从 GRUB 调整为 shim + rEFInd，并从 LiveCD chroot 修复了一次 Btrfs 根子卷无法启动的问题。最容易忽略的坑不是内核或 rEFInd 本身，而是在 LiveCD 中运行 `mkrlconf` 时，把救援系统的启动参数写进了目标 Gentoo。

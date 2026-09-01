@@ -2,12 +2,13 @@
 title: 为 Scoop 版 Git 添加 Windows Terminal 的 Git Bash 配置
 comments: true
 toc: true
-donate: true
+donate: false
 share: true
 date: 2026-06-17 18:55:00
-categories: 实用技巧
+categories: Windows
 tags:
-- 技巧
+- Windows
+- 开发工具
 ---
 在 Windows 上，我更倾向使用 Scoop 安装 Git，而不是直接使用官方 exe 安装包：
 

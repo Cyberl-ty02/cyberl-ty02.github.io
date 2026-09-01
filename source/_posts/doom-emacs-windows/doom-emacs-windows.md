@@ -2,12 +2,13 @@
 title: Doom Emacs Windows 安装
 comments: true
 toc: true
-donate: true
+donate: false
 share: true
 date: 2025-01-07 11:42:15
-categories: 段落摘抄
+categories: 开发工具
 tags:
-- 摘抄
+- Windows
+- 开发工具
 ---
 # Doom Emacs 实用命令
 

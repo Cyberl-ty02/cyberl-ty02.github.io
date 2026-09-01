@@ -2,12 +2,12 @@
 title: VSCodium 与 Sync Settings 配置记录
 comments: true
 toc: true
-donate: true
+donate: false
 share: true
 date: 2026-05-12 18:03:17
-categories: 实用技巧
+categories: 开发工具
 tags:
-- 技巧
+- 开发工具
 ---
 
 目前我重新把 [VSCodium](https://vscodium.com/) 作为日常编辑器，并使用 [Sync Settings](https://github.com/zokugun/vscode-sync-settings) 管理配置。

@@ -2,12 +2,13 @@
 title: Gentoo SonicDE + XLibre 编译失败：追踪 kcm_mouse 缺失的 xorg-libinput 依赖
 comments: true
 toc: true
-donate: true
+donate: false
 share: true
 date: 2026-08-09 19:30:00
-categories: 实用技巧
+categories: Linux 与 BSD
 tags:
-- 技巧
+- Linux
+- Gentoo
 ---
 
 这次更新 SonicDE 时，`sonic-desktop` 在编译鼠标设置模块时停在了 `libinput-properties.h`。表面看像缺少开发头文件，实际情况却相反：头文件已经安装，`pkg-config` 和 CMake 也都找到了 `xorg-libinput`，只是依赖没有传到真正编译失败的 `kcm_mouse` target。

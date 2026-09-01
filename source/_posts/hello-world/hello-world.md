@@ -1,9 +1,10 @@
 ---
 title: 你好，世界！
 date: 2025-01-07 11:32:57
-categories: 全新体验
+donate: false
+categories: 随笔与摘录
 tags:
-- 欢迎
+- 随笔
 sticky: 1
 #cover:
 comments: true

@@ -2,16 +2,13 @@
 title: Gentoo 内核迁移记录：XanMod、CJKTTY、NVIDIA 与 Secure Boot
 comments: true
 toc: true
-donate: true
+donate: false
 share: true
 date: 2026-08-09 20:00:00
-categories: 实用技巧
+categories: Linux 与 BSD
 tags:
-- 技巧
+- Linux
 - Gentoo
-- XanMod
-- CJKTTY
-- Secure Boot
 ---
 
 这篇文章最初记录从 `sys-kernel/xanmod-kernel-7.1.6` 迁移到 Gentoo-Zh `sys-kernel/gentoo-cjk-kernel-7.1.7` 的过程；当时 `7.1.7-gentoo-cjk-dist`、NVIDIA、Secure Boot 和 Linux VT 中文显示均已实际验证。Gentoo-Zh 后来重新为 `sys-kernel/xanmod-kernel` 加入 CJKTTY，本机因此在 2026-08-20 开始切回 XanMod。本文保留第一次迁移的历史证据，同时补记反向迁移，避免把已经变化的包选择写成永久结论。

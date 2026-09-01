@@ -100,7 +100,7 @@ share:
 
 # 打赏组件设置
 donate:
-  enable: true
+  enable: false
   title: "赞助喵"
   message: 非常感谢您的喜欢！ <i class="fa fa-heart" style="color:#d43f57"></i>
   qrcode_placeholder: "https://dev.krt.moe/demo-assets/donate.webp"

@@ -2,12 +2,12 @@
 title: 一些网站的摘抄
 comments: false
 toc: true
-donate: true
+donate: false
 share: true
 date: 2026-02-21 17:11:16
-categories: 段落摘抄
+categories: 随笔与摘录
 tags:
-- 摘抄
+- 随笔
 ---
 
 本文章摘录了一些可能比较有用的网站，以供安装和查询。

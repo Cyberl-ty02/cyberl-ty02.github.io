@@ -2,12 +2,13 @@
 title: Gentoo OpenRC 桌面排错：中文字体、KDE 托盘与 PipeWire
 comments: true
 toc: true
-donate: true
+donate: false
 share: true
 date: 2026-08-05 19:15:00
-categories: 实用技巧
+categories: Linux 与 BSD
 tags:
-- 技巧
+- Linux
+- Gentoo
 ---
 
 这篇文章记录 Gentoo OpenRC 桌面环境中的两组问题：中文界面全部落到旧文鼎字体，以及 KDE/SonicDE 中音量托盘缺失。字体问题已经完成修复和验证；音量部件部分只记录已确认的组件关系与待验证方案。

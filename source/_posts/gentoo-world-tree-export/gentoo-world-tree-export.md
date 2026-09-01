@@ -2,12 +2,13 @@
 title: Gentoo world 文件导入导出
 comments: false
 toc: true
-donate: true
+donate: false
 share: true
 date: 2026-02-21 17:00:49
-categories: 实用技巧
+categories: Linux 与 BSD
 tags:
-- 技巧
+- Linux
+- Gentoo
 ---
 在 Gentoo 中，**world** 文件包含用户明确要求安装的软件包。可以从 **world** 文件中提取软件包列表，再在另一台 Gentoo 机器上进行检查和安装。以下是具体步骤。
 
