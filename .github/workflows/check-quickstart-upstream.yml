@@ -71,7 +71,7 @@ jobs:
               `- Current upstream: \`${latest}\``,
               `- Compare: ${compare}`,
               "",
-              "Review and port useful changes file by file. Do not merge the unrelated template history or overwrite the blog's Bun-based workflow and private configuration blindly.",
+              "Review and port useful changes file by file. Do not merge the unrelated template history or overwrite the blog's Bun/TypeScript workflow and private configuration blindly.",
               "",
               "After the selected changes pass a local build, update `.github/quickstart-upstream.sha` to the reviewed upstream SHA and close this issue."
             ].join("\n");

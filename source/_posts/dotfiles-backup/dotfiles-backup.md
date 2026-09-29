@@ -13,6 +13,18 @@ tags:
 
 本文保留几份常用配置片段。当前维护中的完整配置以 [Cyberl-ty02/dotfiles](https://github.com/Cyberl-ty02/dotfiles) 仓库为准；下方每节标题直接指向对应文件。部分片段自 2025 年初写下后已经与当前配置不同，相关位置会明确标为历史或最小示例。
 
+## [Neovim 与 LazyVim](https://github.com/Cyberl-ty02/dotfiles/tree/main/dot_config/nvim)
+
+2026-09-29 核验时，PC 与 WSL 的 world 清单都已从 Emacs 切换到 Neovim，共用 `dot_config/nvim/` 中基于官方 LazyVim Starter 的配置。仓库跟踪 `lazy-lock.json`，而插件、缓存和运行状态仍保留在每个账户自己的 XDG 目录中。
+
+当前配置跟随 `LazyVim/LazyVim` 的 `main` 分支，lazy.nvim 在启动时最多每 24 小时检查和应用一次插件更新。需要复现旧环境、排查上游回归或使用救援账户时，可以临时关闭自动更新：
+
+```bash
+LAZYVIM_AUTO_UPDATE=0 nvim
+```
+
+不要让普通用户与 root 共享可写的插件或 state 目录。root 运行的任何插件都会获得完整系统权限，因此应先以普通用户审阅更新，再决定是否在管理环境中加载。
+
 ## [开发工具镜像配置](https://github.com/Cyberl-ty02/dotfiles/tree/main/gentoo_setting/development_mirrors)
 
 2026-09-01 起，Bun/npm、pip/uv、Cargo、Go 与 Pixi 的用户级镜像配置统一归档到 `gentoo_setting/development_mirrors/`。这样可以复用开发工具配置，又不会把 PC 与 WSL 的 Portage 文件错误合并：两套系统使用不同 profile 和 binhost，仍分别保存在 `gentoo_setting/pc/portage/` 与 `gentoo_setting/wsl/portage/`。

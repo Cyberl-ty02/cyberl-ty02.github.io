@@ -18,6 +18,6 @@ toc: true
 
 评论系统使用 [Waline](https://waline.js.org/)，早期曾经尝试过 Gitalk，后来迁回 Waline；历史评论已经迁移到新的评论系统中。
 
-包管理器使用 [Bun](https://bun.sh/)，构建流程也统一切换到了 Bun。日常编辑目前使用 [VSCodium](https://vscodium.com/)：VS Code 的更新节奏对我来说过于频繁，有时一周会遇到一次或多次更新，容易打断专注状态；同时部分内置功能与已经安装的插件重合，也增加了整理配置的负担。VSCodium 配合独立的 Sync Settings 插件更符合我现在希望保持稳定、按需更新的使用方式。
+包管理器使用 [Bun](https://bun.sh/)，博客自有的检查脚本也已迁移到 Bun + TypeScript；Hexo 与 Kratos-Rebirth 主题仍保持上游原有边界。日常终端编辑目前使用 Neovim/LazyVim，图形化编辑和既有同步场景仍保留 [VSCodium](https://vscodium.com/)：两者承担不同工作，不需要为了技术栈形式统一而互相替代。
 
 总之，欢迎来到这里。这个博客大概会继续保持“边用边修、边写边迁”的状态，像一间慢慢添置家具的小屋。

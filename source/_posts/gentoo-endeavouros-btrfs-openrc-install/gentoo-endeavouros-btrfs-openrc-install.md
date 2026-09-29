@@ -17,7 +17,7 @@ sticky: 1
 它不是 Gentoo Handbook 的替代品。Handbook 负责解释 Gentoo 安装中长期稳定的规则；本文则把这些规则落实到我的磁盘布局和公开配置仓库。涉及版本、overlay 和 USE flag 的内容会随时间变化，实际安装时应同时打开 [Gentoo AMD64 Handbook](https://wiki.gentoo.org/wiki/Handbook:AMD64) 核对。
 
 > **记录基线**
-> 本文初稿写于 2026-08-18，当时运行内核为 `7.1.8-gentoo-cjk-dist`。2026-08-20 已切回 Gentoo-Zh 的 `sys-kernel/xanmod-kernel-7.1.9[cjk]`，实际启动 release 为 `7.1.9-x64v3`；内核与 NVIDIA 模块签名、Secure Boot、rEFInd 参数和 NVIDIA 610.57.04 均已验证。这里的版本是迁移记录，不要求读者固定安装相同版本。
+> 本文初稿写于 2026-08-18，当时运行内核为 `7.1.8-gentoo-cjk-dist`；2026-08-20 已切回 Gentoo-Zh 的 XanMod。2026-09-29 再次核验时，实际启动 release 为 `7.2.6-x64v3`，Portage 已提供尚未重启验证的 `7.2.8`，NVIDIA 驱动为 `615.71.09`。这里严格区分“仓库可安装”和“已经启动验证”，版本号只作为迁移记录，不要求读者固定安装相同版本。
 
 > **危险操作提醒**
 > 分区、格式化、生成 fstab 和安装 EFI 启动项都可能造成数据损失或启动失败。命令中的设备名全部是占位示例。执行前必须用 `lsblk -f`、`findmnt` 和固件启动模式确认自己的目标，双系统环境尤其不能格式化已有 Windows ESP。
@@ -44,7 +44,7 @@ profile：default/linux/amd64/23.0/llvm
 
 完整的当前说明见 dotfiles 的 [`gentoo_setting/pc/README.md`](https://github.com/Cyberl-ty02/dotfiles/blob/main/gentoo_setting/pc/README.md)，软件清单见 [`world_packages.txt`](https://github.com/Cyberl-ty02/dotfiles/blob/main/gentoo_setting/pc/world_packages.txt)。这里不会把所有软件都解释一遍，而是着重保证第一次重启前已经具备能启动、联网和进入桌面的条件。
 
-本文采用的实际执行顺序是：进入 chroot 后初始化 Portage、repository 和公开配置，生成 Secure Boot 密钥并安装 shim+rEFInd，引导链就绪后安装内核和 NVIDIA 模块，再安装 mold；随后执行 `emerge -ajvuDN @world`、安装 `world_packages.txt` 中的软件并复查旧文章涉及的额外项目，启用必要服务后才第一次重启。Fcitx、Zsh/Powerlevel10k、Doom Emacs 等用户态配置统一留到成功启动的新系统中完成。
+本文采用的实际执行顺序是：进入 chroot 后初始化 Portage、repository 和公开配置，生成 Secure Boot 密钥并安装 shim+rEFInd，引导链就绪后安装内核和 NVIDIA 模块，再安装 mold；随后执行 `emerge -ajvuDN @world`、安装 `world_packages.txt` 中的软件并复查旧文章涉及的额外项目，启用必要服务后才第一次重启。Fcitx、Zsh/Powerlevel10k、Neovim/LazyVim 等用户态配置统一留到成功启动的新系统中完成。
 
 ## Stage 0：在 LiveCD 中准备目标系统
 
@@ -570,7 +570,7 @@ ls -la /etc/kernel/secureboot /root/secureboot-script-backup
 
 ### 安装内核、固件和 NVIDIA
 
-Gentoo Handbook 建议第一次启动优先使用 distribution kernel，以减少“系统配置错误”和“自定义内核漏选驱动”混在一起的概率。我的机器选择 Gentoo-Zh 的 XanMod distribution kernel，并通过 `cjk` USE 应用 CJKTTY 补丁。当前 overlay 的 ebuild 会继承 `cjktty` eclass；`cjk` 负责补丁和 16×16 CJK 字体，体积更大的 `cjk32` 可按高分辨率 framebuffer 的实际需求选择，不是必需项。
+Gentoo Handbook 建议第一次启动优先使用 distribution kernel，以减少“系统配置错误”和“自定义内核漏选驱动”混在一起的概率。我的机器选择 Gentoo-Zh 的 XanMod distribution kernel，并通过 `cjk` USE 应用 CJKTTY 补丁。当前 overlay 的 ebuild 会继承 `cjktty` eclass；`cjk` 负责补丁和 16×16 CJK 字体，`cjk32` 额外加入体积更大的 32×32 字体。当前公开配置同时启用了两者，但低分辨率 framebuffer 通常不必照抄 `cjk32`。
 
 distribution kernel 通常依赖 initramfs 才能覆盖模块化的存储与文件系统驱动。当前 `package.use/secureboot` 已为 `sys-kernel/installkernel` 启用 `dracut` 和 `refind`；安装前仍要从 Portage 计划中确认这些 flag 生效：
 
@@ -700,7 +700,7 @@ comm -3 /tmp/gentoo-selected.txt /tmp/gentoo-tracked.txt
 原博客中仍需单独执行、但不是缺失 Portage atom 的内容包括：
 
 ```text
-Doom Emacs 本体与 ~/.config/doom 私人配置
+~/.config/nvim 中的 LazyVim 用户配置与 lazy-lock.json
 PostgreSQL 数据目录初始化与 pg_hba.conf 调整
 Fcitx/Rime 用户 profile 和 custom.yaml
 zimfw、Powerlevel10k 与生成的 ~/.p10k.zsh
@@ -995,7 +995,7 @@ fc-match 'sans-serif:lang=zh-cn'
 
 Gentoo Wiki 给出的基础方式是使用 `zramctl` 创建设备；它属于系统已有的 `sys-apps/util-linux`，因此这里不需要安装 `sys-block/zram-init` 或面向 systemd 的 `sys-apps/zram-generator`。单设备配置直接交给 OpenRC 的 `local` 服务即可。
 
-先确认当前启动内核提供 zram 与 Zstd backend。本机实际启动的 `7.1.9-x64v3` 已验证为 `CONFIG_ZRAM=m`、`CONFIG_ZRAM_BACKEND_ZSTD=y`；其他版本仍应现场检查，不能只依据 ebuild USE：
+先确认当前启动内核提供 zram 与 Zstd backend。本机在 2026-09-29 实际启动的 `7.2.6-x64v3` 已验证可使用这套方案；其他版本仍应现场检查，不能只依据 ebuild USE：
 
 ```bash
 if test -r /proc/config.gz; then
@@ -1180,46 +1180,33 @@ zsh -i -c 'print -r -- $ZSH_VERSION'
 test -d ~/.zim/modules/powerlevel10k
 ```
 
-### 安装 Doom Emacs
+### 恢复 Neovim 与 LazyVim
 
-Portage 的 `app-editors/emacs` 已在 world 清单中；Doom Emacs 本体是用户目录中的 Git checkout，不是另一个 Gentoo atom。当前 Linux 目录约定是：
+当前 PC 与 WSL 的 world 清单都使用 `app-editors/neovim`，不再安装 Emacs。配置位于 dotfiles 的 [`dot_config/nvim/`](https://github.com/Cyberl-ty02/dotfiles/tree/main/dot_config/nvim)，基于官方 LazyVim Starter，并由两套环境共用。
 
-```text
-~/.config/emacs   Doom Emacs 本体
-~/.config/doom    init.el、packages.el、config.el 等私人配置
-~/.emacs.d        指向 ~/.config/emacs 的兼容符号链接
-~/.local/share/doom  Doom 生成的数据、包和缓存
-```
-
-以普通用户确认 Emacs 与 Git：
+先以普通用户确认版本和目标目录：
 
 ```bash
-emacs --version
-git --version
+nvim --version
+test ! -e ~/.config/nvim
 ```
 
-如果决定全新安装，先确认旧目录不存在或已备份，再克隆：
+只有第二条命令确认目录不存在时，才从已经审核的 dotfiles checkout 恢复配置；`DOTFILES_DIR` 应替换为实际仓库位置：
 
 ```bash
-git clone --depth 1 https://github.com/doomemacs/doomemacs \
-  ~/.config/emacs
-~/.config/emacs/bin/doom install
+DOTFILES_DIR=/path/to/dotfiles
+install -d ~/.config
+cp -a "${DOTFILES_DIR}/dot_config/nvim" ~/.config/nvim
+nvim
 ```
 
-把自己的 Doom 配置恢复到 `~/.config/doom` 后：
+首次启动会由 lazy.nvim 安装锁文件描述的插件。当前配置跟随 `LazyVim/LazyVim` 的 `main` 分支，并且最多每 24 小时检查和应用一次插件更新；恢复上游回归或暂时不希望更新时，可以使用：
 
 ```bash
-~/.config/emacs/bin/doom sync
-~/.config/emacs/bin/doom doctor
+LAZYVIM_AUTO_UPDATE=0 nvim
 ```
 
-如果 `emacs --batch` 仍报告 `user-emacs-directory=~/.emacs.d/`，而 Doom 位于 `~/.config/emacs`，在确认旧 `.emacs.d` 已备份后建立兼容链接：
-
-```bash
-ln -s ~/.config/emacs ~/.emacs.d
-```
-
-修改 `init.el` 或 `packages.el` 后运行 `doom sync`；更新 Doom 使用 `doom upgrade`，不要直接把普通 Git 更新当作完整升级流程。Windows 专用 junction 命令不适用于这里。
+普通用户与 root 必须分别使用自己的 XDG data/state 目录，不能共享可写的插件目录。root 启动 Neovim 时，插件代码会获得完整权限；应先以普通用户审阅配置和更新，再决定是否在管理环境中加载。
 
 ### 从 LiveCD 查找、备份或移走旧用户配置
 
@@ -1282,7 +1269,7 @@ emerge --pretend --verbose --update --deep --newuse @world
 
 | 数据层 | 当前首选 | 仍然保留的验证或回退 |
 | --- | --- | --- |
-| Gentoo ebuild 主树 | 南京大学 rsync | OpenPGP MetaManifest 校验；必要时恢复 Gentoo 官方 rsync |
+| Gentoo ebuild 主树 | USTC Git 浅克隆 | Gentoo Release Key 验证提交签名、默认刷新密钥、拒绝超过三天的仓库时间戳；保留 CERNET、TUNA 与官方 Git 回退 |
 | distfiles 源码包 | CERNET → 华为 → 阿里 | 最后回退 `distfiles.gentoo.org` |
 | 官方 binhost | CERNET 的 `x86-64_llvm`，PC 另有华为来源 | `verify-signature = true`；来源必须匹配当前 LLVM profile |
 | gentoo-zh | CERNET Git 联合入口 | Git 提交与 ebuild 自身的校验链不因镜像而关闭 |
@@ -1295,9 +1282,12 @@ PC 的核心配置形如：
 ```ini
 # /etc/portage/repos.conf/gentoo.conf
 [gentoo]
-sync-type = rsync
-sync-uri = rsync://mirror.nju.edu.cn/gentoo-portage
-sync-rsync-verify-metamanifest = yes
+sync-openpgp-key-package = sec-keys/openpgp-keys-gentoo-release
+sync-openpgp-key-path = /usr/share/openpgp-keys/gentoo-release.asc
+sync-git-verify-commit-signature = yes
+sync-git-verify-max-age-days = 3
+sync-type = git
+sync-uri = https://mirrors.ustc.edu.cn/gentoo.git
 ```
 
 ```bash
@@ -1313,7 +1303,18 @@ priority = 1
 verify-signature = true
 ```
 
-复制这些片段时不能只改 URI：binhost 的 profile/ABI 必须与目标系统一致，MetaManifest 与二进制包签名验证也应保留。WSL 使用 `x86-64` binhost、没有 PC 的华为 binhost，并保留兼容初始 stage3 的 wget 下载方式；因此两套 Portage 目录不能直接覆盖彼此。
+复制这些片段时不能只改 URI：binhost 的 profile/ABI 必须与目标系统一致，Git 提交签名、Release Key 刷新与二进制包签名验证也应保留。WSL 使用 `x86-64` binhost、没有 PC 的华为 binhost，并保留兼容初始 stage3 的 wget 下载方式；因此两套 Portage 目录不能直接覆盖彼此。
+
+如果 `/var/db/repos/gentoo` 仍是 rsync 树，不能只把 `sync-type` 改成 Git 后原地继续。先确认它不是 Git worktree，再把旧目录移动到带时间戳的备份位置，让 Portage 重新克隆：
+
+```bash
+if [ -d /var/db/repos/gentoo ] && \
+  ! git -C /var/db/repos/gentoo rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  mv /var/db/repos/gentoo \
+    "/var/db/repos/gentoo.rsync-backup-$(date +%Y%m%d-%H%M%S)"
+fi
+emerge --sync
+```
 
 如果怀疑 distfiles 镜像尚未同步，可以让单次抓取只走官方源：
 
@@ -1321,7 +1322,7 @@ verify-signature = true
 GENTOO_MIRRORS=https://distfiles.gentoo.org emerge --fetchonly --ask CATEGORY/PACKAGE
 ```
 
-主树同步异常时，应临时把 `gentoo.conf` 的 `sync-uri` 改回 Gentoo 官方 rsync，完成 `emerge --sync` 后再决定是否恢复南京大学镜像；不要同时堆叠多个 `[gentoo]` 段。binhost 也应切换到 [Gentoo 官方下载页](https://www.gentoo.org/downloads/) 为当前 profile 提供的对应地址，而不是关闭签名验证来绕过错误。镜像延迟、动态调度和网络故障都不构成关闭 TLS、Manifest、签名或校验和的理由。
+主树同步异常时，可以临时把 `sync-uri` 改为 TUNA 或官方 Git 镜像；若使用 CERNET 联合入口，因为部分后端只提供 Git dumb HTTP，还必须同时设置 `sync-depth = 0`，首次同步会下载完整历史。一次只保留一个生效的 `sync-uri`，不要堆叠多个 `[gentoo]` 段，也不要关闭提交签名或 Release Key 刷新。binhost 应切换到 [Gentoo 官方下载页](https://www.gentoo.org/downloads/) 为当前 profile 提供的对应地址，而不是关闭签名验证来绕过错误。
 
 ### 用户级开发工具镜像
 

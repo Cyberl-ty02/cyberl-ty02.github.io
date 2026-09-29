@@ -110,36 +110,41 @@ Invoke-RestMethod `
 <div id="w-comments" class="kr-comments lazy-load" data-path="$PATH"></div>
 ```
 
-同时注入 Waline 的样式和模块脚本：
+当前不再让浏览器在运行时从第三方 CDN 下载 Waline，而是把锁定在
+`bun.lock` 中的 `@waline/client` 编译为本地样式和模块脚本：
 
 ```html
-<link rel="stylesheet" href="https://unpkg.com/@waline/client@v3/dist/waline.css">
 <link rel="stylesheet" href="/comments/waline.css?v=20260604-1">
-<script defer type="module" src="/comments/waline.js?v=20260604-1"></script>
+<link rel="stylesheet" href="/comments/waline-overrides.css?v=20260929-1">
+<script defer type="module" src="/comments/waline.js?v=20260929-1"></script>
 ```
 
-这里有三个关键点：
+这里有四个关键点：
 
 ```text
-Waline v3 前端脚本以 ES module 方式加载
+Waline v3 前端脚本由 Bun 编译为 ES module
 主题的 lazy-load 和 PJAX 切页后都要重新初始化评论
+官方样式与本站覆盖样式分开，更新依赖时不会覆盖定制规则
 修改本地 JS/CSS 后给 URL 增加版本参数，避免旧缓存继续生效
 ```
 
-PJAX 切换文章时，旧实例也要先销毁：
+源码位于 `frontend/waline.ts`。PJAX 切换文章时，旧实例和未完成的计数请求都要先销毁或取消：
 
-```javascript
-let waline;
+```typescript
+import { init, type WalineInstance } from '@waline/client';
+
+let waline: WalineInstance | null = null;
 
 const loadComments = async () => {
   waline?.destroy();
+  waline = null;
 
   const container = document.getElementById('w-comments');
   if (!container) return;
 
   waline = init({
     el: container,
-    path: container.getAttribute('data-path'),
+    path: container.dataset.path ?? window.location.pathname,
     serverURL,
   });
 };
@@ -179,7 +184,7 @@ TURNSTILE_SECRET=你的 Turnstile Secret Key
 
 ```json
 {
-  "packageManager": "bun@1.3.14"
+  "packageManager": "bun@1.4.2"
 }
 ```
 
@@ -212,11 +217,17 @@ Error: Process completed with exit code 1.
 - name: Install Hexo environment
   run: bun install --frozen-lockfile
 
+- name: Check TypeScript and blog content
+  run: bun run check
+
 - name: Clean Hexo cache
   run: bun run clean
 
 - name: Hexo build site
-  run: bun run build
+  run: bun run build:site
+
+- name: Check generated pages
+  run: bun run check:generated
 ```
 
 其中：
@@ -224,8 +235,10 @@ Error: Process completed with exit code 1.
 ```text
 bun-version-file 让本地与 CI 使用 package.json 中声明的 Bun 版本
 --frozen-lockfile 保证 CI 不会擅自改写 bun.lock
+bun run check 执行 TypeScript 类型检查和文章元数据/隐私检查
 bun run clean 先清除 Hexo 缓存和旧的 public 目录
-bun run build 使用 package.json 中已有的构建脚本
+bun run build:site 只执行 Hexo 站点生成，避免在 CI 中重复检查
+bun run check:generated 检查生成页面中的主页链接、捐赠入口和关键更新文本
 ```
 
 Dependabot 也应切换到 Bun：
@@ -268,6 +281,42 @@ db.json
 ```
 
 它们应由安装或 Hexo 构建过程重新生成，并写进 `.gitignore`。
+
+### 在主题之外加入 TypeScript 检查层
+
+2026-09-29 起，仓库进一步把自有自动化与运行时代码统一到 Bun + TypeScript，但没有把 Kratos-Rebirth 的 EJS 模板或上游 JavaScript 强行改写成私有 TypeScript fork。边界保持为：
+
+```text
+Hexo 与主题：继续使用上游发布的 JavaScript/EJS 包
+浏览器源码：frontend/*.ts，由 Bun 编译为本地 ESM 与 CSS
+Hexo 插件源码：plugins/*.ts，编译为 Node 兼容的 CommonJS
+博客自有检查与构建器：tools/*.ts，由 Bun 直接运行
+静态类型检查：TypeScript 的 tsc --noEmit
+依赖、脚本与 CI：统一由 Bun 管理
+```
+
+`tsconfig.json` 使用 Bun 推荐的 bundler module resolution、`types: ["bun"]`、`strict` 与 `noEmit`。`bun test` 会用临时 Git 仓库验证同内容文章改名后仍能保留初次提交时间，并以最新提交作为更新时间；`tools/check-content.ts` 会检查全部文章的 front matter、分类与标签上限、`donate: false`、主题级捐赠开关、旧锁文件以及一组高置信度隐私/凭据模式；`tools/check-generated.ts` 则在 Hexo 完成后检查首页、文章页、Waline 本地资源、页脚链接和捐赠入口。
+
+原生 TypeScript 不能直接放进根目录 `scripts/`，因为 Hexo 会把那里当作 JavaScript 插件目录。仓库只把 Bun 生成的 `scripts/date-from-git.js` 放在该位置，源码保留在 `plugins/date-from-git.ts`。这个本地插件继续注册标准的 `before_post_render` 过滤器，并通过纯 JavaScript 的 `isomorphic-git` 读取对象库；兼容层按 blob 身份安全跟随无内容变化且目标唯一的改名，遇到歧义则停止追溯，而不会猜测文件身份。它不再执行 `git log | tail`，也不需要启动 `/bin/sh` 或系统 Git 子进程。
+
+项目脚本拆分为：
+
+```json
+{
+  "scripts": {
+    "check": "bun run check:types && bun run test:contracts && bun run check:content",
+    "check:content": "bun run tools/check-content.ts",
+    "check:types": "tsc --noEmit",
+    "test:contracts": "bun test tests",
+    "build:runtime": "bun run tools/build-runtime.ts",
+    "build:site": "hexo generate",
+    "check:generated": "bun run tools/check-generated.ts",
+    "build": "bun run check && bun run build:runtime && bun run build:site && bun run check:generated"
+  }
+}
+```
+
+这不是把 Hexo 伪装成 TypeScript 框架，而是把可独立维护的自有部分迁移到 TypeScript，再编译回上游能够理解的 JavaScript、ESM 和 CSS 接口。模板上游仍通过独立 SHA 基线监测，更新时逐文件移植；主题升级仍由 `hexo-theme-kratos-rebirth` 包版本控制。
 
 ### 本地与 CI 使用同一组验证命令
 
@@ -338,4 +387,4 @@ Turnstile 站点密钥可以公开，服务端密钥必须留在服务端
 package.json 与 bun.lock 互相配合，不能只留其中一个
 ```
 
-Waline 和 Bun 本身并不难用，真正容易出问题的是迁移过程中同时存在两套配置。每次只改变一个环节，并让本地构建命令与 CI 完全一致，排错会轻松很多。
+Waline 和 Bun 本身并不难用，真正容易出问题的是迁移过程中同时存在两套配置。每次只改变一个环节，并让本地构建命令与 CI 完全一致，排错会轻松很多。Bun 原生执行 TypeScript 的配置建议可参考 [Bun TypeScript 文档](https://bun.sh/docs/runtime/typescript)，Hexo 的 JavaScript 插件边界则见 [Hexo 插件文档](https://hexo.io/docs/plugins)。

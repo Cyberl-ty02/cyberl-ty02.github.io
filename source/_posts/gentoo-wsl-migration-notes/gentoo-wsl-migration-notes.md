@@ -368,7 +368,7 @@ WSL 的目标不是再装一套完整 Gentoo 桌面，而是作为开发环境�
 
 ### WSL 与 PC 的镜像配置不要合并
 
-当前两套配置都通过南京大学 rsync 同步 Gentoo 主树，并保留 OpenPGP MetaManifest 校验；distfiles 的顺序都是 CERNET、华为、阿里和 Gentoo 官方源，gentoo-zh 则使用 CERNET 联合入口。GURU、XLibre 等没有对应配置的 overlay 仍直连各自上游。
+当前两套配置都通过 USTC Git 镜像浅克隆并增量同步 Gentoo 主树，使用 Portage 管理的 Gentoo Release Key 验证提交签名、保留默认密钥刷新，并拒绝超过三天的仓库时间戳。CERNET 是第一备用，但部分后端只提供 Git dumb HTTP，启用时必须同时设置 `sync-depth = 0`。distfiles 的顺序都是 CERNET、华为、阿里和 Gentoo 官方源，gentoo-zh 使用 CERNET 联合入口；GURU、XLibre 等没有对应配置的 overlay 仍直连各自上游。
 
 差异也很明确：WSL 使用与 `default/linux/amd64/23.0/desktop` 对应的 `x86-64` 官方 binhost；PC 的 LLVM profile 使用 `x86-64_llvm`，并额外保留华为 binhost。两边都要求验证二进制包签名。PC 已有 curl，所以显式设置了 Portage 下载命令；WSL 要兼容刚解压、可能尚无 curl 的 stage3，继续使用 Portage 的 wget 默认值。SonicDE overlay 也只属于 PC 配置。
 
@@ -491,7 +491,7 @@ doas emerge -avuDN --with-bdeps=y --backtrack=100 $(cat world_packages_base.txt)
 确认系统基础稳定后，再分批安装：
 
 ```text
-Emacs / Doom
+Neovim / LazyVim
 Rust / uv / pixi
 Typst
 PostgreSQL
@@ -702,7 +702,9 @@ rm -rf ~/.cache/JetBrains/RemoteDev-PY
 
 再从 Windows 侧重新连接。
 
-## Doom Emacs 配置没有自动加载
+## 历史记录：Doom Emacs 配置没有自动加载
+
+> 这一节保留当时排查旧环境的过程。当前 PC 与 WSL 已从 world 清单移除 Emacs，改用共享的 Neovim/LazyVim 配置；新安装不再需要下面的兼容符号链接。
 
 安装 Emacs 后，Doom Emacs 配置没有自动加载。检查后发现：
 
@@ -821,11 +823,11 @@ Portage
 Git / GPG / SSH
 Python / uv / pixi
 Rust
-Emacs / PyCharm / VSCodium
+Neovim / LazyVim / PyCharm / VSCodium
 少量 GUI 运行库
 ```
 
-这次最后的取舍是：
+当时迁移阶段的取舍是：
 
 ```text
 Windows 作为唯一主系统
@@ -833,6 +835,6 @@ Gentoo WSL 作为主要 Linux 开发环境
 真机 Gentoo 配置保留为备份和参考
 ```
 
-这样并不是放弃 Linux，而是把 Linux 从“整机系统维护”调整为“更稳定的开发工具”。对于只有一台主力笔记本的情况，这个选择更务实，也能减少很多因为启动项、显卡驱动、Secure Boot、桌面环境带来的额外风险。
+这段结论反映的是当时的迁移背景，不再代表当前设备角色。2026-09-29 核验时，实体 Gentoo 已恢复为日常维护中的系统，WSL 继续作为独立开发环境；两者共享用户级开发工具与 Neovim 配置，但 Portage profile、binhost 和桌面相关配置仍然分开。
 
-如果以后还要继续折腾真机 Gentoo，可以单独准备一台备用机器，或者至少保证 Windows Boot Manager 不受影响。否则，WSL 这条路线目前更适合学习、课程、毕设和日常开发。
+无论当前主要使用哪套环境，涉及分区、Secure Boot、显卡驱动和启动项的实体机变更都应保留独立恢复介质和已验证的回退入口；WSL 则更适合承载不需要完整硬件栈的开发任务。
