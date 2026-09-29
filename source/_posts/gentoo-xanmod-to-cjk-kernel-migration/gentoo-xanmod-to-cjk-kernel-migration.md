@@ -16,11 +16,14 @@ tags:
 > **版本说明**
 > 文中的 `7.1.7` 对应 2026-08-09 已完成的迁移；`xanmod-kernel-7.1.9` 对应 2026-08-20 的反向迁移，实际运行 release 为 `7.1.9-x64v3`。设备标识和 UUID 均已省略或使用占位值。
 
+> **当前状态（2026-09-29）**
+> 本机当前实际启动的是 `7.2.6-x64v3`，`eselect kernel list` 也指向同一源码树；NVIDIA 驱动为 `615.71.09`。Portage 预览已经提供 XanMod `7.2.8`，但它尚未完成安装后的重启验证，因此本文不把它写成当前运行版本。公开配置仍选择 Gentoo-Zh `sys-kernel/xanmod-kernel`，并同时启用 `cjk`、`cjk32`、Clang、initramfs、模块签名和 Secure Boot。
+
 较早的 Btrfs 与 rEFInd 救援过程见：[Gentoo 在 Btrfs 与 rEFInd 环境下的启动修复记录](/posts/gentoo-refind-btrfs-rescue/gentoo-refind-btrfs-rescue/)。本文从系统已经稳定可启动的状态继续，重点记录换内核时如何保留回退路径并验证外围模块。
 
 ## 2026-08-20：切回带 CJKTTY 的 XanMod
 
-这次回切不是放弃 CJKTTY。同步后的 Gentoo-Zh overlay 已提供 `sys-kernel/xanmod-kernel-7.1.9`，ebuild 描述明确包含 Gentoo patches 与 CJKTTY，继承 `cjktty` eclass，并在准备源码时调用 `cjktty_apply_patches`。其 `cjk` USE 会启用 16×16 CJK 字体；`cjk32` 还会加入约 8 MiB 的 32×32 字体数据，当前配置没有启用后者。
+这次回切不是放弃 CJKTTY。同步后的 Gentoo-Zh overlay 已提供 `sys-kernel/xanmod-kernel-7.1.9`，ebuild 描述明确包含 Gentoo patches 与 CJKTTY，继承 `cjktty` eclass，并在准备源码时调用 `cjktty_apply_patches`。其 `cjk` USE 会启用 16×16 CJK 字体；`cjk32` 还会加入约 8 MiB 的 32×32 字体数据。当时没有启用后者，当前公开配置则已经同时启用 `cjk` 与 `cjk32`。
 
 先以本机仓库和 Portage 计划核实，不能只依据文章中的版本号：
 
@@ -85,7 +88,7 @@ uname release：7.1.9-x64v3
 Secure Boot：enabled
 内核 PE 签名：存在
 NVIDIA 模块：针对 7.1.9-x64v3 构建且带签名
-NVIDIA 运行态：GeForce RTX 4060 Laptop GPU，驱动 610.57.04
+NVIDIA 运行态：独立显卡可见，驱动 610.57.04
 rEFInd：没有旧 release 或 LiveCD 参数硬编码
 CJKTTY 静态配置：CONFIG_FONT_CJK_16x16=y
 ```
@@ -209,7 +212,7 @@ NVIDIA-SMI 610.57.04
 KMD Version: 610.57.04
 ```
 
-RTX 4060 Laptop GPU 可见，X server 也已加载 NVIDIA 驱动。这里需要同时满足的并非“命令能运行”这么简单，而是：
+独立 NVIDIA GPU 可见，X server 也已加载 NVIDIA 驱动。这里需要同时满足的并非“命令能运行”这么简单，而是：
 
 ```text
 当前运行的是新内核

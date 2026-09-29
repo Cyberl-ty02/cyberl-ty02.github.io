@@ -21,11 +21,20 @@ jobs:
       - name: Install Hexo environment
         run: bun install --frozen-lockfile
 
+      - name: Check TypeScript and blog content
+        run: bun run check
+
+      - name: Build blog-owned runtime assets
+        run: bun run build:runtime
+
       - name: Clean Hexo cache
         run: bun run clean
 
       - name: Hexo build site
-        run: bun run build
+        run: bun run build:site
+
+      - name: Check generated pages
+        run: bun run check:generated
 
       - name: Upload artifacts for pages
         uses: actions/upload-pages-artifact@v5
