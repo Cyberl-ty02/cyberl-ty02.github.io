@@ -23,6 +23,7 @@ const privacyPatterns: ReadonlyArray<[RegExp, string]> = [
   [/(?:gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,})/u, "GitHub 凭据"],
   [/(?:sk-[A-Za-z0-9]{20,})/u, "疑似 API 密钥"],
   [/(?:\/home\/lty\/|C:\\Users\\lty\\)/u, "本机用户目录"],
+  [/\bkl\b/u, "旧配置中的本机用户名"],
   [/(?:GeForce\s+RTX\s+\d{4}[^\n]*GPU)/iu, "过于具体的显卡型号"],
 ];
 

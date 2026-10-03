@@ -88,6 +88,10 @@ async function datesFromGit(repoDir, filePath) {
       commits.push(currentCommit);
       break;
     }
+    if (!await commitExists(repoDir, parentOid)) {
+      commits.push(currentCommit);
+      break;
+    }
     const parentBlob = await blobOidAt(repoDir, parentOid, relativePath);
     if (parentBlob === currentBlob) {
       commitOid = parentOid;
@@ -107,6 +111,16 @@ async function datesFromGit(repoDir, filePath) {
     created: commits.length > 0 ? import_moment.default(commits.at(-1).commit.author.timestamp * 1000) : now.clone(),
     updated: commits.length > 0 ? import_moment.default(commits[0].commit.author.timestamp * 1000) : now.clone()
   };
+}
+async function commitExists(repoDir, commitOid) {
+  try {
+    await import_isomorphic_git.default.readCommit({ fs: import_node_fs.default, dir: repoDir, oid: commitOid });
+    return true;
+  } catch (error) {
+    if (error instanceof import_isomorphic_git.Errors.NotFoundError)
+      return false;
+    throw error;
+  }
 }
 async function blobOidAt(repoDir, commitOid, filePath) {
   try {

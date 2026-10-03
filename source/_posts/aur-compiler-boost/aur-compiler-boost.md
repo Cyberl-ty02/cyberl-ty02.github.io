@@ -1,5 +1,5 @@
 ---
-title: 如何提高 AUR 部分软件编译速度
+title: 归档：如何提高 AUR 部分软件编译速度
 comments: true
 toc: true
 donate: false
@@ -10,6 +10,10 @@ tags:
 - Linux
 - 开发工具
 ---
+
+> **归档说明（2026-10-04）**
+> 当前 WSL 配置已经迁移到 Gentoo，不再使用 AUR 或 `makepkg`；本文只保留 Arch/AUR 环境下的历史笔记。参数仍需结合当前 Arch Wiki、物理内存和具体 PKGBUILD 核对，不应作为现行 dotfiles 的说明。
+
 本篇文章简单记录 AUR（Arch User Repository）软件包编译时的一些优化事项，主要用于在 WSL 环境中提高编译效率。
 
 ## 多线程优化

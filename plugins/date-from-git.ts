@@ -51,6 +51,14 @@ export async function datesFromGit(repoDir: string, filePath: string): Promise<{
       break;
     }
 
+    // A shallow checkout still records the parent OID even though that object is
+    // absent. Treat the oldest available commit as the history boundary instead
+    // of asking listFiles() to walk an object that cannot exist locally.
+    if (!(await commitExists(repoDir, parentOid))) {
+      commits.push(currentCommit);
+      break;
+    }
+
     const parentBlob = await blobOidAt(repoDir, parentOid, relativePath);
     if (parentBlob === currentBlob) {
       commitOid = parentOid;
@@ -79,6 +87,16 @@ export async function datesFromGit(repoDir: string, filePath: string): Promise<{
         ? moment(commits[0]!.commit.author.timestamp * 1000)
         : now.clone(),
   };
+}
+
+async function commitExists(repoDir: string, commitOid: string): Promise<boolean> {
+  try {
+    await git.readCommit({ fs, dir: repoDir, oid: commitOid });
+    return true;
+  } catch (error) {
+    if (error instanceof Errors.NotFoundError) return false;
+    throw error;
+  }
 }
 
 async function blobOidAt(

@@ -17,7 +17,7 @@ sticky: 1
 它不是 Gentoo Handbook 的替代品。Handbook 负责解释 Gentoo 安装中长期稳定的规则；本文则把这些规则落实到我的磁盘布局和公开配置仓库。涉及版本、overlay 和 USE flag 的内容会随时间变化，实际安装时应同时打开 [Gentoo AMD64 Handbook](https://wiki.gentoo.org/wiki/Handbook:AMD64) 核对。
 
 > **记录基线**
-> 本文初稿写于 2026-08-18，当时运行内核为 `7.1.8-gentoo-cjk-dist`；2026-08-20 已切回 Gentoo-Zh 的 XanMod。2026-09-29 再次核验时，实际启动 release 为 `7.2.6-x64v3`，Portage 已提供尚未重启验证的 `7.2.8`，NVIDIA 驱动为 `615.71.09`。这里严格区分“仓库可安装”和“已经启动验证”，版本号只作为迁移记录，不要求读者固定安装相同版本。
+> 本文初稿写于 2026-08-18，当时运行内核为 `7.1.8-gentoo-cjk-dist`；2026-08-20 已切回 Gentoo-Zh 的 XanMod。2026-10-04 核验时，实际启动 release 与所选源码树均为 `7.2.8-x64v3`，说明先前待重启验证的内核已经进入稳定使用。这里严格区分“仓库可安装”和“已经启动验证”，版本号只作为迁移记录，不要求读者固定安装相同版本。
 
 > **危险操作提醒**
 > 分区、格式化、生成 fstab 和安装 EFI 启动项都可能造成数据损失或启动失败。命令中的设备名全部是占位示例。执行前必须用 `lsblk -f`、`findmnt` 和固件启动模式确认自己的目标，双系统环境尤其不能格式化已有 Windows ESP。
@@ -42,9 +42,9 @@ profile：default/linux/amd64/23.0/llvm
 启动：shim + rEFInd + 本地 MOK
 ```
 
-完整的当前说明见 dotfiles 的 [`gentoo_setting/pc/README.md`](https://github.com/Cyberl-ty02/dotfiles/blob/main/gentoo_setting/pc/README.md)，软件清单见 [`world_packages.txt`](https://github.com/Cyberl-ty02/dotfiles/blob/main/gentoo_setting/pc/world_packages.txt)。这里不会把所有软件都解释一遍，而是着重保证第一次重启前已经具备能启动、联网和进入桌面的条件。
+完整的当前说明见 dotfiles 的 [`gentoo_setting/README.md`](https://github.com/Cyberl-ty02/dotfiles/blob/main/gentoo_setting/README.md)。按角色恢复的软件见 [`manifests/`](https://github.com/Cyberl-ty02/dotfiles/tree/main/gentoo_setting/manifests)，完整真机目标仍保存在 [`world_packages.txt`](https://github.com/Cyberl-ty02/dotfiles/blob/main/gentoo_setting/pc/world_packages.txt)。这里不会把所有软件都解释一遍，而是着重保证第一次重启前已经具备能启动、联网和进入桌面的条件。
 
-本文采用的实际执行顺序是：进入 chroot 后初始化 Portage、repository 和公开配置，生成 Secure Boot 密钥并安装 shim+rEFInd，引导链就绪后安装内核和 NVIDIA 模块，再安装 mold；随后执行 `emerge -ajvuDN @world`、安装 `world_packages.txt` 中的软件并复查旧文章涉及的额外项目，启用必要服务后才第一次重启。Fcitx、Zsh/Powerlevel10k、Neovim/LazyVim 等用户态配置统一留到成功启动的新系统中完成。
+本文采用的实际执行顺序是：进入 chroot 后初始化 Portage、repository 和公开配置，生成 Secure Boot 密钥并安装 shim+rEFInd，引导链就绪后安装内核和 NVIDIA 模块，再安装 mold；随后执行 `emerge -ajvuDN @world`，按 core、pc-host、desktop、nvidia、development 等角色分批预览和安装，只有需要完整复原当前机器时才使用整个 `world_packages.txt`。启用必要服务后才第一次重启；Fcitx、Zsh/Powerlevel10k、Neovim/LazyVim 等用户态配置统一留到成功启动的新系统中完成。
 
 ## Stage 0：在 LiveCD 中准备目标系统
 
@@ -658,13 +658,29 @@ emerge --ask @preserved-rebuild
 
 这里的顺序刻意放在 Secure Boot、引导、内核和 mold 之后。若 Portage 给出 slot conflict、USE change 或 mask，应先理解依赖含义，不要直接接受一大批未读的 autounmask 修改。
 
-### 安装当前 world 软件
+### 按角色安装当前软件
 
-进入配置目录，先用 `--noreplace` 把清单加入 world 并安装：
+新系统先使用仓库中的角色清单，每次都先预览。基础、实体机引导和桌面可以依次检查：
 
 ```bash
-cd /root/dotfiles/gentoo_setting/pc
-xargs emerge --ask --verbose --noreplace < world_packages.txt
+cd /root/dotfiles
+xargs emerge --pretend --verbose --noreplace \
+  < gentoo_setting/manifests/core.txt
+xargs emerge --pretend --verbose --noreplace \
+  < gentoo_setting/manifests/pc-host.txt
+xargs emerge --pretend --verbose --noreplace \
+  < gentoo_setting/manifests/desktop.txt
+```
+
+确认各轮的 profile、overlay、USE、关键字和 license 变化后，再把对应命令中的 `--pretend` 改为 `--ask`。NVIDIA、development 与 optional 也分别预览；`optional.txt` 不应默认全部安装。
+
+只有要完整复原当前真机时，才使用完整 world 清单：
+
+```bash
+xargs emerge --pretend --verbose --noreplace \
+  < gentoo_setting/pc/world_packages.txt
+xargs emerge --ask --verbose --noreplace \
+  < gentoo_setting/pc/world_packages.txt
 ```
 
 安装完成后再次对齐完整依赖图：
@@ -674,7 +690,7 @@ emerge -pajvuDN @world
 emerge -ajvuDN @world
 ```
 
-这份清单不仅有基础系统，还包括 SonicDE、KDE 应用、办公软件、开发工具、CUDA、输入法、邮件客户端和 PostgreSQL。第一次安装可能耗时很长，不应把所有失败都归因于 Gentoo 本身。更稳妥的做法是分三轮：
+完整 world 不仅有基础系统，还包括 SonicDE、KDE 应用、办公软件、开发工具、CUDA、输入法、邮件客户端和 PostgreSQL。第一次安装可能耗时很长，不应把所有失败都归因于 Gentoo 本身。角色清单已经把原先建议的三轮进一步变成可执行边界：
 
 ```text
 第一轮：内核、固件、网络、日志、编辑器、启动链
@@ -682,11 +698,11 @@ emerge -ajvuDN @world
 第三轮：开发工具、CUDA、办公、邮件和其他应用
 ```
 
-完整清单适合复原这台机器，不等于所有 Gentoo 用户的推荐列表。特别是 CUDA、多个 Rust slot、PostgreSQL 和专有应用，都应根据实际需求删减。
+完整清单适合复原这台机器，不等于所有 Gentoo 用户的推荐列表。特别是 CUDA、PostgreSQL 和专有应用，都应根据实际需求删减。
 
 #### 核对原博客中不在 world_packages.txt 的内容
 
-最初记录本文基线时，实时 `/var/lib/portage/world` 与仓库的 `world_packages.txt` 完全一致。可以在旧系统或恢复环境中自行核对：
+2026-10-04 核验时，实时 `/var/lib/portage/world` 与仓库的 `world_packages.txt` 逐行一致，共 95 项。可以在旧系统或恢复环境中自行核对：
 
 ```bash
 sort -u /var/lib/portage/world > /tmp/gentoo-selected.txt
@@ -995,7 +1011,7 @@ fc-match 'sans-serif:lang=zh-cn'
 
 Gentoo Wiki 给出的基础方式是使用 `zramctl` 创建设备；它属于系统已有的 `sys-apps/util-linux`，因此这里不需要安装 `sys-block/zram-init` 或面向 systemd 的 `sys-apps/zram-generator`。单设备配置直接交给 OpenRC 的 `local` 服务即可。
 
-先确认当前启动内核提供 zram 与 Zstd backend。本机在 2026-09-29 实际启动的 `7.2.6-x64v3` 已验证可使用这套方案；其他版本仍应现场检查，不能只依据 ebuild USE：
+先确认当前启动内核提供 zram 与 Zstd backend。本机在 2026-10-04 实际启动的 `7.2.8-x64v3` 已验证可使用这套方案；其他版本仍应现场检查，不能只依据 ebuild USE：
 
 ```bash
 if test -r /proc/config.gz; then
@@ -1182,7 +1198,7 @@ test -d ~/.zim/modules/powerlevel10k
 
 ### 恢复 Neovim 与 LazyVim
 
-当前 PC 与 WSL 的 world 清单都使用 `app-editors/neovim`，不再安装 Emacs。配置位于 dotfiles 的 [`dot_config/nvim/`](https://github.com/Cyberl-ty02/dotfiles/tree/main/dot_config/nvim)，基于官方 LazyVim Starter，并由两套环境共用。
+当前 PC 与 WSL 的 world 清单都使用 `app-editors/neovim`，不再安装 Emacs。配置位于 dotfiles 的 [`dot_config/nvim/`](https://github.com/Cyberl-ty02/dotfiles/tree/main/dot_config/nvim)，基于官方 LazyVim Starter，并由两套环境共用。普通用户的 shell、Git、开发镜像与编辑器配置现在由仓库根目录的 chezmoi source 统一部署，不必再逐个手工复制。
 
 先以普通用户确认版本和目标目录：
 
@@ -1191,14 +1207,16 @@ nvim --version
 test ! -e ~/.config/nvim
 ```
 
-只有第二条命令确认目录不存在时，才从已经审核的 dotfiles checkout 恢复配置；`DOTFILES_DIR` 应替换为实际仓库位置：
+先在已经审核的 dotfiles checkout 中预览整个用户配置层：
 
 ```bash
-DOTFILES_DIR=/path/to/dotfiles
-install -d ~/.config
-cp -a "${DOTFILES_DIR}/dot_config/nvim" ~/.config/nvim
+cd /path/to/dotfiles
+gentoo_setting/scripts/bootstrap-user.sh
+gentoo_setting/scripts/bootstrap-user.sh --apply
 nvim
 ```
+
+第二条命令会交互式应用，不应在未阅读预览时执行。chezmoi 会同时处理 Neovim、Zsh、Git 通用选项与开发工具镜像，但不会接管身份、私钥、桌面会话或数据库运行状态。
 
 首次启动会由 lazy.nvim 安装锁文件描述的插件。当前配置跟随 `LazyVim/LazyVim` 的 `main` 分支，并且最多每 24 小时检查和应用一次插件更新；恢复上游回归或暂时不希望更新时，可以使用：
 
@@ -1337,7 +1355,7 @@ GOSUMDB=sum.golang.org
 
 竖线表示遇到任意错误都继续尝试下一项，适合处理镜像超时；其行为与只在 404/410 时回退的逗号不同，详见 [Go Modules Reference](https://go.dev/ref/mod)。各工具的目标文件、部署命令和临时切回官方源方法都记录在 [`development_mirrors/README.md`](https://github.com/Cyberl-ty02/dotfiles/blob/main/gentoo_setting/development_mirrors/README.md)。镜像配置只应包含公开索引地址，不要把 token、密码、私有 registry 或代理订阅复制进仓库。
 
-本机配置继续以 [Cyberl-ty02/dotfiles](https://github.com/Cyberl-ty02/dotfiles) 为准。恢复系统时可以把 [`world_packages.txt`](https://github.com/Cyberl-ty02/dotfiles/blob/main/gentoo_setting/pc/world_packages.txt) 复制到新环境，但它应当作为可审阅的目标清单，而不是不经检查就执行的安装脚本。
+本机配置继续以 [Cyberl-ty02/dotfiles](https://github.com/Cyberl-ty02/dotfiles) 为准。新装系统优先从 [`manifests/`](https://github.com/Cyberl-ty02/dotfiles/tree/main/gentoo_setting/manifests) 选择角色；[`world_packages.txt`](https://github.com/Cyberl-ty02/dotfiles/blob/main/gentoo_setting/pc/world_packages.txt) 只作为完整复原时可审阅的目标清单，不是不经检查就执行的安装脚本。恢复完成后可运行 `gentoo_setting/scripts/verify.sh pc` 检查清单、配置语法、chezmoi dry run 与真机 world 差异。
 
 ## 参考资料
 

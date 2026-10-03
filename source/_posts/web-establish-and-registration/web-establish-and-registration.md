@@ -1,5 +1,5 @@
 ---
-title: 网站的搭建和备案（WordPress 版）
+title: 归档：网站的搭建和备案（WordPress 版）
 comments: true
 toc: true
 donate: false
@@ -10,6 +10,10 @@ tags:
 - 博客
 - 系统维护
 ---
+
+> **归档说明（2026-10-04）**
+> 当前博客已经使用 Hexo、Kratos-Rebirth 与 GitHub Pages，不再运行本文的 CentOS/Apache/MariaDB/WordPress 栈。下文的软件包、部署步骤和备案说明保留为早期记录，可能已经过时；实际操作应以当前发行版、WordPress 与主管部门的官方文档为准。
+
 注意，本文记录的网站搭建环境基于兼容 CentOS 的 Linux 发行版，并使用 Apache、MariaDB 和 PHP 8 搭建。如果需要使用 Debian 系或其他发行版（Arch、Gentoo、FreeBSD 等），请搜索对应教程，并结合实际情况调整安装步骤，不要完全照抄。由于搭建时间较早，部分内容可能已经与现有文档有出入。
 
 本文主要对当时的帮助页面和部署流程做一个补充说明。

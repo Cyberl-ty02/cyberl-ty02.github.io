@@ -16,8 +16,8 @@ tags:
 > **版本说明**
 > 文中的 `7.1.7` 对应 2026-08-09 已完成的迁移；`xanmod-kernel-7.1.9` 对应 2026-08-20 的反向迁移，实际运行 release 为 `7.1.9-x64v3`。设备标识和 UUID 均已省略或使用占位值。
 
-> **当前状态（2026-09-29）**
-> 本机当前实际启动的是 `7.2.6-x64v3`，`eselect kernel list` 也指向同一源码树；NVIDIA 驱动为 `615.71.09`。Portage 预览已经提供 XanMod `7.2.8`，但它尚未完成安装后的重启验证，因此本文不把它写成当前运行版本。公开配置仍选择 Gentoo-Zh `sys-kernel/xanmod-kernel`，并同时启用 `cjk`、`cjk32`、Clang、initramfs、模块签名和 Secure Boot。
+> **当前状态（2026-10-04）**
+> 本机当前实际启动的是 `7.2.8-x64v3`，`/usr/src/linux` 也指向同一源码树，先前的待重启验证已经完成。公开配置仍选择 Gentoo-Zh `sys-kernel/xanmod-kernel`，并同时启用 `cjk`、`cjk32`、Clang、initramfs、模块签名和 Secure Boot。
 
 较早的 Btrfs 与 rEFInd 救援过程见：[Gentoo 在 Btrfs 与 rEFInd 环境下的启动修复记录](/posts/gentoo-refind-btrfs-rescue/gentoo-refind-btrfs-rescue/)。本文从系统已经稳定可启动的状态继续，重点记录换内核时如何保留回退路径并验证外围模块。
 
@@ -280,7 +280,7 @@ CJKTTY 在真实 VT 中正常显示中文
 
 ## 两次迁移中的 Portage 配置卫生
 
-2026-08-09 切到独立 CJK kernel 后，曾从 `package.accept_keywords`、`package.env` 和 `package.use` 中移除 XanMod 项，并把签名密钥访问范围收窄到 `gentoo-cjk-kernel`。2026-08-20 的方向相反：当前公开配置重新把 `sys-kernel/xanmod-kernel` 写入 `world_packages.txt`，恢复其关键字、`cjk clang` USE 和签名环境，并 mask 不再选用的独立 CJK/官方 distribution kernel。相关文件应以 [`Cyberl-ty02/dotfiles`](https://github.com/Cyberl-ty02/dotfiles/tree/main/gentoo_setting/pc) 的当前版本和本机 `emerge -pv` 结果为准。
+2026-08-09 切到独立 CJK kernel 后，曾从 `package.accept_keywords`、`package.env` 和 `package.use` 中移除 XanMod 项，并把签名密钥访问范围收窄到 `gentoo-cjk-kernel`。2026-08-20 的方向相反：当前公开配置重新把 `sys-kernel/xanmod-kernel` 写入 `world_packages.txt`，也把它列入 `manifests/pc-host.txt`，恢复其关键字、`cjk clang` USE 和签名环境，并 mask 不再选用的独立 CJK/官方 distribution kernel。相关文件应以 [`Cyberl-ty02/dotfiles`](https://github.com/Cyberl-ty02/dotfiles/tree/main/gentoo_setting/pc) 的当前版本和本机 `emerge -pv` 结果为准。
 
 旧 CJK kernel 在 XanMod 完成重启验证前仍是回退项，因此不应提前从包数据库、ESP 或 `/lib/modules` 删除。若旧 `virtual/dist-kernel` 精确 subslot 阻挡迁移，应先阅读 Portage 依赖计划，并准备不受 unmerge 影响的物理回退文件；不能仅为让 resolver 通过就删掉当前唯一可启动内核。Secure Boot 工具与公开示例集中在 [`kernel/secureboot`](https://github.com/Cyberl-ty02/dotfiles/tree/main/gentoo_setting/pc/kernel/secureboot)。
 
