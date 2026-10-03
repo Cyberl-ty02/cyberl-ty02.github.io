@@ -51,7 +51,7 @@ if (await home.exists()) {
 const expectedRenderedText: ReadonlyArray<[string, string]> = [
   [
     "public/posts/gentoo-endeavouros-btrfs-openrc-install/gentoo-endeavouros-btrfs-openrc-install/index.html",
-    "7.2.6-x64v3",
+    "7.2.8-x64v3",
   ],
   [
     "public/posts/hexo-waline-bun-notes/hexo-waline-bun-notes/index.html",

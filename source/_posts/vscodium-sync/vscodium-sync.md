@@ -1,5 +1,5 @@
 ---
-title: VSCodium 与 Sync Settings 配置记录
+title: VSCodium 跨平台配置：用 chezmoi 与扩展清单替代 Sync Settings
 comments: true
 toc: true
 donate: false
@@ -8,226 +8,114 @@ date: 2026-05-12 18:03:17
 categories: 开发工具
 tags:
 - 开发工具
+- 系统维护
 ---
 
-目前我重新把 [VSCodium](https://vscodium.com/) 作为日常编辑器，并使用 [Sync Settings](https://github.com/zokugun/vscode-sync-settings) 管理配置。
+这篇文章最初记录用 Zokugun Sync Settings 和私有 Git 仓库同步 VSCodium。当前配置已经换成更容易审阅的方式：用户设置由 [dotfiles](https://github.com/Cyberl-ty02/dotfiles) 中的 chezmoi source 部署，扩展则拆成通用、Linux 和 Windows 清单。编辑器内的同步扩展不再是必要依赖。
 
-选择 VSCodium 主要是为了让编辑环境更安静一些。VS Code 的更新节奏对我来说偏快，有时一周会遇到一次或多次更新，容易打断正在进行的工作；部分不断加入的功能也会与现有插件重合，使设置和界面逐渐变得繁琐。相比之下，我更希望按自己的节奏更新编辑器，只保留实际需要的扩展。
+> **更新说明（2026-10-04）**
+> 真机目前运行 VSCodium `1.135.06055`，旧的 `zokugun.sync-settings` 与 `zokugun.cron-tasks` 均未安装。版本号只是核验快照；实际恢复以仓库中的设置与扩展清单为准。
 
-VSCodium 默认使用 Open VSX 扩展源，少数依赖微软专有服务或授权的扩展可能无法直接使用。迁移前应先确认自己真正依赖的扩展是否可用。
+## 为什么改为文件级管理
 
-## 当前配置
+第三方同步插件能够快速复制设置，但也会引入另一套 profile、远程仓库和上传/下载方向。现在这些内容本来就由 dotfiles 管理，再让编辑器插件同步一次会产生两个事实来源。
 
-本文在 2026 年 7 月整理时，本机配置如下：
+当前边界更明确：
 
-```text
-VSCodium 1.126.04524
-Sync Settings 0.21.2
-同步方式：私有远程 Git 仓库
-分支：main
-Profile：main
-同步前确认：开启
-```
+| 内容 | 管理位置 | 是否公开 |
+| --- | --- | --- |
+| Linux/WSL 用户设置 | `dot_config/private_VSCodium/User/settings.json` | 是，已清理身份与凭据 |
+| Windows 用户设置 | `windows_setting/AppData/Roaming/VSCodium/User/settings.json` | 是，保留平台差异 |
+| 通用扩展 | `vscodium/extensions-common.txt` | 是 |
+| Linux/Windows 扩展 | `extensions-linux.txt`、`extensions-windows.txt` | 是 |
+| 登录令牌、账号状态、工作区历史、machine ID | 不进入仓库 | 否 |
 
-版本号只是当时环境的记录，不是必须照搬的要求。实际配置中没有启用定时上传、定时下载、外部文件同步或复杂的跨平台忽略规则。
+`private_` 是 chezmoi 的目标权限属性，表示部署后的 VSCodium 用户目录保持为 `0700`，并不意味着文件内容可以包含秘密。
 
-当前同步仓库会保存这些资源：
+## Linux 与 Gentoo：先预览再应用
 
-```text
-扩展列表
-Windows 快捷键
-用户设置
-界面状态
-```
-
-空的 snippets 和 tasks 没有必要为了“看起来完整”而专门写入文章。等真正开始使用这些资源时，再让插件正常同步即可。
-
-## 安装插件
-
-可以在 VSCodium 的扩展面板中搜索 `Sync Settings`，确认发布者为 `zokugun`。也可以通过命令行安装：
-
-```powershell
-codium --install-extension zokugun.sync-settings
-```
-
-安装完成后，在命令面板中可以看到插件提供的命令：
-
-```text
-Sync Settings: Open the repository settings
-Sync Settings: Upload (user -> repository)
-Sync Settings: Download (repository -> user)
-Sync Settings: View differences between actual and saved settings
-```
-
-## 准备私有 Git 仓库
-
-配置文件可能包含扩展列表、终端设置、远程主机别名和本机路径，因此同步仓库应设为私有。新建仓库时可以同时创建一个 README，使 `main` 分支从一开始就存在。
-
-本文使用 SSH 连接远程仓库。示例地址经过泛化：
-
-```text
-git@github.com:example-user/editor-settings.git
-```
-
-先在 VSCodium 内置终端确认系统 Git 能访问该仓库：
+克隆 dotfiles 后，先预览全部可迁移的用户配置：
 
 ```bash
-ssh -T git@github.com
-git ls-remote git@github.com:example-user/editor-settings.git
+cd /path/to/dotfiles
+gentoo_setting/scripts/bootstrap-user.sh
 ```
 
-Sync Settings 不会替系统管理 Git 凭据。如果这两个命令失败，应先处理 SSH key、主机信任或网络问题。
-
-## 配置同步仓库
-
-打开命令面板：
-
-```text
-Ctrl + Shift + P
-```
-
-运行：
-
-```text
-Sync Settings: Open the repository settings
-```
-
-将配置整理为：
-
-```yaml
-# 使用不包含真实姓名或设备编号的普通别名
-hostname: "workstation"
-
-profile: main
-
-repository:
-  type: git
-  url: git@github.com:example-user/editor-settings.git
-  branch: main
-```
-
-其中 `hostname` 是可选项，主要用于区分不同设备和生成提交信息。博客示例不应使用真实机器名。
-
-远程仓库地址不会随着 profile 一起同步，因此每台新设备仍然需要单独完成这一步。
-
-## 保持用户设置简单
-
-当前与插件直接相关的用户设置只有：
-
-```json
-{
-  "syncSettings.confirmSync": true
-}
-```
-
-开启确认可以避免误操作。插件支持手动指定 `resources`、`ignoredSettings`、`additionalFiles` 和定时任务，但当前配置并不需要这些选项，所以不在用户设置中重复声明默认值。
-
-尤其不建议一开始就配置自动上传。自动任务虽然省事，也可能在一台配置尚未整理好的设备上覆盖远程内容。
-
-## 第一次同步
-
-如果当前设备保存着准备作为基准的配置，执行：
-
-```text
-Sync Settings: Upload (user -> repository)
-```
-
-在新设备上完成仓库配置后，先执行：
-
-```text
-Sync Settings: View differences between actual and saved settings
-```
-
-确认方向无误，再执行：
-
-```text
-Sync Settings: Download (repository -> user)
-```
-
-第一次同步最需要留意方向：
-
-```text
-Upload：当前用户配置 -> 远程仓库
-Download：远程仓库 -> 当前用户配置
-```
-
-如果远程仓库已经有完整配置，新设备不应先 Upload，否则可能把空白或默认配置写入远程。
-
-## 常见问题
-
-### Host key verification failed
-
-这通常说明当前系统尚未信任 GitHub 主机密钥。先在 VSCodium 内置终端执行：
+确认目标路径和差异后，再交互式应用：
 
 ```bash
-ssh -T git@github.com
+gentoo_setting/scripts/bootstrap-user.sh --apply
 ```
 
-核对提示中的指纹与 GitHub 官方文档一致后，再决定是否接受。不要在未核对指纹时直接确认。
-
-### Permission denied publickey
-
-这表示 GitHub 没有接受当前 SSH key。可以用下面的命令查看认证过程：
+VSCodium 扩展使用独立脚本。默认只列出将要安装或移除的项目：
 
 ```bash
-ssh -vT git@github.com
+gentoo_setting/scripts/sync-vscodium.sh
 ```
 
-确认公钥已经添加到正确的 GitHub 账户，并检查 SSH 是否选择了预期的 key。
-
-### 仓库初始化失败
-
-先检查远程仓库和目标分支：
+确认后执行：
 
 ```bash
-git ls-remote git@github.com:example-user/editor-settings.git
-git ls-remote --heads git@github.com:example-user/editor-settings.git main
+gentoo_setting/scripts/sync-vscodium.sh --apply
 ```
 
-如果 Git 命令正常，可以先运行：
+脚本只补齐清单中缺少的扩展，不会清除所有未列出的扩展；它会专门移除已经冗余的旧 Sync Settings 与 Cron Tasks 扩展。这样既能迁移到新模型，也不会把本机临时安装的其他扩展当成垃圾处理。
 
-```text
-Developer: Reload Window
+## Windows：保留平台差异
+
+Windows 使用 `windows_setting/` 作为独立 chezmoi source，并由该目录的引导脚本部署设置。通用编辑器行为与 Gentoo 尽量一致，但终端 profile、Remote WSL 和 PowerShell 等平台项目留在 Windows 侧维护。
+
+不要为了让两个 `settings.json` 字节一致而删除合理差异。跨平台同步的目标是共享格式化、语言、Git、主题、安全和遥测策略，而不是假装两个系统具有相同路径和命令。
+
+## 修改设置后的回收流程
+
+如果在图形界面中调整了设置，先查看目标文件，再决定是否回收到 dotfiles：
+
+```bash
+chezmoi diff
+chezmoi re-add ~/.config/VSCodium/User/settings.json
+git diff -- dot_config/private_VSCodium/User/settings.json
 ```
 
-插件仍然保留错误状态时，应先备份再处理它的本地缓存目录：
+`re-add` 会修改仓库，因此不应在没有看过 `chezmoi diff` 时机械执行。Windows 侧也应先比较当前文件与 source，再只保留可迁移字段。
 
-```text
-Windows:
-%APPDATA%\VSCodium\User\globalStorage\zokugun.sync-settings
+扩展清单可以从下面的输出中挑选，而不是把全部运行状态写进仓库：
 
-Linux:
-~/.config/VSCodium/User/globalStorage/zokugun.sync-settings
+```bash
+codium --list-extensions | LC_ALL=C sort -u
 ```
 
-不要直接删除唯一的同步仓库或未经确认的本地配置。
+## 验证与隐私边界
 
-## 同步前的隐私检查
+仓库提供的验证脚本会检查 JSON、清单排序、shell 语法和 chezmoi dry run：
 
-私有仓库能减少意外公开，但不能替代内容审查。上传前应检查 `settings.json` 是否包含：
+```bash
+gentoo_setting/scripts/verify.sh pc
+# 或
+gentoo_setting/scripts/verify.sh wsl
+```
+
+提交公开设置前仍应人工检查：
 
 ```text
-真实用户名和绝对路径
+真实用户名和绝对用户目录
 服务器 IP、主机名或 SSH 别名
 邮箱、账号和平台 handle
 API key、token、密码或连接字符串
-带有私有路径的自动批准命令
-内部项目目录或工作区名称
+私有仓库、代理订阅和内部工作区名称
 ```
 
-这些内容有些可以保留在私人同步仓库中，但不应直接复制到公开博客、Issue 或截图里。真正的密钥即使只进入过一次 Git 历史，也应立即轮换。
+即使旧同步仓库是私有的，也不能把已暴露的凭据当作仍然安全。真正的密钥一旦进入不受控制的历史，应先吊销或轮换，再处理缓存和历史引用。
 
-## 小结
+## 旧 Sync Settings 模型如何退场
 
-当前配置刻意保持简单：
+迁移前应先确认 dotfiles 已经覆盖需要的设置与扩展，然后运行扩展同步脚本的预览。确认无误后，`--apply` 会卸载旧同步扩展。旧私有仓库可以保留一段时间作为只读回退，但不应继续与 chezmoi 双向写入。
 
-```text
-VSCodium
-Zokugun Sync Settings
-私有远程 Git 仓库
-main 分支和 main profile
-手动 Upload / Download
-同步前确认
-```
+如果只是阅读本文旧链接而来，可以把原模型概括为：编辑器插件直接连接私有 Git 仓库，人工选择 Upload 或 Download。它曾经可用，但已经不是当前配置，本文也不再建议为新设备重新建立这条同步链。
 
-这套方式没有追求全自动，而是优先保证每次同步都能看清方向和差异。对我来说，编辑器是用来承载工作的工具；降低更新和重复功能带来的干扰，比不断增加配置更重要。
+## 参考
+
+- [dotfiles：VSCodium synchronization](https://github.com/Cyberl-ty02/dotfiles/blob/main/vscodium/README.md)
+- [chezmoi apply](https://www.chezmoi.io/reference/commands/apply/)
+- [chezmoi re-add](https://www.chezmoi.io/reference/commands/re-add/)
+- [VSCodium 文档](https://docs.vscodium.com/)

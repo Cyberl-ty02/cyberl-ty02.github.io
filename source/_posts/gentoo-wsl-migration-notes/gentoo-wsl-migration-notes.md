@@ -1,5 +1,5 @@
 ---
-title: Gentoo 真机与 WSL 迁移踩坑记录
+title: Gentoo 真机与 WSL 迁移踩坑记录（历史阶段）
 comments: true
 toc: true
 donate: false
@@ -10,7 +10,11 @@ tags:
 - Linux
 - Gentoo
 ---
-本文章由 ChatGPT 协助整理和写作，主要记录最近一次从 Gentoo 真机环境转向 Gentoo WSL 环境时遇到的一些问题和解决思路。
+
+> **状态说明（2026-10-04）**
+> 本文主体记录一次“暂时以 Windows + WSL 为主”的历史迁移，不能作为当前机器角色说明。现在实体 Gentoo 已恢复日常维护，运行 OpenRC、LLVM profile、Gentoo-Zh XanMod、SonicDE/XLibre、NVIDIA 与 shim+rEFInd；WSL 继续作为独立开发环境。两者共享经 chezmoi 管理的用户配置，但不能互相覆盖 Portage、binhost、桌面或引导配置。
+
+本文章由 ChatGPT 协助整理和写作，主要记录当时从 Gentoo 真机环境转向 Gentoo WSL 环境时遇到的问题和解决思路。
 
 这次折腾大概可以概括为：
 
@@ -19,13 +23,13 @@ tags:
 Windows + Gentoo 真机双系统
 Gentoo 使用 OpenRC / LLVM / XLibre / SonicDE / NVIDIA / Secure Boot
 
-后来调整：
+当时调整：
 Windows 作为唯一主系统
 Linux 相关工作迁移到 WSL
 Gentoo WSL 主要作为开发环境
 ```
 
-因为手头只有一台笔记本，如果真机 Linux 的 GRUB、Secure Boot、NVIDIA、桌面环境一起出问题，排错成本会比较高。所以最后选择了更务实的路线： **保留 Windows，Linux 工作尽量放到 WSL 中完成** 。
+当时为了降低启动链、Secure Boot、NVIDIA 与桌面环境同时排错的成本，曾选择 **保留 Windows，Linux 工作尽量放到 WSL 中完成**。后续已经恢复实体 Gentoo，因此以下取舍只用于理解当时的故障背景。
 
 注意，因本人偏好使用***doas***，如果使用sudo，请在实际使用时替换为**sudo**执行.
 
@@ -290,7 +294,7 @@ GRUB 已经找到了 bootmgfw.efi
 更可能是 chainload / Secure Boot / 图形模式切换问题
 ```
 
-考虑到这台笔记本只有一台，且 Windows 仍然是日常主系统，最后我的想法是：
+当时为了把 Windows 启动入口与实验中的 Linux 引导链隔离，采用了下面的回退方案：
 
 ```text
 不要强求从 GRUB 启动 Windows
@@ -362,7 +366,7 @@ eselect profile list
 doas eselect profile set PROFILE_INDEX
 ```
 
-这里的 `PROFILE_INDEX` 要替换成列表中 `default/linux/amd64/23.0/desktop` 的实际编号。当前配置保留 stable、OpenRC 和 multilib，不采用 systemd、LLVM experimental profile 或具体桌面环境的子 profile。`desktop` 只提供较通用的桌面/开发 USE 基线，并不意味着必须在 WSL 中安装完整图形桌面。
+这里的 `PROFILE_INDEX` 要替换成列表中 `default/linux/amd64/23.0/desktop` 的实际编号。当前配置保留 stable、OpenRC 和 multilib，不采用 systemd、LLVM experimental profile 或具体桌面环境的子 profile。`desktop` 只提供较通用的桌面/开发 USE 基线，并不意味着必须在 WSL 中安装完整图形桌面。虽然 profile 不是 LLVM 变体，当前 WSL `make.conf` 仍显式选择 Clang、LLVM binutils、libc++ 与 mold；早期章节中的单包 GCC 回退只用于当时已确认的不兼容包。
 
 WSL 的目标不是再装一套完整 Gentoo 桌面，而是作为开发环境使用。
 
@@ -443,6 +447,9 @@ PY
 
 ### 不要一开始就安装完整 world_packages
 
+> **当前做法**
+> dotfiles 已提供 `gentoo_setting/manifests/`：先预览 `core.txt`，再按需选择 `development.txt` 与 `wsl.txt`。下面手写 `world_packages_base.txt` 的过程保留为早期迁移记录；新安装应优先使用仓库中经过排序和 atom 校验的角色清单。
+
 我一开始尝试直接：
 
 ```bash
@@ -465,7 +472,7 @@ vulkan-tools
 
 对于刚迁移完的 WSL Gentoo 来说，这个依赖图太大，很容易把 Python target、license、overlay、LLVM 一起搅进去。
 
-更稳的做法是先准备一个基础包列表：
+当时更稳的做法是先准备一个基础包列表：
 
 ```bash
 cat > world_packages_base.txt <<'EOF'
@@ -835,6 +842,6 @@ Gentoo WSL 作为主要 Linux 开发环境
 真机 Gentoo 配置保留为备份和参考
 ```
 
-这段结论反映的是当时的迁移背景，不再代表当前设备角色。2026-09-29 核验时，实体 Gentoo 已恢复为日常维护中的系统，WSL 继续作为独立开发环境；两者共享用户级开发工具与 Neovim 配置，但 Portage profile、binhost 和桌面相关配置仍然分开。
+这段结论反映的是当时的迁移背景，不再代表当前设备角色。2026-10-04 核验时，实体 Gentoo 已恢复为日常维护中的系统，实际启动 `7.2.8-x64v3`；WSL 继续作为独立开发环境。两者共享由 chezmoi 管理的用户级开发工具与 Neovim 配置，但 Portage profile、binhost 和桌面相关配置仍然分开。
 
 无论当前主要使用哪套环境，涉及分区、Secure Boot、显卡驱动和启动项的实体机变更都应保留独立恢复介质和已验证的回退入口；WSL 则更适合承载不需要完整硬件栈的开发任务。

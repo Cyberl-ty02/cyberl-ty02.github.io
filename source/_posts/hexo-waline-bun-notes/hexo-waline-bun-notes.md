@@ -299,6 +299,19 @@ Hexo 插件源码：plugins/*.ts，编译为 Node 兼容的 CommonJS
 
 原生 TypeScript 不能直接放进根目录 `scripts/`，因为 Hexo 会把那里当作 JavaScript 插件目录。仓库只把 Bun 生成的 `scripts/date-from-git.js` 放在该位置，源码保留在 `plugins/date-from-git.ts`。这个本地插件继续注册标准的 `before_post_render` 过滤器，并通过纯 JavaScript 的 `isomorphic-git` 读取对象库；兼容层按 blob 身份安全跟随无内容变化且目标唯一的改名，遇到歧义则停止追溯，而不会猜测文件身份。它不再执行 `git log | tail`，也不需要启动 `/bin/sh` 或系统 Git 子进程。
 
+[2026-09-29 的失败作业](https://github.com/Cyberl-ty02/cyberl-ty02.github.io/actions/runs/36583236945/job/109456634872) 暴露了另一层边界：`actions/checkout` 默认只获取一层历史，HEAD 仍记录父提交 OID，但对象库中没有那个父提交。日期插件继续寻找旧路径时，`isomorphic-git` 因缺失对象抛出 `NotFoundError`，所以本地完整仓库构建成功、CI 却在 Hexo 阶段退出 2。
+
+修复同时放在两层：工作流明确使用完整历史，保证文章日期准确；插件遇到浅克隆缺失的父对象时则把最老的可用提交当作边界，避免预览环境直接崩溃。
+
+```yaml
+- name: Checkout repo
+  uses: actions/checkout@v7
+  with:
+    fetch-depth: 0
+```
+
+回归测试会构造一个父提交对象不可用的临时仓库。浅克隆下的创建时间只能退化为最早可见提交时间，因此正式部署仍使用完整历史；容错分支解决的是可用性，不是假装恢复不存在的历史。
+
 项目脚本拆分为：
 
 ```json

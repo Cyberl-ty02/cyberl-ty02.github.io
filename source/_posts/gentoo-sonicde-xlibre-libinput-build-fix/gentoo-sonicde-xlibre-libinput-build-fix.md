@@ -16,6 +16,9 @@ tags:
 > **适用范围**
 > 本文记录 Gentoo、SonicDE、XLibre/X11 组合中已经复现并验证的一次构建问题。补丁修复的是这里确认的 target 依赖遗漏，不代表能够解决所有 SonicDE 或 XLibre 问题。
 
+> **已解决**
+> 修复已经进入 SonicDE Gentoo overlay，[issue #15](https://github.com/sonicde-gentoo/portage/issues/15) 已关闭。本机不再保留对应 user patch；本文留下的是定位与上游协作记录，不是当前安装步骤。
+
 运行期的中文字体 fallback、音量托盘及 PipeWire 排查另见：[Gentoo OpenRC 桌面排错：中文字体、KDE 托盘与 PipeWire](/posts/gentoo-openrc-desktop-troubleshooting/gentoo-openrc-desktop-troubleshooting/)。
 
 ## 现象不是“系统里没有头文件”

@@ -1,5 +1,5 @@
 ---
-title: Doom Emacs Windows 安装
+title: 归档：Doom Emacs Windows 安装
 comments: true
 toc: true
 donate: false
@@ -10,6 +10,10 @@ tags:
 - Windows
 - 开发工具
 ---
+
+> **归档说明（2026-10-04）**
+> 当前公开配置已经从 Emacs/Doom Emacs 迁移到跨 Windows、Gentoo PC 与 WSL 共用的 Neovim/LazyVim；本文只保留旧环境的命令记录，不再代表现行安装方案。新设备不应依据本文恢复编辑器配置。
+
 # Doom Emacs 实用命令
 
 原文来自 [Installing Doom Emacs on Windows - DEV Community](https://dev.to/scarktt/installing-doom-emacs-on-windows-23ja)，这里对其中的命令做一些整理。

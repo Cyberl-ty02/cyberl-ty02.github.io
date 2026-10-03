@@ -15,7 +15,7 @@ tags:
 
 ## [Neovim 与 LazyVim](https://github.com/Cyberl-ty02/dotfiles/tree/main/dot_config/nvim)
 
-2026-09-29 核验时，PC 与 WSL 的 world 清单都已从 Emacs 切换到 Neovim，共用 `dot_config/nvim/` 中基于官方 LazyVim Starter 的配置。仓库跟踪 `lazy-lock.json`，而插件、缓存和运行状态仍保留在每个账户自己的 XDG 目录中。
+2026-10-04 核验时，PC 与 WSL 的 world 清单都已从 Emacs 切换到 Neovim，共用 `dot_config/nvim/` 中基于官方 LazyVim Starter 的配置。仓库跟踪 `lazy-lock.json`，而插件、缓存和运行状态仍保留在每个账户自己的 XDG 目录中。
 
 当前配置跟随 `LazyVim/LazyVim` 的 `main` 分支，lazy.nvim 在启动时最多每 24 小时检查和应用一次插件更新。需要复现旧环境、排查上游回归或使用救援账户时，可以临时关闭自动更新：
 
@@ -24,6 +24,35 @@ LAZYVIM_AUTO_UPDATE=0 nvim
 ```
 
 不要让普通用户与 root 共享可写的插件或 state 目录。root 运行的任何插件都会获得完整系统权限，因此应先以普通用户审阅更新，再决定是否在管理环境中加载。
+
+## [chezmoi 用户配置层](https://github.com/Cyberl-ty02/dotfiles/blob/main/gentoo_setting/README.md)
+
+仓库根目录现在是 Gentoo PC 与 WSL 共用的 chezmoi source，管理 Neovim、Zsh、Git 通用选项和开发工具配置；Windows 使用 `windows_setting/` 作为独立 source。身份、SSH/GPG 私钥、Secure Boot 私钥、桌面会话和数据库运行状态都不进入仓库。
+
+默认命令只做 dry run：
+
+```bash
+gentoo_setting/scripts/bootstrap-user.sh
+```
+
+阅读差异后再交互式应用：
+
+```bash
+gentoo_setting/scripts/bootstrap-user.sh --apply
+```
+
+VSCodium 设置也由这一层部署；扩展清单集中在 [`vscodium/`](https://github.com/Cyberl-ty02/dotfiles/tree/main/vscodium)，不再依赖编辑器内的第三方 Sync Settings 插件。
+
+## [Gentoo 角色清单](https://github.com/Cyberl-ty02/dotfiles/tree/main/gentoo_setting/manifests)
+
+新系统不应默认一次安装整份 PC 或 WSL world。当前仓库将可选软件拆为 core、development、desktop、nvidia、pc-host、wsl 与 optional；每份清单都只用于显式预览和选择，不会自行修改系统。
+
+```bash
+xargs emerge --pretend --verbose --noreplace \
+  < gentoo_setting/manifests/core.txt
+```
+
+完整 `world_packages.txt` 仍用于审计或复原既有机器。2026-10-04 核验时，真机 world 与 PC 清单逐行一致；这不代表另一台机器应复制全部 95 项。
 
 ## [开发工具镜像配置](https://github.com/Cyberl-ty02/dotfiles/tree/main/gentoo_setting/development_mirrors)
 
@@ -40,9 +69,9 @@ LAZYVIM_AUTO_UPDATE=0 nvim
 permit persist :wheel
 
 # Allow a user to use the reboot command without a password
-permit nopass kl cmd reboot
-permit nopass kl cmd shutdown
-# permit nopass kl cmd eix-sync
+permit nopass user cmd reboot
+permit nopass user cmd shutdown
+# permit nopass user cmd eix-sync
 ```
 
 用户名属于本机策略，复制前应改成自己的账户或使用更合适的规则。
@@ -67,7 +96,7 @@ enabled = true
 appendWindowsPath = false
 
 [user]
-default = kl
+default = user
 
 [network]
 generateHosts = true

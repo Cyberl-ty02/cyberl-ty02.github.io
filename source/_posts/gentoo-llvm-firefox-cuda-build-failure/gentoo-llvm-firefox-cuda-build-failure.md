@@ -11,8 +11,8 @@ tags:
 - Gentoo
 ---
 
-> **待验证**
-> 本文记录的是已确认的故障路径与尚待最终验证的修复方向。LLVM 重新编译、Firefox 源码版和 CUDA Toolkit 是否最终安装成功，仍需补充后续结果。
+> **状态更新（2026-10-04）**
+> 真机目前同时安装 LLVM 19 与 22、`nvidia-cuda-toolkit-12.9.2` 和 `firefox-bin-157.0`。这说明当前系统已经绕开当时的阻塞，但不能反推下文候选方案修复了 Firefox 源码构建；本文仍只把原日志确认的因果链写成结论。
 
 这次在 Gentoo 上计划安装 Firefox 与 CUDA Toolkit 时，Portage 构建被旧 LLVM slot 阻塞。日志可以证明 LLVM 19 的 32 位构建在 Hexagon 相关代码中失败，但不能证明 Firefox 或 CUDA 自身已经进入编译，更不能简单得出“关闭 Hexagon 一定修好”的结论。
 
