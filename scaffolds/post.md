@@ -7,6 +7,6 @@ tags:
 #cover:
 comments: true
 toc: true
-donate: true
+donate: false
 share: true
 ---

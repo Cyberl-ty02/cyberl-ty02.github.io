@@ -14,7 +14,7 @@ tags:
 Gentoo 的 `/var/lib/portage/world` 记录用户明确选择的包或 set，不是已安装依赖的完整快照。早期版本的本文只演示把整个 world 文件交给 `xargs emerge`；当前 dotfiles 已增加按角色拆分的清单，这更适合新系统分阶段恢复。
 
 > **更新说明（2026-10-13）**
-> 真机 world 与公开的 `gentoo_setting/pc/world_packages.txt` 逐行一致，共 92 项。这个数字只是本次核验快照，不是推荐安装数量。当前内核为 Gentoo-Zh XanMod；PC 与 WSL 使用 Emacs/Doom Emacs，Windows 目标环境也迁移为 Scoop Emacs。仓库中既有 Neovim 文件仅作为过渡输入保留，不代表 Windows 当前目标仍是 Neovim。
+> 真机 world 与公开的 `gentoo_setting/pc/world_packages.txt` 逐行一致，共 92 项。这个数字只是本次核验快照，不是推荐安装数量。当前内核为 Gentoo-Zh XanMod，PC 使用 Emacs/Doom Emacs；Windows 的 Scoop Emacs 迁移已经完成，Neovim 过渡配置已从 dotfiles 删除。WSL 当前未安装，仓库中的 37 项 WSL world 只是未来重建快照，不是运行中系统状态。
 
 ## world 文件适合做什么
 

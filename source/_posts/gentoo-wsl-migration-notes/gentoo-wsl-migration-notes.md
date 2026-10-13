@@ -12,7 +12,7 @@ tags:
 ---
 
 > **状态说明（2026-10-13）**
-> 本文主体记录一次“暂时以 Windows + WSL 为主”的历史迁移，不能作为当前机器角色说明。现在实体 Gentoo 已恢复日常维护，运行 OpenRC、LLVM profile、Gentoo-Zh XanMod、SonicDE/XLibre、NVIDIA 与 shim+rEFInd；WSL 继续作为独立开发环境。两者均重新启用 Doom Emacs，并共享经 chezmoi 管理的用户配置，但不能互相覆盖 Portage、binhost、桌面或引导配置。
+> 本文主体记录一次“暂时以 Windows + WSL 为主”的历史迁移，不能作为当前机器角色说明。现在实体 Gentoo 已恢复日常维护，运行 OpenRC、LLVM profile、Gentoo-Zh XanMod、SonicDE/XLibre、NVIDIA 与 shim+rEFInd；Gentoo WSL 当前已经卸载。dotfiles 仍保留 WSL Portage、world、`wsl.conf` 与角色清单，作为未来重建输入，但这些文件没有在当前 WSL 实机重新验证。
 
 本文章由 ChatGPT 协助整理和写作，主要记录当时从 Gentoo 真机环境转向 Gentoo WSL 环境时遇到的问题和解决思路。
 
@@ -29,7 +29,7 @@ Linux 相关工作迁移到 WSL
 Gentoo WSL 主要作为开发环境
 ```
 
-当时为了降低启动链、Secure Boot、NVIDIA 与桌面环境同时排错的成本，曾选择 **保留 Windows，Linux 工作尽量放到 WSL 中完成**。后续已经恢复实体 Gentoo，因此以下取舍只用于理解当时的故障背景。
+当时为了降低启动链、Secure Boot、NVIDIA 与桌面环境同时排错的成本，曾选择 **保留 Windows，Linux 工作尽量放到 WSL 中完成**。后续已经恢复实体 Gentoo，Gentoo WSL 也已卸载，因此以下取舍只用于理解当时的故障背景。本文保留的历史命令和故障结论没有在当前 WSL 环境复现。
 
 注意，因本人偏好使用***doas***，如果使用sudo，请在实际使用时替换为**sudo**执行.
 
@@ -711,7 +711,7 @@ rm -rf ~/.cache/JetBrains/RemoteDev-PY
 
 ## Doom Emacs：旧兼容链接与当前 XDG 布局
 
-> 以下故障记录解释旧环境为什么曾经需要兼容链接。2026-10-13 的 PC 与 WSL 已重新启用 Emacs，并直接使用 XDG 目录；当前安装不需要创建 `~/.emacs.d` 符号链接。
+> 以下故障记录解释旧环境为什么曾经需要兼容链接。2026-10-13 的 Gentoo PC 已重新启用 Emacs，并直接使用 XDG 目录；仓库保留的 WSL 重建配置也采用这一布局，但当前没有 WSL 实例可供验证。新安装不应照搬这里的 `~/.emacs.d` 兼容链接。
 
 安装 Emacs 后，Doom Emacs 配置没有自动加载。检查后发现：
 
@@ -758,7 +758,7 @@ emacs --debug-init
 
 当前普通用户配置由 dotfiles 中的 `gentoo_setting/scripts/deploy-doom.sh` 部署：脚本同步 `~/.config/doom`，在缺少框架时从 Doom Emacs 官方 `doomemacs/core` 克隆到 `~/.config/emacs`，随后运行 `doom sync --env`。脚本可以迁移已知的旧官方 origin，但会拒绝自动接管未知 fork；框架更新需要显式传入 `--upgrade`。root 若确有需要则使用 `--root` 创建完全独立的框架、缓存和状态目录，同时复用经核验的五份私人配置内容。
 
-Windows 目标环境已经从独立 Neovim 转向 Scoop Emacs，并计划使用相同的 Doom 私人配置。仓库中既有 Neovim 文件只作为过渡输入保留；Linux 侧不应擅自删除 Windows 尚在迁移中的文件。可按下列命令核验本机：
+Windows 已完成从独立 Neovim 配置到 Scoop Emacs 31.1 的迁移，并复用同一份 Doom 私人配置。框架位于 `%APPDATA%\.emacs.d`，`%APPDATA%\.config\doom` 联接到 dotfiles；`dot_config/nvim` 与 Windows Neovim 部署入口已经从仓库删除。下面的命令只用于核验当前 Gentoo PC，不表示已在卸载后的 WSL 中重新运行：
 
 ```bash
 emacs --version
@@ -853,6 +853,6 @@ Gentoo WSL 作为主要 Linux 开发环境
 真机 Gentoo 配置保留为备份和参考
 ```
 
-这段结论反映的是当时的迁移背景，不再代表当前设备角色。2026-10-13 核验时，实体 Gentoo 已恢复为日常维护中的系统，实际启动 `7.2.10-x64v3`；WSL 继续作为独立开发环境。两者共享由 chezmoi 管理的用户级开发工具与 Doom 私人配置，但 Portage profile、binhost 和桌面相关配置仍然分开；Windows 目标环境也已调整为 Scoop Emacs，既有 Neovim 配置仅保留作迁移输入。
+这段结论反映的是当时的迁移背景，不再代表当前设备角色。2026-10-13 核验时，实体 Gentoo 已恢复为日常维护中的系统，实际启动 `7.2.10-x64v3`；Gentoo WSL 当前没有安装，仓库中的 37 项 world 快照、Portage 配置和角色清单仅供未来重建。Windows Doom Emacs 迁移已经完成，Neovim 过渡配置也已从 dotfiles 删除。若以后重建 WSL，仍应重新核验 profile、binhost、包版本与命令输出，不能把本文的历史成功经验当作当前运行状态。
 
-无论当前主要使用哪套环境，涉及分区、Secure Boot、显卡驱动和启动项的实体机变更都应保留独立恢复介质和已验证的回退入口；WSL 则更适合承载不需要完整硬件栈的开发任务。
+涉及分区、Secure Boot、显卡驱动和启动项的实体机变更都应保留独立恢复介质和已验证的回退入口。WSL 仍可作为以后重建轻量开发环境的方向，但当前只有仓库输入，没有可据此声明正常运行的实例。
