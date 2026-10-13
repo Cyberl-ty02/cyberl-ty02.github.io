@@ -92,7 +92,7 @@ Fragment 由 Windows Terminal 自动合并，不需要维护完整的 `profiles.
 
 然后只在 `list` 数组中添加一个新的配置对象。不要用示例替换整个 `settings.json`，也不要清空看似陌生的自动生成 profile。
 
-## 普通 Scoop 用户安装版配置
+### 普通 Scoop 用户安装版配置
 
 如果 Git 安装在用户目录下，可以添加：
 
@@ -115,7 +115,7 @@ Git Bash (Scoop)
 
 这里使用 `current` 目录的好处是，后续 Git 更新时它会继续指向当前版本，一般不需要频繁修改 Windows Terminal 配置。
 
-## 全局 Scoop 安装版配置
+### 全局 Scoop 安装版配置
 
 如果 Git 是通过全局 Scoop 安装的，路径可能在：
 
@@ -136,7 +136,7 @@ C:\ProgramData\scoop\apps\git\current
 }
 ```
 
-## 为什么不用 git-bash.exe
+### 为什么不用 git-bash.exe
 
 一开始可能会想到直接调用：
 
@@ -168,7 +168,7 @@ bin\bash.exe --login -i
 
 这样启动后的体验更接近正常的 Git Bash。
 
-## 最小可用配置
+### 最小可用配置
 
 如果图标路径出问题，可以先删掉 `icon` 字段，只保留最小配置：
 

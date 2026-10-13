@@ -23,7 +23,7 @@ tags:
 
 较早的 Btrfs 与 rEFInd 救援过程见：[Gentoo 在 Btrfs 与 rEFInd 环境下的启动修复记录](/posts/gentoo-refind-btrfs-rescue/gentoo-refind-btrfs-rescue/)。本文从系统已经稳定可启动的状态继续，重点记录换内核时如何保留回退路径并验证外围模块。
 
-## 2026-08-20：切回带 CJKTTY 的 XanMod
+## 当前方案：切回带 CJKTTY 的 XanMod
 
 这次回切不是放弃 CJKTTY。同步后的 Gentoo-Zh overlay 已提供 `sys-kernel/xanmod-kernel-7.1.9`，ebuild 描述明确包含 Gentoo patches 与 CJKTTY，继承 `cjktty` eclass，并在准备源码时调用 `cjktty_apply_patches`。其 `cjk` USE 会启用 16×16 CJK 字体；后来真机发现高分辨率控制台上的 16×16 汉字过小，因而再启用 `cjk32` 加入 32×32 字体。字体资源进入内核会让镜像合理增加数 MiB，不能仅凭体积变化判断为异常膨胀。
 
@@ -99,7 +99,9 @@ Linux VT 中文显示仍应由用户切换到真实 VT 目视确认，因为图�
 
 以下章节保留 2026-08-09 从 XanMod 切到独立 CJK kernel 的原始过程，供比较和回退时参考。
 
-## 2026-08-09 历史阶段：NVIDIA 重建不是故障
+## 2026-08-09 历史阶段：迁移到独立 CJK kernel
+
+### NVIDIA 重建不是故障
 
 Portage 预览中出现了 distribution-kernel subslot 迁移：
 
@@ -119,7 +121,7 @@ modules-sign
 
 它因此绑定旧的 `virtual/dist-kernel` subslot。当内核提供的 subslot 从 7.1.6 变化到 7.1.7 时，Portage 提议重建 NVIDIA 驱动，这是 slot operator dependency 正常触发的重建，不是 NVIDIA 已经损坏的证据。真正要确认的是新内核安装完成后，模块是否针对相同的 kernel release 构建并签名。
 
-## 先给唯一可启动内核留下退路
+### 先给唯一可启动内核留下退路
 
 迁移前机器上只有一个物理可启动内核。为了避免把“换包”变成一次不可回滚的启动实验，我采用了下面的顺序：
 
@@ -140,7 +142,7 @@ unmerge XanMod 包
 
 执行危险步骤前，应先用 `quickpkg`、`ls -l /boot`、`ls -l /lib/modules` 和 `eselect kernel list` 确认备份与目标。备份目录属于本机恢复策略，本文不公开具体路径。
 
-## 安装后的包与内核对应关系
+### 安装后的包与内核对应关系
 
 这次迁移确认的包状态为：
 
@@ -158,7 +160,7 @@ linux-7.1.7-gentoo-cjk-dist
 
 Portage 配置可分别查看 [`package.accept_keywords/hardware`](https://github.com/Cyberl-ty02/dotfiles/blob/main/gentoo_setting/pc/portage/package.accept_keywords/hardware)、[`package.mask/kernel`](https://github.com/Cyberl-ty02/dotfiles/blob/main/gentoo_setting/pc/portage/package.mask/kernel) 与 [`package.use/secureboot`](https://github.com/Cyberl-ty02/dotfiles/blob/main/gentoo_setting/pc/portage/package.use/secureboot)。这些链接反映本次记录时的当前配置，不能替代另一台机器上的 `emerge -pv` 检查。
 
-## rEFInd 的版本化文件配对
+### rEFInd 的版本化文件配对
 
 新内核在 `/boot` 中具有成对的版本化文件：
 
@@ -175,7 +177,7 @@ rEFInd 可以按照版本化命名自动为内核匹配相应 initramfs。稳定
 
 这种布局让后续版本更新不必重写一条固定版本的 `initrd=`。它是稳定系统中的后续整理，并不否定救援阶段显式指定 initramfs 的价值。
 
-## Secure Boot 与模块签名检查
+### Secure Boot 与模块签名检查
 
 重启前先检查内核 PE 文件是否包含签名：
 
@@ -205,7 +207,7 @@ SecureBoot enabled
 
 本机将签名密钥读取权限限制在确实需要的包，当前规则见 [`package.env/secureboot`](https://github.com/Cyberl-ty02/dotfiles/blob/main/gentoo_setting/pc/portage/package.env/secureboot) 与 [`env/secureboot_key_access`](https://github.com/Cyberl-ty02/dotfiles/blob/main/gentoo_setting/pc/portage/env/secureboot_key_access)。公开仓库只保存规则和脚本，不保存私钥。
 
-## NVIDIA 的启动后验证
+### NVIDIA 的启动后验证
 
 进入新内核后，`nvidia-smi` 显示：
 
@@ -223,7 +225,7 @@ Secure Boot 没有拒绝该模块
 X server 实际使用 NVIDIA 驱动
 ```
 
-## CJKTTY 配置与 KXCJK1013 命名陷阱
+### CJKTTY 配置与 KXCJK1013 命名陷阱
 
 检查内核配置时确认了这些选项：
 
@@ -252,7 +254,7 @@ kernel/drivers/iio/accel/kxcjk-1013.ko
 
 因此不能因为配置名称中出现 `CJK` 就把它当成字体或终端功能。对这次目标真正有意义的静态证据是 `CONFIG_FONT_CJK_16x16=y`、`CONFIG_FONT_CJK_32x32=y` 与 framebuffer console 相关选项，最终证据仍然是实际 VT 显示。这里启用 32×32 字体是为了解决 16×16 中文在当前控制台中过小的问题，不要求低分辨率设备照抄。
 
-## 最终功能验证
+### 最终功能验证
 
 重启后：
 
@@ -268,7 +270,7 @@ uname -r
 
 切换到真实 Linux VT 后，中文提示 `请输入密码` 能够直接显示，不再变成缺字方框。这一步才是 CJK 控制台支持的最终成功标准；只看 `.config` 不能替代实际输出验证。
 
-## 2026-08-09 历史阶段：成功启动后再清理
+### 成功启动后再清理
 
 只有在以下四项全部确认后，才用 `eclean-kernel` 清理旧 XanMod 内核文件：
 

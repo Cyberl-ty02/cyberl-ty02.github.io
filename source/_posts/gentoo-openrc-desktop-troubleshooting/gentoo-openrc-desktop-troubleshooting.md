@@ -18,7 +18,9 @@ tags:
 
 对应的完整字体配置保存在 dotfiles 仓库的 [`local.conf`](https://github.com/Cyberl-ty02/dotfiles/blob/main/gentoo_setting/pc/desktop/fontconfig/local.conf)，本文只解释关键判断和验证方式。
 
-## 中文界面全部显示成楷体
+## 中文字体 fallback 排查
+
+### 中文界面全部显示成楷体
 
 最初的现象并不限于一个应用。当时使用的 SDDM、VSCodium、Firefox 和 Plasma/SonicDE 界面的中文都显示成文鼎楷体或宋体。
 
@@ -34,7 +36,7 @@ monospace             -> 文鼎 PL 简中楷
 
 这说明应用本身没有同时选择同一种字体，而是它们共同依赖的 fontconfig fallback 已经偏向旧文鼎字体。
 
-## 原因：generic family fallback 被抢占
+### 原因：generic family fallback 被抢占
 
 问题不是 Noto 或 HarmonyOS 字体没有安装，而是以下 generic family 的匹配顺序不合适：
 
@@ -62,7 +64,7 @@ fc-match "Noto Sans Mono CJK SC"
 
 只有字体文件和 family 名称已经被 fontconfig 识别，调整 fallback 才有意义。
 
-## 实际修复 fontconfig
+### 实际修复 fontconfig
 
 我在 `/etc/fonts/local.conf` 中为四类 generic family 设置优先顺序，并为简体中文补充 HarmonyOS Sans SC 与 Noto Sans CJK SC。完整文件可直接查看仓库中的 [`desktop/fontconfig/local.conf`](https://github.com/Cyberl-ty02/dotfiles/blob/main/gentoo_setting/pc/desktop/fontconfig/local.conf)。
 
@@ -91,7 +93,7 @@ fc-cache -f
 
 本次运行中出现过 `looped directory detected`。它表示缓存扫描遇到重复目录，并不自动等于更新失败；最后出现 `fc-cache: succeeded`，而且匹配结果正确，因此没有继续把它当作根因。
 
-## 字体修复验证
+### 字体修复验证
 
 重新检查：
 
@@ -115,7 +117,9 @@ monospace             -> Noto Sans Mono
 
 显示管理器使用独立的 greeter 进程，需要重启显示管理器或系统后再观察。当时的 SDDM 已在后续迁移中由 Sonic Login Manager 替代；VSCodium 和 Firefox 也要完全退出所有进程后重开，单纯刷新页面不一定重新载入字体配置。
 
-## KDE/SonicDE 音量图标缺失
+## KDE/SonicDE 音量托盘排查
+
+### 音量图标缺失
 
 另一个现象是网络托盘正常，但音量图标没有出现。这里容易把 `plasma-nm` 与音频组件混为一谈：
 
@@ -139,7 +143,7 @@ pactl info
 
 OpenRC 管理系统服务，但 PipeWire 和 WirePlumber 在桌面环境中经常由用户会话启动。因此，只查看 `rc-service` 不能完整判断音频会话状态。
 
-## 后续状态：已安装 plasma-pa
+### 后续状态：已安装 plasma-pa
 
 最初记录本文时，只确认音量部件来自 `kde-plasma/plasma-pa`，尚未完成安装后的反馈。2026-10-13 重新核验时，当前系统已经安装 SonicDE 6.7.5 对应的 `plasma-pa`；因此“组件尚未安装”不再是当前问题，但用户会话中的 PipeWire/WirePlumber 状态仍需按本次启动实际检查。
 
