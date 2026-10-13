@@ -13,8 +13,8 @@ tags:
 
 Gentoo 的 `/var/lib/portage/world` 记录用户明确选择的包或 set，不是已安装依赖的完整快照。早期版本的本文只演示把整个 world 文件交给 `xargs emerge`；当前 dotfiles 已增加按角色拆分的清单，这更适合新系统分阶段恢复。
 
-> **更新说明（2026-10-04）**
-> 真机 world 与公开的 `gentoo_setting/pc/world_packages.txt` 逐行一致，共 95 项。这个数字只是本次核验快照，不是推荐安装数量。Emacs、GRUB、genkernel 与 pnpm 等旧示例已经从本文移除；当前内核为 Gentoo-Zh XanMod，用户编辑器为 Neovim/LazyVim。
+> **更新说明（2026-10-13）**
+> 真机 world 与公开的 `gentoo_setting/pc/world_packages.txt` 逐行一致，共 94 项。这个数字只是本次核验快照，不是推荐安装数量。当前内核为 Gentoo-Zh XanMod；PC 与 WSL 的编辑器已重新选择 Emacs/Doom Emacs，Windows 的 Neovim 配置则独立保留。
 
 ## world 文件适合做什么
 
@@ -30,7 +30,7 @@ LC_ALL=C sort -u /var/lib/portage/world > world_packages.txt
 完整 world 适合审计已有机器，按角色清单更适合安装新机器。当前仓库把可选项目拆成：
 
 ```text
-core          Git、doas、chezmoi、Neovim、Portage 与 shell 基础
+core          Git、doas、chezmoi、Emacs、Portage 与 shell 基础
 development   Bun、Rust、uv、Pixi、Typst、PostgreSQL、mold 等
 desktop       SonicDE、XLibre、Fcitx、字体、网络与桌面基础
 nvidia        NVIDIA、CUDA、固件与验证工具

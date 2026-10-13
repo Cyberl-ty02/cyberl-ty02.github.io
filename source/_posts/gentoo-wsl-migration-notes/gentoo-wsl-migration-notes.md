@@ -11,8 +11,8 @@ tags:
 - Gentoo
 ---
 
-> **状态说明（2026-10-04）**
-> 本文主体记录一次“暂时以 Windows + WSL 为主”的历史迁移，不能作为当前机器角色说明。现在实体 Gentoo 已恢复日常维护，运行 OpenRC、LLVM profile、Gentoo-Zh XanMod、SonicDE/XLibre、NVIDIA 与 shim+rEFInd；WSL 继续作为独立开发环境。两者共享经 chezmoi 管理的用户配置，但不能互相覆盖 Portage、binhost、桌面或引导配置。
+> **状态说明（2026-10-13）**
+> 本文主体记录一次“暂时以 Windows + WSL 为主”的历史迁移，不能作为当前机器角色说明。现在实体 Gentoo 已恢复日常维护，运行 OpenRC、LLVM profile、Gentoo-Zh XanMod、SonicDE/XLibre、NVIDIA 与 shim+rEFInd；WSL 继续作为独立开发环境。两者均重新启用 Doom Emacs，并共享经 chezmoi 管理的用户配置，但不能互相覆盖 Portage、binhost、桌面或引导配置。
 
 本文章由 ChatGPT 协助整理和写作，主要记录当时从 Gentoo 真机环境转向 Gentoo WSL 环境时遇到的问题和解决思路。
 
@@ -498,7 +498,7 @@ doas emerge -avuDN --with-bdeps=y --backtrack=100 $(cat world_packages_base.txt)
 确认系统基础稳定后，再分批安装：
 
 ```text
-Neovim / LazyVim
+Doom Emacs
 Rust / uv / pixi
 Typst
 PostgreSQL
@@ -709,9 +709,9 @@ rm -rf ~/.cache/JetBrains/RemoteDev-PY
 
 再从 Windows 侧重新连接。
 
-## 历史记录：Doom Emacs 配置没有自动加载
+## Doom Emacs：旧兼容链接与当前 XDG 布局
 
-> 这一节保留当时排查旧环境的过程。当前 PC 与 WSL 已从 world 清单移除 Emacs，改用共享的 Neovim/LazyVim 配置；新安装不再需要下面的兼容符号链接。
+> 以下故障记录解释旧环境为什么曾经需要兼容链接。2026-10-13 的 PC 与 WSL 已重新启用 Emacs，并直接使用 XDG 目录；当前安装不需要创建 `~/.emacs.d` 符号链接。
 
 安装 Emacs 后，Doom Emacs 配置没有自动加载。检查后发现：
 
@@ -733,9 +733,9 @@ user-emacs-directory=~/.emacs.d/
 ~/.config/emacs
 ```
 
-所以 Emacs 启动时读的是 `~/.emacs.d`，而不是 Doom。
+所以旧版 Emacs 启动时读的是 `~/.emacs.d`，而不是 Doom。
 
-处理方式是备份旧目录，然后软链接：
+当时的处理方式是备份旧目录，然后创建软链接：
 
 ```bash
 mv ~/.emacs.d ~/.emacs.d.bak
@@ -749,12 +749,21 @@ ln -s ~/.config/emacs ~/.emacs.d
 emacs --debug-init
 ```
 
-最终目录可以整理成：
+这只是一项面向旧环境的兼容措施，不应复制到当前安装。当前目录边界是：
 
 ```text
-~/.emacs.d      -> ~/.config/emacs
 ~/.config/emacs Doom 本体
 ~/.config/doom  Doom 私人配置
+```
+
+当前普通用户配置由 dotfiles 中的 `gentoo_setting/scripts/deploy-doom.sh` 部署：脚本同步 `~/.config/doom`，在缺少框架时克隆到 `~/.config/emacs`，随后运行 `doom sync --env`。框架更新需要显式传入 `--upgrade`；root 若确有需要则使用 `--root` 创建完全独立的目录。可按下列命令核验：
+
+```bash
+emacs --version
+command -v doom
+emacs --batch --eval \
+  '(message "user-emacs-directory=%s" user-emacs-directory)'
+doom doctor
 ```
 
 ## 一些配置整理思路
@@ -830,7 +839,7 @@ Portage
 Git / GPG / SSH
 Python / uv / pixi
 Rust
-Neovim / LazyVim / PyCharm / VSCodium
+Doom Emacs / PyCharm / VSCodium
 少量 GUI 运行库
 ```
 
@@ -842,6 +851,6 @@ Gentoo WSL 作为主要 Linux 开发环境
 真机 Gentoo 配置保留为备份和参考
 ```
 
-这段结论反映的是当时的迁移背景，不再代表当前设备角色。2026-10-04 核验时，实体 Gentoo 已恢复为日常维护中的系统，实际启动 `7.2.8-x64v3`；WSL 继续作为独立开发环境。两者共享由 chezmoi 管理的用户级开发工具与 Neovim 配置，但 Portage profile、binhost 和桌面相关配置仍然分开。
+这段结论反映的是当时的迁移背景，不再代表当前设备角色。2026-10-13 核验时，实体 Gentoo 已恢复为日常维护中的系统，实际启动 `7.2.8-x64v3`；WSL 继续作为独立开发环境。两者共享由 chezmoi 管理的用户级开发工具与 Doom 私人配置，但 Portage profile、binhost 和桌面相关配置仍然分开；Windows 侧仍保留独立的 Neovim 配置。
 
 无论当前主要使用哪套环境，涉及分区、Secure Boot、显卡驱动和启动项的实体机变更都应保留独立恢复介质和已验证的回退入口；WSL 则更适合承载不需要完整硬件栈的开发任务。

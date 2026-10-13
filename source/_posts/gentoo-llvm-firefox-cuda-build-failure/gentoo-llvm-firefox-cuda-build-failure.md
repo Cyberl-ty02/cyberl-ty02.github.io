@@ -11,8 +11,8 @@ tags:
 - Gentoo
 ---
 
-> **状态更新（2026-10-04）**
-> 真机目前同时安装 LLVM 19 与 22、`nvidia-cuda-toolkit-12.9.2` 和 `firefox-bin-157.0`。这说明当前系统已经绕开当时的阻塞，但不能反推下文候选方案修复了 Firefox 源码构建；本文仍只把原日志确认的因果链写成结论。
+> **状态更新（2026-10-13）**
+> 真机目前同时安装 LLVM 19 与 22、`nvidia-cuda-toolkit-12.9.2`，并已从 `firefox-bin` 切换到源码构建的 `www-client/firefox-153.4.0`。这说明当前依赖图已经能够完成目标安装，但不能仅凭最终成功反推下文哪一个候选方案解决了当年的故障；本文仍只把原日志确认的因果链写成结论。
 
 这次在 Gentoo 上计划安装 Firefox 与 CUDA Toolkit 时，Portage 构建被旧 LLVM slot 阻塞。日志可以证明 LLVM 19 的 32 位构建在 Hexagon 相关代码中失败，但不能证明 Firefox 或 CUDA 自身已经进入编译，更不能简单得出“关闭 Hexagon 一定修好”的结论。
 
@@ -161,6 +161,6 @@ profile force 使普通 package.use 无法关闭 32 位 ABI
 最终修复仍需 emerge 预览和完整重编译验证
 ```
 
-等 LLVM 19、Firefox 源码版和 CUDA Toolkit 的实际结果确认后，再补充成功方案与验证输出，避免把一次合理推断写成既成事实。
+2026-10-13 的真机已经同时安装 LLVM 19/22、CUDA Toolkit 12.9.2 与源码构建的 Firefox 153.4.0，说明当前软件组合能够完成安装；但现状并不能反向证明上面哪一项候选原因单独修复了旧故障。因此本文保留原始错误路径和排查方法，不把后来的成功构建包装成已经证实的单一修复方案。
 
 关于同一 Gentoo 环境的桌面排错，参见：[Gentoo OpenRC 桌面排错：中文字体、KDE 托盘与 PipeWire](/posts/gentoo-openrc-desktop-troubleshooting/gentoo-openrc-desktop-troubleshooting/)。

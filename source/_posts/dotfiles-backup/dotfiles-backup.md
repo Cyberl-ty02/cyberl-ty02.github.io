@@ -13,21 +13,23 @@ tags:
 
 本文保留几份常用配置片段。当前维护中的完整配置以 [Cyberl-ty02/dotfiles](https://github.com/Cyberl-ty02/dotfiles) 仓库为准；下方每节标题直接指向对应文件。部分片段自 2025 年初写下后已经与当前配置不同，相关位置会明确标为历史或最小示例。
 
-## [Neovim 与 LazyVim](https://github.com/Cyberl-ty02/dotfiles/tree/main/dot_config/nvim)
+## [Doom Emacs](https://github.com/Cyberl-ty02/dotfiles/tree/main/dot_config/doom)
 
-2026-10-04 核验时，PC 与 WSL 的 world 清单都已从 Emacs 切换到 Neovim，共用 `dot_config/nvim/` 中基于官方 LazyVim Starter 的配置。仓库跟踪 `lazy-lock.json`，而插件、缓存和运行状态仍保留在每个账户自己的 XDG 目录中。
+2026-10-13 核验时，PC、WSL 与 `manifests/core.txt` 都重新选择 `app-editors/emacs`。真机运行 Emacs 31.1，Doom 框架位于 `~/.config/emacs`，私人配置位于 `~/.config/doom`，shell 的 `EDITOR` 与 `VISUAL` 也已切换为 Emacs。
 
-当前配置跟随 `LazyVim/LazyVim` 的 `main` 分支，lazy.nvim 在启动时最多每 24 小时检查和应用一次插件更新。需要复现旧环境、排查上游回归或使用救援账户时，可以临时关闭自动更新：
+仓库只保存可审阅的 Doom 配置；框架 checkout、包、缓存和生成状态仍按账户隔离。普通用户可运行：
 
 ```bash
-LAZYVIM_AUTO_UPDATE=0 nvim
+gentoo_setting/scripts/deploy-doom.sh
 ```
 
-不要让普通用户与 root 共享可写的插件或 state 目录。root 运行的任何插件都会获得完整系统权限，因此应先以普通用户审阅更新，再决定是否在管理环境中加载。
+root 使用 `--root` 建立自己拥有的配置和框架，不能加载普通用户可写的目录。需要跟随 Doom 上游时显式加入 `--upgrade`，普通同步不会在背后更新框架。
+
+Windows 仍保留 `dot_config/nvim/` 对应的独立 Neovim 部署；它不再是 Gentoo PC/WSL 的默认编辑器，也不由 Gentoo 的 chezmoi 流程安装。
 
 ## [chezmoi 用户配置层](https://github.com/Cyberl-ty02/dotfiles/blob/main/gentoo_setting/README.md)
 
-仓库根目录现在是 Gentoo PC 与 WSL 共用的 chezmoi source，管理 Neovim、Zsh、Git 通用选项和开发工具配置；Windows 使用 `windows_setting/` 作为独立 source。身份、SSH/GPG 私钥、Secure Boot 私钥、桌面会话和数据库运行状态都不进入仓库。
+仓库根目录现在是 Gentoo PC 与 WSL 共用的 chezmoi source，管理 Doom 私人配置、Zsh、Git 通用选项和开发工具配置；Windows 使用 `windows_setting/` 作为独立 source。身份、SSH/GPG 私钥、Secure Boot 私钥、桌面会话和数据库运行状态都不进入仓库。
 
 默认命令只做 dry run：
 
@@ -52,7 +54,7 @@ xargs emerge --pretend --verbose --noreplace \
   < gentoo_setting/manifests/core.txt
 ```
 
-完整 `world_packages.txt` 仍用于审计或复原既有机器。2026-10-04 核验时，真机 world 与 PC 清单逐行一致；这不代表另一台机器应复制全部 95 项。
+完整 `world_packages.txt` 仍用于审计或复原既有机器。2026-10-13 核验时，真机 world 与 PC 清单逐行一致；这不代表另一台机器应复制全部 94 项。
 
 ## [开发工具镜像配置](https://github.com/Cyberl-ty02/dotfiles/tree/main/gentoo_setting/development_mirrors)
 
