@@ -17,7 +17,7 @@ sticky: 1
 它不是 Gentoo Handbook 的替代品。Handbook 负责解释 Gentoo 安装中长期稳定的规则；本文则把这些规则落实到我的磁盘布局和公开配置仓库。涉及版本、overlay 和 USE flag 的内容会随时间变化，实际安装时应同时打开 [Gentoo AMD64 Handbook](https://wiki.gentoo.org/wiki/Handbook:AMD64) 核对。
 
 > **记录基线**
-> 本文初稿写于 2026-08-18，当时运行内核为 `7.1.8-gentoo-cjk-dist`；2026-08-20 已切回 Gentoo-Zh 的 XanMod。2026-10-04 核验时，实际启动 release 与所选源码树均为 `7.2.8-x64v3`，说明先前待重启验证的内核已经进入稳定使用。这里严格区分“仓库可安装”和“已经启动验证”，版本号只作为迁移记录，不要求读者固定安装相同版本。
+> 本文初稿写于 2026-08-18，当时运行内核为 `7.1.8-gentoo-cjk-dist`；2026-08-20 已切回 Gentoo-Zh 的 XanMod。2026-10-13 核验时，实际启动 release 与所选源码树均为 `7.2.8-x64v3`，说明先前待重启验证的内核已经进入稳定使用。这里严格区分“仓库可安装”和“已经启动验证”，版本号只作为迁移记录，不要求读者固定安装相同版本。
 
 > **危险操作提醒**
 > 分区、格式化、生成 fstab 和安装 EFI 启动项都可能造成数据损失或启动失败。命令中的设备名全部是占位示例。执行前必须用 `lsblk -f`、`findmnt` 和固件启动模式确认自己的目标，双系统环境尤其不能格式化已有 Windows ESP。
@@ -44,7 +44,7 @@ profile：default/linux/amd64/23.0/llvm
 
 完整的当前说明见 dotfiles 的 [`gentoo_setting/README.md`](https://github.com/Cyberl-ty02/dotfiles/blob/main/gentoo_setting/README.md)。按角色恢复的软件见 [`manifests/`](https://github.com/Cyberl-ty02/dotfiles/tree/main/gentoo_setting/manifests)，完整真机目标仍保存在 [`world_packages.txt`](https://github.com/Cyberl-ty02/dotfiles/blob/main/gentoo_setting/pc/world_packages.txt)。这里不会把所有软件都解释一遍，而是着重保证第一次重启前已经具备能启动、联网和进入桌面的条件。
 
-本文采用的实际执行顺序是：进入 chroot 后初始化 Portage、repository 和公开配置，生成 Secure Boot 密钥并安装 shim+rEFInd，引导链就绪后安装内核和 NVIDIA 模块，再安装 mold；随后执行 `emerge -ajvuDN @world`，按 core、pc-host、desktop、nvidia、development 等角色分批预览和安装，只有需要完整复原当前机器时才使用整个 `world_packages.txt`。启用必要服务后才第一次重启；Fcitx、Zsh/Powerlevel10k、Neovim/LazyVim 等用户态配置统一留到成功启动的新系统中完成。
+本文采用的实际执行顺序是：进入 chroot 后初始化 Portage、repository 和公开配置，生成 Secure Boot 密钥并安装 shim+rEFInd，引导链就绪后安装内核和 NVIDIA 模块，再安装 mold；随后执行 `emerge -ajvuDN @world`，按 core、pc-host、desktop、nvidia、development 等角色分批预览和安装，只有需要完整复原当前机器时才使用整个 `world_packages.txt`。启用必要服务后才第一次重启；Fcitx、Zsh/Powerlevel10k、Doom Emacs 等用户态配置统一留到成功启动的新系统中完成。
 
 ## Stage 0：在 LiveCD 中准备目标系统
 
@@ -702,7 +702,7 @@ emerge -ajvuDN @world
 
 #### 核对原博客中不在 world_packages.txt 的内容
 
-2026-10-04 核验时，实时 `/var/lib/portage/world` 与仓库的 `world_packages.txt` 逐行一致，共 95 项。可以在旧系统或恢复环境中自行核对：
+2026-10-13 核验时，实时 `/var/lib/portage/world` 与仓库的 `world_packages.txt` 逐行一致，共 94 项。可以在旧系统或恢复环境中自行核对：
 
 ```bash
 sort -u /var/lib/portage/world > /tmp/gentoo-selected.txt
@@ -716,7 +716,7 @@ comm -3 /tmp/gentoo-selected.txt /tmp/gentoo-tracked.txt
 原博客中仍需单独执行、但不是缺失 Portage atom 的内容包括：
 
 ```text
-~/.config/nvim 中的 LazyVim 用户配置与 lazy-lock.json
+~/.config/doom 中的 Doom 私人配置与 ~/.config/emacs 中的 Doom 框架
 PostgreSQL 数据目录初始化与 pg_hba.conf 调整
 Fcitx/Rime 用户 profile 和 custom.yaml
 zimfw、Powerlevel10k 与生成的 ~/.p10k.zsh
@@ -1196,35 +1196,36 @@ zsh -i -c 'print -r -- $ZSH_VERSION'
 test -d ~/.zim/modules/powerlevel10k
 ```
 
-### 恢复 Neovim 与 LazyVim
+### 恢复 Doom Emacs
 
-当前 PC 与 WSL 的 world 清单都使用 `app-editors/neovim`，不再安装 Emacs。配置位于 dotfiles 的 [`dot_config/nvim/`](https://github.com/Cyberl-ty02/dotfiles/tree/main/dot_config/nvim)，基于官方 LazyVim Starter，并由两套环境共用。普通用户的 shell、Git、开发镜像与编辑器配置现在由仓库根目录的 chezmoi source 统一部署，不必再逐个手工复制。
+当前 PC、WSL 与共享 core 清单都使用 `app-editors/emacs`；Windows 侧仍保留独立的 Neovim 配置，不应把两个平台的状态混写。Doom 的私人配置位于 dotfiles 的 [`dot_config/doom/`](https://github.com/Cyberl-ty02/dotfiles/tree/main/dot_config/doom)，框架本体则由部署脚本检出到 `~/.config/emacs`。
 
-先以普通用户确认版本和目标目录：
-
-```bash
-nvim --version
-test ! -e ~/.config/nvim
-```
-
-先在已经审核的 dotfiles checkout 中预览整个用户配置层：
+先在已经审核的 dotfiles checkout 中预览并应用普通用户配置：
 
 ```bash
 cd /path/to/dotfiles
 gentoo_setting/scripts/bootstrap-user.sh
 gentoo_setting/scripts/bootstrap-user.sh --apply
-nvim
+gentoo_setting/scripts/deploy-doom.sh
 ```
 
-第二条命令会交互式应用，不应在未阅读预览时执行。chezmoi 会同时处理 Neovim、Zsh、Git 通用选项与开发工具镜像，但不会接管身份、私钥、桌面会话或数据库运行状态。
-
-首次启动会由 lazy.nvim 安装锁文件描述的插件。当前配置跟随 `LazyVim/LazyVim` 的 `main` 分支，并且最多每 24 小时检查和应用一次插件更新；恢复上游回归或暂时不希望更新时，可以使用：
+第二条命令会交互式应用 chezmoi 配置；第三条命令复制已审核的 Doom 私人配置、在目标不存在时克隆框架，并执行 `doom sync --env`。脚本遇到已存在但不是 Git checkout 的 `~/.config/emacs` 会停止，避免覆盖未知目录。只有明确需要更新框架时才使用：
 
 ```bash
-LAZYVIM_AUTO_UPDATE=0 nvim
+gentoo_setting/scripts/deploy-doom.sh --upgrade
 ```
 
-普通用户与 root 必须分别使用自己的 XDG data/state 目录，不能共享可写的插件目录。root 启动 Neovim 时，插件代码会获得完整权限；应先以普通用户审阅配置和更新，再决定是否在管理环境中加载。
+完成后验证实际目录和启动状态：
+
+```bash
+emacs --version
+command -v doom
+emacs --batch --eval \
+  '(message "user-emacs-directory=%s" user-emacs-directory)'
+doom doctor
+```
+
+本机当前使用 `~/.config/emacs` 作为 Doom 主程序目录、`~/.config/doom` 作为私人配置目录；旧布局中的 `~/.emacs.d` 和 `~/.doom.d` 均不需要兼容符号链接。若确实需要 root 的独立配置，可在审阅脚本后使用 `deploy-doom.sh --root`；不要让普通用户与 root 共用可写的包、缓存或状态目录。详细的更新与卸载边界见：[Doom Emacs 安装、同步与清理](/posts/doom-emacs-windows/doom-emacs-windows/)。
 
 ### 从 LiveCD 查找、备份或移走旧用户配置
 
