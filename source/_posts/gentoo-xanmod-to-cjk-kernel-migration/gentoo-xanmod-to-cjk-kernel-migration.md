@@ -16,14 +16,16 @@ tags:
 > **版本说明**
 > 文中的 `7.1.7` 对应 2026-08-09 已完成的迁移；`xanmod-kernel-7.1.9` 对应 2026-08-20 的反向迁移，实际运行 release 为 `7.1.9-x64v3`。设备标识和 UUID 均已省略或使用占位值。
 
-> **当前状态（2026-10-04）**
-> 本机当前实际启动的是 `7.2.8-x64v3`，`/usr/src/linux` 也指向同一源码树，先前的待重启验证已经完成。公开配置仍选择 Gentoo-Zh `sys-kernel/xanmod-kernel`，并同时启用 `cjk`、`cjk32`、Clang、initramfs、模块签名和 Secure Boot。
+> **当前状态（2026-10-13）**
+> 本机当前实际启动的是 `7.2.10-x64v3`，`/usr/src/linux` 与 `/lib/modules` 也只对应这一版本。Portage 计划显示 `cjk cjk32 (clang) initramfs modules-sign secureboot`，`LLVM_SLOT=22`；NVIDIA 模块的 vermagic 与当前 release 一致并已正常加载。
+
+当前 `/boot` 只确认存在一套 `7.2.10-x64v3` 内核、initramfs、配置和 System.map。这是“单内核已启动”的事实，不是“已经保留可启动后备内核”。下次升级应先保留当前文件或准备可启动 LiveCD，等新版本实际启动后再清理。
 
 较早的 Btrfs 与 rEFInd 救援过程见：[Gentoo 在 Btrfs 与 rEFInd 环境下的启动修复记录](/posts/gentoo-refind-btrfs-rescue/gentoo-refind-btrfs-rescue/)。本文从系统已经稳定可启动的状态继续，重点记录换内核时如何保留回退路径并验证外围模块。
 
 ## 2026-08-20：切回带 CJKTTY 的 XanMod
 
-这次回切不是放弃 CJKTTY。同步后的 Gentoo-Zh overlay 已提供 `sys-kernel/xanmod-kernel-7.1.9`，ebuild 描述明确包含 Gentoo patches 与 CJKTTY，继承 `cjktty` eclass，并在准备源码时调用 `cjktty_apply_patches`。其 `cjk` USE 会启用 16×16 CJK 字体；`cjk32` 还会加入约 8 MiB 的 32×32 字体数据。当时没有启用后者，当前公开配置则已经同时启用 `cjk` 与 `cjk32`。
+这次回切不是放弃 CJKTTY。同步后的 Gentoo-Zh overlay 已提供 `sys-kernel/xanmod-kernel-7.1.9`，ebuild 描述明确包含 Gentoo patches 与 CJKTTY，继承 `cjktty` eclass，并在准备源码时调用 `cjktty_apply_patches`。其 `cjk` USE 会启用 16×16 CJK 字体；后来真机发现高分辨率控制台上的 16×16 汉字过小，因而再启用 `cjk32` 加入 32×32 字体。字体资源进入内核会让镜像合理增加数 MiB，不能仅凭体积变化判断为异常膨胀。
 
 先以本机仓库和 Portage 计划核实，不能只依据文章中的版本号：
 
@@ -93,7 +95,7 @@ rEFInd：没有旧 release 或 LiveCD 参数硬编码
 CJKTTY 静态配置：CONFIG_FONT_CJK_16x16=y
 ```
 
-Linux VT 中文显示仍应由用户切换到真实 VT 目视确认，因为图形会话和自动化检查不能替代 framebuffer console 的实际输出。当前旧 CJK kernel 已从包数据库和 `/boot` 清除，只保留 XanMod 的版本化内核与 initramfs；因此后续升级应先保留这份已知可启动的 XanMod，再测试下一版本，不能在新版本验证前重复清空回退文件。
+Linux VT 中文显示仍应由用户切换到真实 VT 目视确认，因为图形会话和自动化检查不能替代 framebuffer console 的实际输出。当前旧 CJK kernel 已从包数据库和 `/boot` 清除；2026-10-13 的 `/boot` 也只剩正在运行的 XanMod 7.2.10。因此“保留上一版本再测试下一版本”是后续升级建议，并非当前已经具备的回滚状态。
 
 以下章节保留 2026-08-09 从 XanMod 切到独立 CJK kernel 的原始过程，供比较和回退时参考。
 
@@ -168,7 +170,7 @@ initramfs-7.1.7-gentoo-cjk-dist.img
 rEFInd 可以按照版本化命名自动为内核匹配相应 initramfs。稳定配置中的 `refind_linux.conf` 因而只保留通用的 root/Btrfs 参数，不再硬编码某个内核版本。例如真实 UUID 应由本机查询，公开示例只写作：
 
 ```conf
-"Boot Gentoo Linux" "root=UUID=11111111-1111-1111-1111-111111111111 rw rootfstype=btrfs rootflags=subvol=/@"
+"Boot Gentoo Linux" "root=UUID=<uuid> rw rootfstype=btrfs rootflags=subvol=/@"
 ```
 
 这种布局让后续版本更新不必重写一条固定版本的 `initrd=`。它是稳定系统中的后续整理，并不否定救援阶段显式指定 initramfs 的价值。
@@ -232,6 +234,7 @@ CONFIG_FRAMEBUFFER_CONSOLE=y
 CONFIG_FRAMEBUFFER_CONSOLE_DETECT_PRIMARY=y
 CONFIG_FRAMEBUFFER_CONSOLE_DEFERRED_TAKEOVER=y
 CONFIG_FONT_CJK_16x16=y
+CONFIG_FONT_CJK_32x32=y
 CONFIG_EFI_STUB=y
 ```
 
@@ -247,7 +250,7 @@ CONFIG_KXCJK1013=m
 kernel/drivers/iio/accel/kxcjk-1013.ko
 ```
 
-因此不能因为配置名称中出现 `CJK` 就把它当成字体或终端功能。对这次目标真正有意义的静态证据是 `CONFIG_FONT_CJK_16x16=y` 与 framebuffer console 相关选项，最终证据仍然是实际 VT 显示。
+因此不能因为配置名称中出现 `CJK` 就把它当成字体或终端功能。对这次目标真正有意义的静态证据是 `CONFIG_FONT_CJK_16x16=y`、`CONFIG_FONT_CJK_32x32=y` 与 framebuffer console 相关选项，最终证据仍然是实际 VT 显示。这里启用 32×32 字体是为了解决 16×16 中文在当前控制台中过小的问题，不要求低分辨率设备照抄。
 
 ## 最终功能验证
 
@@ -282,6 +285,6 @@ CJKTTY 在真实 VT 中正常显示中文
 
 2026-08-09 切到独立 CJK kernel 后，曾从 `package.accept_keywords`、`package.env` 和 `package.use` 中移除 XanMod 项，并把签名密钥访问范围收窄到 `gentoo-cjk-kernel`。2026-08-20 的方向相反：当前公开配置重新把 `sys-kernel/xanmod-kernel` 写入 `world_packages.txt`，也把它列入 `manifests/pc-host.txt`，恢复其关键字、`cjk clang` USE 和签名环境，并 mask 不再选用的独立 CJK/官方 distribution kernel。相关文件应以 [`Cyberl-ty02/dotfiles`](https://github.com/Cyberl-ty02/dotfiles/tree/main/gentoo_setting/pc) 的当前版本和本机 `emerge -pv` 结果为准。
 
-旧 CJK kernel 在 XanMod 完成重启验证前仍是回退项，因此不应提前从包数据库、ESP 或 `/lib/modules` 删除。若旧 `virtual/dist-kernel` 精确 subslot 阻挡迁移，应先阅读 Portage 依赖计划，并准备不受 unmerge 影响的物理回退文件；不能仅为让 resolver 通过就删掉当前唯一可启动内核。Secure Boot 工具与公开示例集中在 [`kernel/secureboot`](https://github.com/Cyberl-ty02/dotfiles/tree/main/gentoo_setting/pc/kernel/secureboot)。
+在 2026-08-20 的迁移过程中，旧 CJK kernel 直到 XanMod 完成重启验证前仍是回退项，因此当时没有提前从包数据库、ESP 或 `/lib/modules` 删除。若以后旧 `virtual/dist-kernel` 精确 subslot 阻挡迁移，应先阅读 Portage 依赖计划，并准备不受 unmerge 影响的物理回退文件；不能仅为让 resolver 通过就删掉当前唯一可启动内核。2026-10-13 的实际状态只剩一套 XanMod，已不再具备这里描述的旧内核回退。Secure Boot 工具与公开示例集中在 [`kernel/secureboot`](https://github.com/Cyberl-ty02/dotfiles/tree/main/gentoo_setting/pc/kernel/secureboot)。
 
 这部分只是迁移后的配置卫生：先验证新系统，再删除旧规则和回退文件，避免把“清理得很干净”放在“确认能够启动”之前。

@@ -14,7 +14,7 @@ tags:
 Gentoo 的 `/var/lib/portage/world` 记录用户明确选择的包或 set，不是已安装依赖的完整快照。早期版本的本文只演示把整个 world 文件交给 `xargs emerge`；当前 dotfiles 已增加按角色拆分的清单，这更适合新系统分阶段恢复。
 
 > **更新说明（2026-10-13）**
-> 真机 world 与公开的 `gentoo_setting/pc/world_packages.txt` 逐行一致，共 94 项。这个数字只是本次核验快照，不是推荐安装数量。当前内核为 Gentoo-Zh XanMod；PC 与 WSL 的编辑器已重新选择 Emacs/Doom Emacs，Windows 的 Neovim 配置则独立保留。
+> 真机 world 与公开的 `gentoo_setting/pc/world_packages.txt` 逐行一致，共 92 项。这个数字只是本次核验快照，不是推荐安装数量。当前内核为 Gentoo-Zh XanMod；PC 与 WSL 使用 Emacs/Doom Emacs，Windows 目标环境也迁移为 Scoop Emacs。仓库中既有 Neovim 文件仅作为过渡输入保留，不代表 Windows 当前目标仍是 Neovim。
 
 ## world 文件适合做什么
 
@@ -38,6 +38,8 @@ pc-host       XanMod、rEFInd、shim、mokutil 与 EFI 工具
 wsl           WSL 使用的 LLVM 工具链
 optional      办公、通信、媒体等按需应用
 ```
+
+显式 world 数量下降并不一定表示功能减少。例如清理旧 Rust slot 时，删除的是不再需要固定的历史版本 atom；当前 `rust-bin` 仍可按依赖和新选择保留多个有效 slot。签名密钥包也不能被误认为对应编译器 slot：`openpgp-keys-llvm` 只提供验证材料，不代表系统仍安装旧 LLVM。
 
 这些文件是从 PC/WSL world 中整理出的角色，不是任一机器 world 的副本，也不会自动安装软件。
 

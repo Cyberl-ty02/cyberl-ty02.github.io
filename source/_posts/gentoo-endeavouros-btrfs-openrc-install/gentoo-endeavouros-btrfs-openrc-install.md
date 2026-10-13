@@ -17,7 +17,7 @@ sticky: 1
 它不是 Gentoo Handbook 的替代品。Handbook 负责解释 Gentoo 安装中长期稳定的规则；本文则把这些规则落实到我的磁盘布局和公开配置仓库。涉及版本、overlay 和 USE flag 的内容会随时间变化，实际安装时应同时打开 [Gentoo AMD64 Handbook](https://wiki.gentoo.org/wiki/Handbook:AMD64) 核对。
 
 > **记录基线**
-> 本文初稿写于 2026-08-18，当时运行内核为 `7.1.8-gentoo-cjk-dist`；2026-08-20 已切回 Gentoo-Zh 的 XanMod。2026-10-13 核验时，实际启动 release 与所选源码树均为 `7.2.8-x64v3`，说明先前待重启验证的内核已经进入稳定使用。这里严格区分“仓库可安装”和“已经启动验证”，版本号只作为迁移记录，不要求读者固定安装相同版本。
+> 本文初稿写于 2026-08-18，当时运行内核为 `7.1.8-gentoo-cjk-dist`；2026-08-20 已切回 Gentoo-Zh 的 XanMod。2026-10-13 核验时，实际启动 release 与所选源码树均为 `7.2.10-x64v3`。这里严格区分“仓库可安装”和“已经启动验证”，版本号只作为迁移记录，不要求读者固定安装相同版本。
 
 > **危险操作提醒**
 > 分区、格式化、生成 fstab 和安装 EFI 启动项都可能造成数据损失或启动失败。命令中的设备名全部是占位示例。执行前必须用 `lsblk -f`、`findmnt` 和固件启动模式确认自己的目标，双系统环境尤其不能格式化已有 Windows ESP。
@@ -34,7 +34,7 @@ profile：default/linux/amd64/23.0/llvm
 工具链：Clang/LLVM，少数包按 package.env 回退 GCC
 文件系统：Btrfs，根子卷 @，家目录子卷 @home
 交换空间：zram swap，由 util-linux 的 zramctl 与 OpenRC local.d 动态创建
-内核：sys-kernel/xanmod-kernel[cjk]（Gentoo-Zh dist-kernel）
+内核：sys-kernel/xanmod-kernel[cjk,cjk32,clang,modules-sign,secureboot]
 桌面：SonicDE + XLibre/X11
 显卡：Intel modesetting + NVIDIA
 音频：PipeWire / PulseAudio compatibility
@@ -95,8 +95,8 @@ sudo timedatectl set-ntp true
 示例布局如下：
 
 ```text
-/dev/nvme111111n1p1   EFI System Partition   FAT32   挂载到 /boot
-/dev/nvme111111n1p2   Gentoo                 Btrfs   包含 @ 与 @home
+/dev/<efi-partition>    EFI System Partition   FAT32   挂载到 /boot
+/dev/<root-partition>   Gentoo                 Btrfs   包含 @ 与 @home
 ```
 
 本文不再预留实体 swap 分区，而是在目标系统中使用 zram swap。它的逻辑容量可以通过配置文件调整，不必重新分区；压缩页按实际使用占用 RAM，也不会在启动时一次性占满配置的全部容量。代价是 zram 位于易失内存，不能保存休眠镜像：如果需要 suspend-to-disk，仍需另行准备足够大的持久 swap，并配置正确的 `resume` 参数。
@@ -111,7 +111,7 @@ sudo fdisk -l
 再打开分区工具：
 
 ```bash
-sudo cfdisk /dev/nvme111111n1
+sudo cfdisk "/dev/<disk>"
 ```
 
 我更愿意在交互式界面中逐项确认目标，而不是在安装指南里给出一条会直接重写分区表的脚本。新建或选择分区后，应再次运行 `lsblk` 检查，再进行格式化。
@@ -121,13 +121,13 @@ sudo cfdisk /dev/nvme111111n1
 以下仍是占位设备：
 
 ```bash
-sudo mkfs.btrfs -L Gentoo /dev/nvme111111n1p2
+sudo mkfs.btrfs -L Gentoo "/dev/<root-partition>"
 ```
 
 只有全新创建的 ESP 才格式化为 FAT32：
 
 ```bash
-sudo mkfs.fat -F 32 -n EFI /dev/nvme111111n1p1
+sudo mkfs.fat -F 32 -n EFI "/dev/<efi-partition>"
 ```
 
 双系统中已有 ESP 时不要执行最后一条命令。格式化前后都应核对设备大小和文件系统，不能凭设备编号猜测。
@@ -137,7 +137,7 @@ sudo mkfs.fat -F 32 -n EFI /dev/nvme111111n1p1
 先临时挂载顶层 Btrfs 文件系统：
 
 ```bash
-sudo mount /dev/nvme111111n1p2 /mnt
+sudo mount "/dev/<root-partition>" /mnt
 sudo btrfs subvolume create /mnt/@
 sudo btrfs subvolume create /mnt/@home
 sudo btrfs subvolume list /mnt
@@ -149,12 +149,12 @@ sudo umount /mnt
 ```bash
 sudo mkdir -p /mnt/gentoo
 sudo mount -o subvol=/@,compress=zstd,noatime \
-  /dev/nvme111111n1p2 /mnt/gentoo
+  "/dev/<root-partition>" /mnt/gentoo
 
 sudo mkdir -p /mnt/gentoo/home /mnt/gentoo/boot
 sudo mount -o subvol=/@home,compress=zstd,noatime \
-  /dev/nvme111111n1p2 /mnt/gentoo/home
-sudo mount /dev/nvme111111n1p1 /mnt/gentoo/boot
+  "/dev/<root-partition>" /mnt/gentoo/home
+sudo mount "/dev/<efi-partition>" /mnt/gentoo/boot
 ```
 
 这里把 ESP 直接挂载到 `/boot`，因为当前 rEFInd 和内核文件布局就是这样设计的。如果希望 ESP 位于 `/boot/efi`，启动配置、installkernel 和后文脚本都要相应调整，不能混用。
@@ -330,7 +330,7 @@ source /etc/profile
 再设置主机名、hosts 和 root 密码。示例主机名应换成自己的：
 
 ```bash
-echo 'gentoo-laptop' > /etc/hostname
+echo '<host>' > /etc/hostname
 passwd
 ```
 
@@ -339,7 +339,7 @@ passwd
 ```text
 127.0.0.1   localhost
 ::1         localhost
-127.0.1.1   gentoo-laptop.localdomain gentoo-laptop
+127.0.1.1   <host>.localdomain <host>
 ```
 
 ### 分阶段应用当前 Portage 配置
@@ -519,7 +519,7 @@ test -d /boot/EFI/refind/icons || \
 ```bash
 lsblk -o NAME,PATH,FSTYPE,PARTTYPE,MOUNTPOINTS
 efibootmgr --create \
-  --disk /dev/nvme111111n1 \
+  --disk "/dev/<disk>" \
   --part 1 \
   --loader '\EFI\refind\BOOTX64.EFI' \
   --label 'rEFInd via shim'
@@ -570,7 +570,7 @@ ls -la /etc/kernel/secureboot /root/secureboot-script-backup
 
 ### 安装内核、固件和 NVIDIA
 
-Gentoo Handbook 建议第一次启动优先使用 distribution kernel，以减少“系统配置错误”和“自定义内核漏选驱动”混在一起的概率。我的机器选择 Gentoo-Zh 的 XanMod distribution kernel，并通过 `cjk` USE 应用 CJKTTY 补丁。当前 overlay 的 ebuild 会继承 `cjktty` eclass；`cjk` 负责补丁和 16×16 CJK 字体，`cjk32` 额外加入体积更大的 32×32 字体。当前公开配置同时启用了两者，但低分辨率 framebuffer 通常不必照抄 `cjk32`。
+Gentoo Handbook 建议第一次启动优先使用 distribution kernel，以减少“系统配置错误”和“自定义内核漏选驱动”混在一起的概率。我的机器选择 Gentoo-Zh 的 XanMod distribution kernel，并通过 `cjk` USE 应用 CJKTTY 补丁。当前 overlay 的 ebuild 会继承 `cjktty` eclass；`cjk` 提供 16×16 CJK 字体，`cjk32` 再加入 32×32 字体，用于解决本机高分辨率控制台上中文过小的问题。字体资源进入内核后镜像增加数 MiB 属预期结果；低分辨率 framebuffer 通常不必照抄 `cjk32`。
 
 distribution kernel 通常依赖 initramfs 才能覆盖模块化的存储与文件系统驱动。当前 `package.use/secureboot` 已为 `sys-kernel/installkernel` 启用 `dracut` 和 `refind`；安装前仍要从 Portage 计划中确认这些 flag 生效：
 
@@ -600,6 +600,8 @@ emerge --ask x11-drivers/nvidia-drivers
 ```
 
 版本变化时 Portage 重建 NVIDIA 是正常的 subslot 行为。XanMod、独立 CJK kernel、CJKTTY、回退内核与 Secure Boot 的双向迁移记录见：[Gentoo 内核迁移记录：XanMod、CJKTTY、NVIDIA 与 Secure Boot](/posts/gentoo-xanmod-to-cjk-kernel-migration/gentoo-xanmod-to-cjk-kernel-migration/)。
+
+2026-10-13 的真机只确认 `/boot` 中有一个实际使用的 `7.2.10-x64v3`。因此本文把“保留上一内核用于回滚”列为后续升级前的建议，不声称当前已经有第二个可启动内核。
 
 内核和 initramfs 出现后，再检查或创建 `refind_linux.conf`。从 LiveCD 生成的内容可能继承 LiveCD 的 `/proc/cmdline`，必须删除 `archiso*` 等介质参数，并核对 Btrfs UUID 与 `rootflags=subvol=/@`。稳定布局依靠：
 
@@ -694,7 +696,7 @@ emerge -ajvuDN @world
 
 ```text
 第一轮：内核、固件、网络、日志、编辑器、启动链
-第二轮：XLibre、NVIDIA、SonicDE、SDDM、字体、PipeWire
+第二轮：XLibre、NVIDIA、SonicDE、Sonic Login Manager、字体、PipeWire
 第三轮：开发工具、CUDA、办公、邮件和其他应用
 ```
 
@@ -702,7 +704,7 @@ emerge -ajvuDN @world
 
 #### 核对原博客中不在 world_packages.txt 的内容
 
-2026-10-13 核验时，实时 `/var/lib/portage/world` 与仓库的 `world_packages.txt` 逐行一致，共 94 项。可以在旧系统或恢复环境中自行核对：
+2026-10-13 核验时，实时 `/var/lib/portage/world` 与仓库的 `world_packages.txt` 逐行一致，共 92 项。可以在旧系统或恢复环境中自行核对：
 
 ```bash
 sort -u /var/lib/portage/world > /tmp/gentoo-selected.txt
@@ -747,8 +749,8 @@ sonic-desktop / sonic-win     替换对应 Plasma 桌面核心
 创建普通用户并加入需要的组。用户名和组应按本机设备权限调整：
 
 ```bash
-useradd -m -G wheel,audio,video,input,plugdev -s /bin/zsh user111111
-passwd user111111
+useradd -m -G wheel,audio,video,input,plugdev -s /bin/zsh '<user>'
+passwd '<user>'
 ```
 
 安装并配置 `doas`：
@@ -760,12 +762,16 @@ install -m 0600 /root/dotfiles/doas_dot_conf /etc/doas.conf
 
 公开 `doas_dot_conf` 中含作者自己的用户名规则，复制后必须修改。也可以只保留更通用的 wheel 规则，再逐项增加最小权限。
 
-SonicDE 使用 SDDM。检查 `/etc/conf.d/display-manager`：
+当前桌面使用 `sonicde-base/sonic-login-manager`，不再以 SDDM 或从 TTY 手工运行 SDDM 作为正常启动方式。Sonic Login Manager 自带 OpenRC 服务；本机的 XLibre/OpenRC 组合还需要 dotfiles 中的 user patch，移除它与 `gui-libs/display-manager-init` 真实服务之间的 `display-manager`/`xdm` 名称碰撞。先检查 overlay 最新 ebuild 是否已经修复，只有问题仍存在时才保留本地补丁。
 
-```conf
-CHECKVT=7
-DISPLAYMANAGER="sddm"
+```bash
+emerge --ask sonicde-base/sonic-login-manager
+rc-update add soniclogin default
+rc-update del sddm default 2>/dev/null || true
+rc-update show | grep -E 'soniclogin|sddm|display-manager'
 ```
+
+安装后应通过一次完整冷启动验证 greeter 和 SonicDE 会话；不要把 chroot 或 TTY 中直接执行登录管理器的结果当成稳定启动验证。完整迁移边界见：[Gentoo OpenRC 迁移到 SonicDE 6.7.5：登录管理器、Portal 与应用边界](/posts/gentoo-sonicde-openrc-migration/gentoo-sonicde-openrc-migration/)。
 
 字体 fallback 的当前文件可安装为：
 
@@ -886,7 +892,7 @@ clamscan --recursive --infected ~/Downloads
 rc-update add NetworkManager default
 rc-update add dbus default
 rc-update add elogind default
-rc-update add display-manager default
+rc-update add soniclogin default
 rc-update add sysklogd default
 rc-update add chronyd default
 rc-update add cronie default
@@ -950,7 +956,7 @@ fstab 中 @、@home 与 ESP 没有重复或指错，也没有遗留实体 swap �
 内核、initramfs、/lib/modules 的 release 一致
 rEFInd 能看到正确的版本化内核文件
 目标内核和 NVIDIA 模块已经签名
-NetworkManager、日志、时间同步、dbus、elogind、display-manager 已加入 default
+NetworkManager、日志、时间同步、dbus、elogind、soniclogin 已加入 default
 普通用户、密码与提权规则已经准备
 world 更新没有未处理的 blocker
 ```
@@ -1011,7 +1017,7 @@ fc-match 'sans-serif:lang=zh-cn'
 
 Gentoo Wiki 给出的基础方式是使用 `zramctl` 创建设备；它属于系统已有的 `sys-apps/util-linux`，因此这里不需要安装 `sys-block/zram-init` 或面向 systemd 的 `sys-apps/zram-generator`。单设备配置直接交给 OpenRC 的 `local` 服务即可。
 
-先确认当前启动内核提供 zram 与 Zstd backend。本机在 2026-10-04 实际启动的 `7.2.8-x64v3` 已验证可使用这套方案；其他版本仍应现场检查，不能只依据 ebuild USE：
+先确认当前启动内核提供 zram 与 Zstd backend。本机在 2026-10-13 实际启动的 `7.2.10-x64v3` 已验证可使用这套方案；其他版本仍应现场检查，不能只依据 ebuild USE：
 
 ```bash
 if test -r /proc/config.gz; then
@@ -1166,8 +1172,8 @@ zmodule romkatv/powerlevel10k
 普通用户无法直接读取 `/root/dotfiles` 时，可从公开仓库下载该单一文件，或由 root 安装到用户家目录。示例中的用户名需替换：
 
 ```bash
-doas install -o user111111 -g user111111 -m 0644 \
-  /root/dotfiles/dot_zimrc /home/user111111/.zimrc
+doas install -o '<user>' -g '<user>' -m 0644 \
+  /root/dotfiles/dot_zimrc '/home/<user>/.zimrc'
 zimfw install
 ```
 
@@ -1198,7 +1204,7 @@ test -d ~/.zim/modules/powerlevel10k
 
 ### 恢复 Doom Emacs
 
-当前 PC、WSL 与共享 core 清单都使用 `app-editors/emacs`；Windows 侧仍保留独立的 Neovim 配置，不应把两个平台的状态混写。Doom 的私人配置位于 dotfiles 的 [`dot_config/doom/`](https://github.com/Cyberl-ty02/dotfiles/tree/main/dot_config/doom)，框架本体则由部署脚本检出到 `~/.config/emacs`。
+当前 PC、WSL 与共享 core 清单都使用 `app-editors/emacs`；Windows 目标环境也迁移为 Scoop Emacs，并复用同一组 Doom 私人配置。既有 Windows Neovim 文件在本地迁移验收前只作为交接和回滚输入，Linux 侧不提前删除。Doom 的私人配置位于 dotfiles 的 [`dot_config/doom/`](https://github.com/Cyberl-ty02/dotfiles/tree/main/dot_config/doom)，框架本体则由部署脚本检出到 `~/.config/emacs`。
 
 先在已经审核的 dotfiles checkout 中预览并应用普通用户配置：
 
@@ -1232,7 +1238,7 @@ doom doctor
 如果 `/home` 沿用旧 `@home` 子卷，首次登录前可能已经存在旧配置。不要用未经核对的递归删除命令。先从 LiveCD 挂载目标根和 home，设定实际用户名目录，再列出对象：
 
 ```bash
-TARGET_USER_HOME=/mnt/gentoo/home/user111111
+TARGET_USER_HOME='/mnt/gentoo/home/<user>'
 
 ls -ld \
   "$TARGET_USER_HOME/.xprofile" \
@@ -1288,8 +1294,8 @@ emerge --pretend --verbose --update --deep --newuse @world
 
 | 数据层 | 当前首选 | 仍然保留的验证或回退 |
 | --- | --- | --- |
-| Gentoo ebuild 主树 | USTC Git 浅克隆 | Gentoo Release Key 验证提交签名、默认刷新密钥、拒绝超过三天的仓库时间戳；保留 CERNET、TUNA 与官方 Git 回退 |
-| distfiles 源码包 | CERNET → 华为 → 阿里 | 最后回退 `distfiles.gentoo.org` |
+| Gentoo ebuild 主树 | USTC Git 浅克隆 | Gentoo Release Key 验证提交签名、默认刷新密钥、拒绝超过三天的仓库时间戳；依次考虑 CERNET、官方 Git，TUNA 只作末级备用 |
+| distfiles 源码包 | USTC → 华为 → 阿里 → 官方 | TUNA 因同步/排队因素放在最后 |
 | 官方 binhost | CERNET 的 `x86-64_llvm`，PC 另有华为来源 | `verify-signature = true`；来源必须匹配当前 LLVM profile |
 | gentoo-zh | CERNET Git 联合入口 | Git 提交与 ebuild 自身的校验链不因镜像而关闭 |
 | GURU、SonicDE、XLibre | 各自上游 | 不为追求形式统一而改写没有对应镜像的仓库 |
@@ -1311,7 +1317,7 @@ sync-uri = https://mirrors.ustc.edu.cn/gentoo.git
 
 ```bash
 # /etc/portage/make.conf
-GENTOO_MIRRORS="https://mirrors.cernet.edu.cn/gentoo https://mirrors.huaweicloud.com/gentoo https://mirrors.aliyun.com/gentoo https://distfiles.gentoo.org"
+GENTOO_MIRRORS="https://mirrors.ustc.edu.cn/gentoo https://repo.huaweicloud.com/gentoo https://mirrors.aliyun.com/gentoo https://distfiles.gentoo.org https://mirrors.tuna.tsinghua.edu.cn/gentoo"
 ```
 
 ```ini
@@ -1341,7 +1347,9 @@ emerge --sync
 GENTOO_MIRRORS=https://distfiles.gentoo.org emerge --fetchonly --ask CATEGORY/PACKAGE
 ```
 
-主树同步异常时，可以临时把 `sync-uri` 改为 TUNA 或官方 Git 镜像；若使用 CERNET 联合入口，因为部分后端只提供 Git dumb HTTP，还必须同时设置 `sync-depth = 0`，首次同步会下载完整历史。一次只保留一个生效的 `sync-uri`，不要堆叠多个 `[gentoo]` 段，也不要关闭提交签名或 Release Key 刷新。binhost 应切换到 [Gentoo 官方下载页](https://www.gentoo.org/downloads/) 为当前 profile 提供的对应地址，而不是关闭签名验证来绕过错误。
+主树同步异常时，先在 CERNET 与官方 Git 间选择一个备用；TUNA Git 可能排队，因此放在最后。若使用 CERNET 联合入口，因为部分后端只提供 Git dumb HTTP，还必须同时设置 `sync-depth = 0`，首次同步会下载完整历史。一次只保留一个生效的 `sync-uri`，不要堆叠多个 `[gentoo]` 段，也不要关闭提交签名或 Release Key 刷新。binhost 应切换到 [Gentoo 官方下载页](https://www.gentoo.org/downloads/) 为当前 profile 提供的对应地址，而不是关闭签名验证来绕过错误。
+
+[LinuxMirrors](https://github.com/SuperManito/LinuxMirrors) 可以作为镜像地址参考，但当前没有让它接管 Portage 或用户级开发工具配置。其自动换源流程无法表达这里的 Git 签名、多级 distfiles 回退、PC/WSL binhost 差异和 overlay 边界，不能未经审阅直接覆盖现有小文件。
 
 ### 用户级开发工具镜像
 
