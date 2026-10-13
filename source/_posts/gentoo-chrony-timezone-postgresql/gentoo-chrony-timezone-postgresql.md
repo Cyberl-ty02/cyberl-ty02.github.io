@@ -18,7 +18,9 @@ tags:
 
 可复用的示例文件保存在 dotfiles 仓库：[`chrony.conf`](https://github.com/Cyberl-ty02/dotfiles/blob/main/gentoo_setting/pc/services/chrony/chrony.conf) 与 [`pg_hba.conf.example`](https://github.com/Cyberl-ty02/dotfiles/blob/main/gentoo_setting/pc/services/postgresql/pg_hba.conf.example)。
 
-## Chrony 多源同步配置
+## 时间同步与时区
+
+### Chrony 多源同步配置
 
 当时使用的时间源组合为：
 
@@ -38,7 +40,7 @@ rtconutc
 
 完整示例见 [`services/chrony/chrony.conf`](https://github.com/Cyberl-ty02/dotfiles/blob/main/gentoo_setting/pc/services/chrony/chrony.conf)。实际部署前应根据网络位置和组织策略选择时间源。
 
-## 理解 chronyc sources 状态
+### 理解 chronyc sources 状态
 
 这次观察到 Apple 的欧洲节点最终成为 `^*`，Gentoo pool 与 Microsoft 节点显示为 `^+` 或 `^-`。中国国家授时节点可以解析出多个 IPv4 地址，一次性的五秒测试曾超时，但后台 chronyd 后来仍从其中一个地址获得样本。
 
@@ -69,7 +71,7 @@ System time 接近 0
 sources 中至少有一个 ^*
 ```
 
-## KDE 无法更改 NTP 设置
+### KDE 无法更改 NTP 设置
 
 KDE 日期与时间模块曾显示：
 
@@ -81,7 +83,7 @@ KDE 日期与时间模块曾显示：
 
 这只是本文环境中的解释，不代表所有 KDE/OpenRC 组合都会出现相同行为。最终应以 `chronyc tracking` 和 `chronyc sources -v` 为准。
 
-## 手工切换时区
+### 手工切换时区
 
 切换为北京时间可使用：
 
@@ -101,7 +103,9 @@ date
 
 `Europe/London` 是有效的 IANA 时区名称，会自动处理英国夏令时。其他地区请根据自己实际时区调整，并先在 `/usr/share/zoneinfo/` 中确认目标文件存在。
 
-## PostgreSQL 18 初始化
+## PostgreSQL 18 初始化与认证
+
+### 初始化数据库集群
 
 安装完成后执行 Gentoo 包提供的初始化流程：
 
@@ -129,7 +133,7 @@ Locale：zh_CN.UTF-8
 
 这不是初始化失败。它表示 PostgreSQL 没有为该 locale 自动选择专用的默认全文搜索配置，因此使用 `simple`；UTF-8 中文存储本身不受影响。
 
-## 启动 OpenRC 服务
+### 启动 OpenRC 服务
 
 ```bash
 rc-service postgresql-18 start
@@ -150,7 +154,7 @@ TimeZone       = Asia/Shanghai
 data_checksums = on
 ```
 
-## 收紧默认 trust 认证
+### 收紧默认 trust 认证
 
 初始化后的本机规则最初允许 `trust`：
 
@@ -195,7 +199,7 @@ ORDER BY line_number;
 rc-service postgresql-18 reload
 ```
 
-## 验证 peer 与 SCRAM
+### 验证 peer 与 SCRAM
 
 使用当前普通 Linux 用户执行：
 

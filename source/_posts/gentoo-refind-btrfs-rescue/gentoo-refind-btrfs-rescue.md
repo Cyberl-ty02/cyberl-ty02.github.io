@@ -21,7 +21,9 @@ tags:
 
 本文只记录这次实际修复路线，不作为通用安装教程。对应的 Portage 与 Secure Boot 配置保存在 [dotfiles 的 Gentoo PC 配置目录](https://github.com/Cyberl-ty02/dotfiles/tree/main/gentoo_setting/pc)；可复用的示例启动参数见 [`refind_linux.conf.example`](https://github.com/Cyberl-ty02/dotfiles/blob/main/gentoo_setting/pc/kernel/secureboot/refind_linux.conf.example)。
 
-## 故障背景
+## 故障定位
+
+### 故障背景
 
 当时的系统大致如下：
 
@@ -45,7 +47,7 @@ EFI UUID：<efi-uuid>
 根分区 UUID：<uuid>
 ```
 
-## 关键根因：mkrlconf 读取了 LiveCD 参数
+### 关键根因：mkrlconf 读取了 LiveCD 参数
 
 问题来自在 LiveCD 环境中运行：
 
@@ -72,7 +74,9 @@ chroot 没有替换当前正在运行的内核
 
 因此，`mkrlconf` 并不能理解“现在正在 chroot 修复另一套 Gentoo”。在救援环境里自动生成启动配置前，必须先确认它使用的数据来源。
 
-## 正确挂载 Btrfs 子卷与 chroot
+## 修复启动链
+
+### 正确挂载 Btrfs 子卷与 chroot
 
 先确认设备和子卷，再挂载目标系统。以下命令全部使用占位设备：
 
@@ -103,7 +107,7 @@ ls -l /lib/modules
 
 这里要确认 `/` 确实来自 `@` 子卷，ESP 也挂到了目标系统预期的 `/boot`。挂错根子卷时，即使命令执行成功，修改的也可能不是实际启动的系统。
 
-## 手工修正 refind_linux.conf
+### 手工修正 refind_linux.conf
 
 这次没有继续在 LiveCD 中依赖 `mkrlconf`，而是按目标系统的根 UUID、Btrfs 子卷和 initramfs 文件名手工整理：
 
@@ -125,7 +129,7 @@ initrd=\...            rEFInd 所在文件系统中可识别的 initramfs 路径
 
 `initrd` 的实际相对路径取决于内核、initramfs 和 rEFInd 能读取的文件系统布局，不能只复制示例。修正时还要删除所有 `archiso*`、`cow_spacesize`、`copytoram` 等 LiveCD 参数。
 
-## shim、rEFInd 与 Secure Boot
+### shim、rEFInd 与 Secure Boot
 
 当前配置使用 shim 进入已签名的 rEFInd，再由 rEFInd 加载内核。仓库中的 [`Secure Boot README`](https://github.com/Cyberl-ty02/dotfiles/blob/main/gentoo_setting/pc/kernel/secureboot/README.md) 记录了文件检查和密钥注册流程；Portage 侧的开关见 [`package.use/secureboot`](https://github.com/Cyberl-ty02/dotfiles/blob/main/gentoo_setting/pc/portage/package.use/secureboot)。
 
@@ -160,7 +164,7 @@ find /boot -name refind_linux.conf -print
 
 `refind-install` 还可能生成 `refind.conf` 和 `refind_linux.conf`。如果 `/boot` 没有正确挂载或没有出现在 `/etc/fstab` 中，安装器可能选择不同的 ESP 路径；如果从 LiveCD 执行，自动生成的 Linux 参数还可能继承当前救援系统的 `/proc/cmdline`。因此，本次场景中仍要手工复核上一节所述的 Btrfs UUID、子卷和 initramfs。
 
-### 注册 MOK
+#### 注册 MOK
 
 shim 使用 Machine Owner Key 验证后续 EFI 文件。`sbsign` 和 Portage 使用的证书可以是 PEM，而 `mokutil --import` 需要 DER 格式的公开证书。仓库中的 [`generate_mok.sh`](https://github.com/Cyberl-ty02/dotfiles/blob/main/gentoo_setting/pc/kernel/secureboot/generate_mok.sh) 会生成本地 PEM 密钥与 DER 格式的 `MOK.cer`，随后可提交注册请求：
 
@@ -177,7 +181,7 @@ mokutil --test-key /etc/kernel/secureboot/MOK.cer
 
 私钥 `MOK.pem` 必须保持仅 root 可读，不能提交到 dotfiles、博客或其他公开位置。
 
-### 与仓库固定布局脚本的关系
+#### 与仓库固定布局脚本的关系
 
 dotfiles 中还保留了 [`install_bootloader.sh`](https://github.com/Cyberl-ty02/dotfiles/blob/main/gentoo_setting/pc/kernel/secureboot/install_bootloader.sh)，用于维护当前机器既有的 `/boot/EFI/refind` 固定布局。它和 `refind-install --shim` 是两种安装路径：首次选择后应沿用同一种维护方式，不要在没有比较 ESP 文件与 NVRAM 项的情况下交替运行。
 
@@ -199,7 +203,9 @@ rEFInd 文件系统驱动可读取内核所在分区
 
 不要在没有恢复介质的情况下批量删除旧 EFI 文件或 NVRAM 启动项。先保留已知可启动的入口，确认新启动链工作后再清理。
 
-## 后续更新：稳定系统中的版本化内核与 initramfs
+## 更新后的维护与回滚
+
+### 稳定系统中的版本化内核与 initramfs
 
 上面的显式 `initrd=\initramfs-X.Y.Z-example.img` 保留了当时手工救援的真实做法。在 LiveCD 中诊断、自动匹配尚未可信时，把已核实的 initramfs 写清楚有助于排除歧义；这段救援过程本身并没有错。
 
@@ -214,7 +220,7 @@ rEFInd 可以按相同的版本字符串自动把内核与 initramfs 配对。�
 
 这是从救援配置到稳定维护配置的后续细化，不是否定显式 initrd 的诊断用途。从 XanMod 切到独立 CJK kernel、再因 Gentoo-Zh 恢复 CJKTTY 而切回 XanMod 的过程，参见：[Gentoo 内核迁移记录：XanMod、CJKTTY、NVIDIA 与 Secure Boot](/posts/gentoo-xanmod-to-cjk-kernel-migration/gentoo-xanmod-to-cjk-kernel-migration/)。
 
-## 更新内核后的维护方式
+### 更新内核后的维护方式
 
 更新内核后，我会先核对内核、initramfs 与模块目录是否互相对应：
 
@@ -228,7 +234,7 @@ test -d "/lib/modules/${KVER}"
 
 稳定系统中再确认 rEFInd 能按版本化文件名完成配对；如果只能从 LiveCD 维护，不应无检查地运行 `mkrlconf`，必要时仍可回到前文显式指定 initrd 的救援方式。
 
-## 当前阻塞：rEFInd 与 gnu-efi 4
+### 当前阻塞：rEFInd 与 gnu-efi 4
 
 2026-10-13 核验时，当前系统仍使用 `sys-boot/refind-0.14.2-r4` 与 `sys-boot/gnu-efi-3.0.19`。已安装 rEFInd 的依赖元数据明确要求：
 
@@ -248,7 +254,7 @@ grep -n 'gnu-efi' /var/db/pkg/sys-boot/refind-*/DEPEND
 
 在测试未来版本前，应先备份 EFI System Partition，保留已经验证可启动的 EFI 文件、内核/initramfs 配对以及 LiveCD。不要为了追新版本删除唯一可启动入口；也不要把强制安装 `gnu-efi` 4.x 写进自动更新脚本。
 
-## 验证与回滚
+### 验证与回滚
 
 成功进入 Gentoo 后检查：
 

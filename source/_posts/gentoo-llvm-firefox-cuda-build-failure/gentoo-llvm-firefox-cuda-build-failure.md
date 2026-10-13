@@ -18,7 +18,9 @@ tags:
 
 当前 Portage 配置可查看 dotfiles 中的 [`package.env/llvm`](https://github.com/Cyberl-ty02/dotfiles/blob/main/gentoo_setting/pc/portage/package.env/llvm)、[`package.env/development`](https://github.com/Cyberl-ty02/dotfiles/blob/main/gentoo_setting/pc/portage/package.env/development) 与 [`package.use/cuda`](https://github.com/Cyberl-ty02/dotfiles/blob/main/gentoo_setting/pc/portage/package.use/cuda)。旧的 `profile/package.use.force/llvm` 已随过渡结束从真机和仓库删除，不能再把它当作当前配置入口。
 
-## 已确认的日志事实
+## 故障证据与配置来源
+
+### 已确认的日志事实
 
 构建日志能够确认：
 
@@ -43,7 +45,7 @@ LLVM 19 一定由 CUDA 直接依赖
 
 Portage 的合并计划可能在目标软件之前先构建依赖或处理 world/rebuild 中的其他包，所以必须继续查看依赖树。
 
-## make.conf 与实际预览不一致
+### make.conf 与实际预览不一致
 
 当时 `/etc/portage/make.conf` 已经包含：
 
@@ -54,7 +56,7 @@ LLVM_TARGETS="NVPTX WebAssembly X86"
 
 但 LLVM 19 的 emerge 预览仍显示大量括号化 target，而且 `abi_x86_32` 无法通过普通 `package.use` 关闭。这说明最终配置还受到 profile 层的影响。
 
-## 历史原因：Profile 强制的 32 位 ABI
+### 历史原因：Profile 强制的 32 位 ABI
 
 自定义 profile 中存在类似：
 
@@ -75,7 +77,7 @@ llvm-core/llvm:19 -abi_x86_32
 
 通常不会产生预期效果。必须先理解 profile 的继承与强制关系。
 
-## 为什么不直接全局关闭 multilib
+### 为什么不直接全局关闭 multilib
 
 全局移除 `ABI_X86=32` 虽然可能缩小 LLVM 构建面，却会影响需要 32 位用户空间的 Steam、Wine 或显卡库。这台系统仍有 multilib 使用场景，因此不适合把整个系统改成纯 64 位来绕过一个旧 LLVM slot。
 
@@ -89,7 +91,9 @@ llvm-core/llvm:19 -abi_x86_32
 认定 CUDA Toolkit 必然需要 LLVM 19
 ```
 
-## 当时的候选方案一：只解除旧 LLVM 的 32 位 force
+## 当时的排查方案
+
+### 方案一：只解除旧 LLVM 的 32 位 force
 
 > **历史候选方案**
 > 这是当时缩小故障面的思路，不是当前 LLVM 22 系统需要继续保留的配置。
@@ -104,7 +108,7 @@ emerge -pv llvm-core/llvm:19
 
 只有预览中 `abi_x86_32` 确实不再启用，才进入重编译。不能因为配置文件写入成功，就假设 Portage 已接受覆盖。
 
-## 当时的候选方案二：追踪 LLVM targets 来源
+### 方案二：追踪 LLVM targets 来源
 
 全局已经设置 `LLVM_TARGETS="NVPTX WebAssembly X86"`，但预览仍出现更多 target，因此需要搜索所有 Portage 层级：
 
@@ -127,7 +131,7 @@ package.use 文件
 
 只有找到最终生效来源，才能判断是否应关闭 Hexagon 等无关后端。
 
-## 当时的候选方案三：检查真实依赖树
+### 方案三：检查真实依赖树
 
 先分别预览两个目标包，并查询 LLVM 19 的反向依赖：
 

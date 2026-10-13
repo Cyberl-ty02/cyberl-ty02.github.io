@@ -15,7 +15,9 @@ tags:
 
 本文只记录通用工具经验。示例均为重新编写的最小案例，不对应任何真实文档、项目或数据。
 
-## BibTeX 文件开头的 UTF-8 BOM
+## 文献、引用与版面检查
+
+### BibTeX 文件开头的 UTF-8 BOM
 
 有时 `.bib` 文件看起来完全正常，第一条记录却无法被稳定解析。一个容易忽略的原因是文件开头存在 UTF-8 BOM。
 
@@ -41,7 +43,7 @@ bib_path.write_text(content, encoding="utf-8", newline="\n")
 
 这里的 `utf-8-sig` 会在读取时移除 BOM，写入时则明确使用不带 BOM 的 UTF-8。修改前应保留版本控制记录，避免编码转换意外改变其他内容。
 
-## 编译成功但参考文献仍然乱码
+### 编译成功但参考文献仍然乱码
 
 编码问题并不总会让编译器报错。有些错误文本仍然是合法字符串，因此 Typst 可以生成 PDF，但姓名中的重音字符、弯引号或破折号可能已经损坏。
 
@@ -69,7 +71,7 @@ author = {García, Sample}
 
 建议至少检查参考文献列表的第一项、最后一项、包含非 ASCII 姓名的条目，以及 DOI 和 URL。解析成功并不等于内容正确。
 
-## 为交叉引用使用稳定标签
+### 为交叉引用使用稳定标签
 
 Typst 可以在标题后定义标签，再通过 `@标签` 引用：
 
@@ -93,7 +95,7 @@ eq:objective
 
 复制章节、图表或公式后，应立即检查是否带入了重复标签。每次调整结构后重新完整编译，确认引用没有显示为问号或未解析状态。
 
-## 表格没有溢出也可能很难阅读
+### 表格没有溢出也可能很难阅读
 
 表格最明显的问题是超出页面，但更常见的问题是窄列造成频繁断词。编译器认为布局有效，阅读体验却已经明显下降。
 
@@ -124,7 +126,7 @@ eq:objective
 
 过早缩小字号往往只是把布局问题变成可读性问题。表格属于必须查看渲染结果的内容，仅检查 Typst 源码很难判断真实行高、断词和分页效果。
 
-## 生成 PDF 后做固定位置抽查
+### 生成 PDF 后做固定位置抽查
 
 基础编译命令很简单：
 
@@ -144,7 +146,9 @@ typst compile manuscript/document.typ output/check.pdf
 
 这样更容易发现孤立标题、表格过密、引用乱码和分页突变。检查用的截图和中间图片只应保存在临时目录，不要随手提交到仓库。
 
-## 用 Python 统一构建入口
+## Python 构建与依赖环境
+
+### 用 Python 统一构建入口
 
 当构建步骤逐渐增加时，可以使用一个很小的 Python 脚本统一路径和错误处理。不要把本机绝对路径写进脚本：
 
@@ -167,7 +171,7 @@ subprocess.run(
 
 这里使用参数列表调用命令，而不是拼接一整段 shell 字符串，可以减少空格、引号和转义带来的问题。`check=True` 会在 Typst 编译失败时让脚本立即返回错误，避免后续步骤继续处理旧 PDF。
 
-## Python 环境可以启动，不代表依赖组合正确
+### Python 环境可以启动，不代表依赖组合正确
 
 Python 工具脚本有时可以启动，却在读取文件、创建网页或调用间接依赖时才失败。这通常发生在解释器版本与依赖锁文件不一致，或者旧虚拟环境经过多次手工升级之后。
 
@@ -189,7 +193,7 @@ uv run python scripts/build.py
 
 具体命令应以项目实际使用的环境工具为准。关键不是选择哪一种工具，而是避免全局包、虚拟环境和多个锁文件同时参与同一次构建。
 
-### uv 与 Cargo 国内镜像
+#### uv 与 Cargo 国内镜像
 
 当前 `~/.config/uv/uv.toml` 只声明一个默认 PyPI 索引：
 
@@ -221,7 +225,9 @@ registry = "sparse+https://mirrors.cernet.edu.cn/crates.io-index/"
 
 这个替换只影响依赖下载，不替代 `Cargo.lock` 与 crate 校验和。CERNET 动态入口的后端节点可能变化；上述可达性为 2026-09-01 实测。临时切回官方稀疏索引的方法，以及完整用户级文件，可查阅 [development_mirrors/README](https://github.com/Cyberl-ty02/dotfiles/blob/main/gentoo_setting/development_mirrors/README.md)。技术细节见 [uv 索引文档](https://docs.astral.sh/uv/concepts/indexes/)、[Cargo source replacement](https://doc.rust-lang.org/cargo/reference/source-replacement.html) 和 [MirrorZ crates.io-index 帮助页](https://help.mirrors.cernet.edu.cn/crates.io-index/)。
 
-## 在动态输入的边界处理 Unknown 类型
+## 类型、版本控制与公开边界
+
+### 在动态输入的边界处理 Unknown 类型
 
 严格类型检查经常会把配置文件、JSON 或第三方库返回值标记为 `Unknown`。如果直接把这些值传入核心函数，警告会沿着调用链不断扩散。
 
@@ -243,7 +249,7 @@ output_path = require_string(raw_config.get("output"), "output")
 
 这样核心代码接收到的是已经确认过的 `str`，而不是来源不明的动态值。类型检查的目的并非单纯消除提示，而是明确数据从哪里进入可信区域。
 
-## 不要让生成文件淹没 Git 差异
+### 不要让生成文件淹没 Git 差异
 
 PDF、Typst 缓存、Python 缓存和临时渲染图片都属于可重新生成的文件。将它们与源码一起提交，会让版本差异充满二进制变化。
 
@@ -259,7 +265,7 @@ __pycache__/
 
 不建议为了省事直接忽略所有 `*.pdf`，因为正式插图或需要长期保存的资料也可能使用 PDF 格式。忽略明确的构建目录通常更安全。
 
-## 公开技术笔记前检查元数据
+### 公开技术笔记前检查元数据
 
 即使正文没有敏感内容，源文件、日志和 PDF 属性仍可能包含：
 
