@@ -11,7 +11,7 @@ tags:
 - Gentoo
 ---
 
-这篇文章记录 Gentoo OpenRC 桌面环境中的两组问题：中文界面全部落到旧文鼎字体，以及 KDE/SonicDE 中音量托盘缺失。字体问题已经完成修复和验证；音量部件部分只记录已确认的组件关系与待验证方案。
+这篇文章记录 Gentoo OpenRC 桌面环境中的两组历史问题：中文界面全部落到旧文鼎字体，以及 KDE/SonicDE 中音量托盘缺失。字体问题已经完成修复和验证；当前系统也已安装音量部件并迁移到 SonicDE 6.7.5。旧现象仍保留用于诊断，不代表当前机器仍处于故障状态。
 
 > **适用环境**
 > Gentoo amd64、OpenRC、KDE Plasma 或 SonicDE、XLibre/X11、fontconfig 与 PipeWire。
@@ -20,7 +20,7 @@ tags:
 
 ## 中文界面全部显示成楷体
 
-最初的现象并不限于一个应用。SDDM、VSCodium、Firefox 和 Plasma/SonicDE 界面的中文都显示成文鼎楷体或宋体。
+最初的现象并不限于一个应用。当时使用的 SDDM、VSCodium、Firefox 和 Plasma/SonicDE 界面的中文都显示成文鼎楷体或宋体。
 
 使用 `fc-match` 检查通用字体族时，结果类似：
 
@@ -113,7 +113,7 @@ serif                 -> Noto Serif
 monospace             -> Noto Sans Mono
 ```
 
-SDDM 使用独立的 greeter 进程，需要重启显示管理器或系统后再观察。VSCodium 和 Firefox 也要完全退出所有进程后重开，单纯刷新页面不一定重新载入字体配置。
+显示管理器使用独立的 greeter 进程，需要重启显示管理器或系统后再观察。当时的 SDDM 已在后续迁移中由 Sonic Login Manager 替代；VSCodium 和 Firefox 也要完全退出所有进程后重开，单纯刷新页面不一定重新载入字体配置。
 
 ## KDE/SonicDE 音量图标缺失
 
@@ -139,12 +139,11 @@ pactl info
 
 OpenRC 管理系统服务，但 PipeWire 和 WirePlumber 在桌面环境中经常由用户会话启动。因此，只查看 `rc-service` 不能完整判断音频会话状态。
 
-## 待验证：安装 plasma-pa
+## 后续状态：已安装 plasma-pa
 
-> **待验证**
-> 已确认音量部件来自 `kde-plasma/plasma-pa`，但当时尚未完成安装后的最终反馈，不能写成已经通过此步骤恢复。
+最初记录本文时，只确认音量部件来自 `kde-plasma/plasma-pa`，尚未完成安装后的反馈。2026-10-13 重新核验时，当前系统已经安装 SonicDE 6.7.5 对应的 `plasma-pa`；因此“组件尚未安装”不再是当前问题，但用户会话中的 PipeWire/WirePlumber 状态仍需按本次启动实际检查。
 
-候选安装命令为：
+若另一台机器确实缺少此包，安装命令为：
 
 ```bash
 doas emerge -av kde-plasma/plasma-pa
@@ -161,13 +160,35 @@ wpctl status 是否能看到输出设备与音频流
 
 Portage 的桌面和 SonicDE 配置可以对照 [`package.use/desktop`](https://github.com/Cyberl-ty02/dotfiles/blob/main/gentoo_setting/pc/portage/package.use/desktop) 与 [`package.use/sonicde`](https://github.com/Cyberl-ty02/dotfiles/blob/main/gentoo_setting/pc/portage/package.use/sonicde)，但这些文件反映的是本文环境，不应整份复制到另一台机器。
 
+## SonicDE 迁移期的排查边界
+
+迁移到 SonicDE 6.7.5 期间还出现过桌面卡死、Fcitx 状态异常和界面中英混杂。三种现象同时出现不等于具有同一个根因，建议分层保存证据：
+
+```bash
+# 桌面或显卡进程
+ps -eo pid,stat,comm,args | grep -E 'sonic|kwin|Xorg'
+dmesg | tail -n 100
+
+# 输入法用户会话
+pgrep -a fcitx5
+fcitx5-diagnose
+
+# locale 与翻译资源
+locale
+locale -a | grep -E 'C\.utf8|zh_CN\.utf8|en_US\.utf8'
+```
+
+若 `Ctrl+Alt+F3` 仍能进入 TTY，先保存日志再重启；若整机无响应，则继续检查 GPU reset、内存压力和磁盘 I/O。字体 fallback、输入法变量、翻译包与图形栈应分别验证，不能仅凭“画面卡住”相互归因。
+
+完整的登录管理器、Portal、Flatpak 和桌面应用边界整理在 [Gentoo OpenRC 迁移到 SonicDE 6.7.5](/posts/gentoo-sonicde-openrc-migration/gentoo-sonicde-openrc-migration/)。
+
 ## 小结
 
 字体问题的关键是 fontconfig generic family 匹配，而不是逐个修改应用字体。音量图标问题则需要区分网络托盘、Plasma 音频部件和 PipeWire 用户会话。
 
 ```text
 字体：已修复并通过 fc-match 与桌面应用验证
-音频托盘：组件关系已确认，安装后的最终结果仍待验证
+音频托盘：组件已安装；运行状态仍以当前用户会话核验为准
 ```
 
 关于同一台 Gentoo 的启动链修复，参见：[Gentoo 在 Btrfs 与 rEFInd 环境下的启动修复记录](/posts/gentoo-refind-btrfs-rescue/gentoo-refind-btrfs-rescue/)。

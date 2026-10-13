@@ -38,11 +38,11 @@ Windows 与 Gentoo 分别位于不同磁盘
 排查时使用的匿名化设备示例如下：
 
 ```text
-系统盘：/dev/nvme111111n1
-EFI 分区：/dev/nvme111111n1p1
-Gentoo 根分区：/dev/nvme111111n1p2
-EFI UUID：1111-1111
-根分区 UUID：11111111-1111-1111-1111-111111111111
+系统盘：/dev/<disk>
+EFI 分区：/dev/<efi-partition>
+Gentoo 根分区：/dev/<root-partition>
+EFI UUID：<efi-uuid>
+根分区 UUID：<uuid>
 ```
 
 ## 关键根因：mkrlconf 读取了 LiveCD 参数
@@ -77,8 +77,8 @@ chroot 没有替换当前正在运行的内核
 先确认设备和子卷，再挂载目标系统。以下命令全部使用占位设备：
 
 ```bash
-mount -o subvol=@ /dev/nvme111111n1p2 /mnt/gentoo
-mount /dev/nvme111111n1p1 /mnt/gentoo/boot
+mount -o subvol=@ "/dev/<root-partition>" /mnt/gentoo
+mount "/dev/<efi-partition>" /mnt/gentoo/boot
 
 mount --types proc /proc /mnt/gentoo/proc
 mount --rbind /sys /mnt/gentoo/sys
@@ -108,11 +108,11 @@ ls -l /lib/modules
 这次没有继续在 LiveCD 中依赖 `mkrlconf`，而是按目标系统的根 UUID、Btrfs 子卷和 initramfs 文件名手工整理：
 
 ```conf
-"Boot Gentoo Linux" "root=UUID=11111111-1111-1111-1111-111111111111 rw rootfstype=btrfs rootflags=subvol=/@ initrd=\initramfs-X.Y.Z-example.img"
+"Boot Gentoo Linux" "root=UUID=<uuid> rw rootfstype=btrfs rootflags=subvol=/@ initrd=\initramfs-X.Y.Z-example.img"
 
-"Boot Gentoo Linux (debug)" "root=UUID=11111111-1111-1111-1111-111111111111 rw rootfstype=btrfs rootflags=subvol=/@ initrd=\initramfs-X.Y.Z-example.img rd.debug rd.shell"
+"Boot Gentoo Linux (debug)" "root=UUID=<uuid> rw rootfstype=btrfs rootflags=subvol=/@ initrd=\initramfs-X.Y.Z-example.img rd.debug rd.shell"
 
-"Boot Gentoo Linux (single-user)" "root=UUID=11111111-1111-1111-1111-111111111111 rw rootfstype=btrfs rootflags=subvol=/@ initrd=\initramfs-X.Y.Z-example.img single"
+"Boot Gentoo Linux (single-user)" "root=UUID=<uuid> rw rootfstype=btrfs rootflags=subvol=/@ initrd=\initramfs-X.Y.Z-example.img single"
 ```
 
 这些字段分别表示：
@@ -227,6 +227,26 @@ test -d "/lib/modules/${KVER}"
 ```
 
 稳定系统中再确认 rEFInd 能按版本化文件名完成配对；如果只能从 LiveCD 维护，不应无检查地运行 `mkrlconf`，必要时仍可回到前文显式指定 initrd 的救援方式。
+
+## 当前阻塞：rEFInd 与 gnu-efi 4
+
+2026-10-13 核验时，当前系统仍使用 `sys-boot/refind-0.14.2-r4` 与 `sys-boot/gnu-efi-3.0.19`。已安装 rEFInd 的依赖元数据明确要求：
+
+```text
+<sys-boot/gnu-efi-4.0.0
+```
+
+因此 Portage 没有把 `gnu-efi` 升级到 4.x，并不是残留包清理失败，也不是 GRUB 造成的冲突；本文启动链使用 shim + rEFInd，本就不依赖 GRUB。处理原则是等待 rEFInd ebuild 和上游兼容性明确后再升级，而不是强制突破依赖约束。
+
+可以只读核验当前关系：
+
+```bash
+qlist -ICv sys-boot/refind sys-boot/gnu-efi
+emerge -pv sys-boot/refind sys-boot/gnu-efi
+grep -n 'gnu-efi' /var/db/pkg/sys-boot/refind-*/DEPEND
+```
+
+在测试未来版本前，应先备份 EFI System Partition，保留已经验证可启动的 EFI 文件、内核/initramfs 配对以及 LiveCD。不要为了追新版本删除唯一可启动入口；也不要把强制安装 `gnu-efi` 4.x 写进自动更新脚本。
 
 ## 验证与回滚
 

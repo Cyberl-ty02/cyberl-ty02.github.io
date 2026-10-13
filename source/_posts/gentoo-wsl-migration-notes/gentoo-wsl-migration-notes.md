@@ -372,7 +372,7 @@ WSL 的目标不是再装一套完整 Gentoo 桌面，而是作为开发环境�
 
 ### WSL 与 PC 的镜像配置不要合并
 
-当前两套配置都通过 USTC Git 镜像浅克隆并增量同步 Gentoo 主树，使用 Portage 管理的 Gentoo Release Key 验证提交签名、保留默认密钥刷新，并拒绝超过三天的仓库时间戳。CERNET 是第一备用，但部分后端只提供 Git dumb HTTP，启用时必须同时设置 `sync-depth = 0`。distfiles 的顺序都是 CERNET、华为、阿里和 Gentoo 官方源，gentoo-zh 使用 CERNET 联合入口；GURU、XLibre 等没有对应配置的 overlay 仍直连各自上游。
+当前两套配置都通过 USTC Git 镜像浅克隆并增量同步 Gentoo 主树，使用 Portage 管理的 Gentoo Release Key 验证提交签名、保留默认密钥刷新，并拒绝超过三天的仓库时间戳。CERNET 是第一备用，但部分后端只提供 Git dumb HTTP，启用时必须同时设置 `sync-depth = 0`；官方 Git 保留在 TUNA 之前，TUNA 因同步队列特性放在最后。distfiles 的顺序都是 USTC、华为、阿里、Gentoo 官方和 TUNA；gentoo-zh 使用 CERNET 联合入口，GURU、XLibre 等没有对应配置的 overlay 仍直连各自上游。
 
 差异也很明确：WSL 使用与 `default/linux/amd64/23.0/desktop` 对应的 `x86-64` 官方 binhost；PC 的 LLVM profile 使用 `x86-64_llvm`，并额外保留华为 binhost。两边都要求验证二进制包签名。PC 已有 curl，所以显式设置了 Portage 下载命令；WSL 要兼容刚解压、可能尚无 curl 的 stage3，继续使用 Portage 的 wget 默认值。SonicDE overlay 也只属于 PC 配置。
 
@@ -681,7 +681,7 @@ doas emerge -av x11-libs/libxkbcommon
 如果还缺其他库，可以检查：
 
 ```bash
-ldd /home/example-user/.cache/JetBrains/RemoteDev/dist/*/jbr/lib/libawt_wlawt.so | grep "not found"
+ldd '/home/<user>/.cache/JetBrains/RemoteDev/dist/'*/jbr/lib/libawt_wlawt.so | grep "not found"
 ```
 
 也可以一次性补一些常用运行库：
@@ -756,7 +756,9 @@ emacs --debug-init
 ~/.config/doom  Doom 私人配置
 ```
 
-当前普通用户配置由 dotfiles 中的 `gentoo_setting/scripts/deploy-doom.sh` 部署：脚本同步 `~/.config/doom`，在缺少框架时克隆到 `~/.config/emacs`，随后运行 `doom sync --env`。框架更新需要显式传入 `--upgrade`；root 若确有需要则使用 `--root` 创建完全独立的目录。可按下列命令核验：
+当前普通用户配置由 dotfiles 中的 `gentoo_setting/scripts/deploy-doom.sh` 部署：脚本同步 `~/.config/doom`，在缺少框架时从 Doom Emacs 官方 `doomemacs/core` 克隆到 `~/.config/emacs`，随后运行 `doom sync --env`。脚本可以迁移已知的旧官方 origin，但会拒绝自动接管未知 fork；框架更新需要显式传入 `--upgrade`。root 若确有需要则使用 `--root` 创建完全独立的框架、缓存和状态目录，同时复用经核验的五份私人配置内容。
+
+Windows 目标环境已经从独立 Neovim 转向 Scoop Emacs，并计划使用相同的 Doom 私人配置。仓库中既有 Neovim 文件只作为过渡输入保留；Linux 侧不应擅自删除 Windows 尚在迁移中的文件。可按下列命令核验本机：
 
 ```bash
 emacs --version
@@ -784,7 +786,7 @@ laptop：
 
 wsl：
 只保留开发环境思路
-不维护内核、GRUB、Secure Boot、NVIDIA 驱动、SDDM、完整桌面
+不维护内核、GRUB、Secure Boot、NVIDIA 驱动、显示管理器、完整桌面
 ```
 
 文件名方面，我更倾向不用数字编号，例如不再写：
@@ -851,6 +853,6 @@ Gentoo WSL 作为主要 Linux 开发环境
 真机 Gentoo 配置保留为备份和参考
 ```
 
-这段结论反映的是当时的迁移背景，不再代表当前设备角色。2026-10-13 核验时，实体 Gentoo 已恢复为日常维护中的系统，实际启动 `7.2.8-x64v3`；WSL 继续作为独立开发环境。两者共享由 chezmoi 管理的用户级开发工具与 Doom 私人配置，但 Portage profile、binhost 和桌面相关配置仍然分开；Windows 侧仍保留独立的 Neovim 配置。
+这段结论反映的是当时的迁移背景，不再代表当前设备角色。2026-10-13 核验时，实体 Gentoo 已恢复为日常维护中的系统，实际启动 `7.2.10-x64v3`；WSL 继续作为独立开发环境。两者共享由 chezmoi 管理的用户级开发工具与 Doom 私人配置，但 Portage profile、binhost 和桌面相关配置仍然分开；Windows 目标环境也已调整为 Scoop Emacs，既有 Neovim 配置仅保留作迁移输入。
 
 无论当前主要使用哪套环境，涉及分区、Secure Boot、显卡驱动和启动项的实体机变更都应保留独立恢复介质和已验证的回退入口；WSL 则更适合承载不需要完整硬件栈的开发任务。

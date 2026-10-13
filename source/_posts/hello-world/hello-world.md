@@ -18,6 +18,6 @@ toc: true
 
 评论系统使用 [Waline](https://waline.js.org/)，早期曾经尝试过 Gitalk，后来迁回 Waline；历史评论已经迁移到新的评论系统中。
 
-包管理器使用 [Bun](https://bun.sh/)，博客自有的检查脚本也已迁移到 Bun + TypeScript；Hexo 与 Kratos-Rebirth 主题仍保持上游原有边界。Gentoo PC 与 WSL 的默认编辑器目前是 Doom Emacs，图形化编辑和既有同步场景仍保留 [VSCodium](https://vscodium.com/)；Windows 则继续使用独立的 Neovim 配置。它们承担不同的平台与使用场景，不需要为了形式统一而强行合并。
+包管理器使用 [Bun](https://bun.sh/)，博客自有的检查脚本也已迁移到 Bun + TypeScript；Hexo 与 Kratos-Rebirth 主题仍保持上游原有边界。Gentoo PC 与 WSL 的默认编辑器目前是 Doom Emacs，图形化编辑和既有同步场景仍保留 [VSCodium](https://vscodium.com/)；Windows 目标环境也调整为 Scoop Emacs，并复用同一组 Doom 私人配置。仓库中已有的 Neovim 文件暂作迁移输入，不再把它描述为 Windows 的最终目标。
 
 总之，欢迎来到这里。这个博客大概会继续保持“边用边修、边写边迁”的状态，像一间慢慢添置家具的小屋。

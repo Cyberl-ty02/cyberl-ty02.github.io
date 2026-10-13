@@ -12,11 +12,11 @@ tags:
 ---
 
 > **状态更新（2026-10-13）**
-> 真机目前同时安装 LLVM 19 与 22、`nvidia-cuda-toolkit-12.9.2`，并已从 `firefox-bin` 切换到源码构建的 `www-client/firefox-153.4.0`。这说明当前依赖图已经能够完成目标安装，但不能仅凭最终成功反推下文哪一个候选方案解决了当年的故障；本文仍只把原日志确认的因果链写成结论。
+> LLVM 19/21 已退出当前安装集合，系统工具链只保留 LLVM/Clang 22。真机使用 `nvidia-cuda-toolkit-13.4.1`、源码构建的 Firefox ESR 153.4.0 与 Thunderbird ESR 153.4.0；两项 Mozilla 软件的当前 Portage 计划均显示 `LLVM_SLOT=22`。下文的 LLVM 19 错误只保留为历史排查记录。
 
 这次在 Gentoo 上计划安装 Firefox 与 CUDA Toolkit 时，Portage 构建被旧 LLVM slot 阻塞。日志可以证明 LLVM 19 的 32 位构建在 Hexagon 相关代码中失败，但不能证明 Firefox 或 CUDA 自身已经进入编译，更不能简单得出“关闭 Hexagon 一定修好”的结论。
 
-对应的 Portage 配置可以查看 dotfiles 仓库中的 [`package.use/development`](https://github.com/Cyberl-ty02/dotfiles/blob/main/gentoo_setting/pc/portage/package.use/development)、[`package.env/llvm`](https://github.com/Cyberl-ty02/dotfiles/blob/main/gentoo_setting/pc/portage/package.env/llvm) 与 [`profile/package.use.force/llvm`](https://github.com/Cyberl-ty02/dotfiles/blob/main/gentoo_setting/pc/portage/profile/package.use.force/llvm)。
+当前 Portage 配置可查看 dotfiles 中的 [`package.env/llvm`](https://github.com/Cyberl-ty02/dotfiles/blob/main/gentoo_setting/pc/portage/package.env/llvm)、[`package.env/development`](https://github.com/Cyberl-ty02/dotfiles/blob/main/gentoo_setting/pc/portage/package.env/development) 与 [`package.use/cuda`](https://github.com/Cyberl-ty02/dotfiles/blob/main/gentoo_setting/pc/portage/package.use/cuda)。旧的 `profile/package.use.force/llvm` 已随过渡结束从真机和仓库删除，不能再把它当作当前配置入口。
 
 ## 已确认的日志事实
 
@@ -54,7 +54,7 @@ LLVM_TARGETS="NVPTX WebAssembly X86"
 
 但 LLVM 19 的 emerge 预览仍显示大量括号化 target，而且 `abi_x86_32` 无法通过普通 `package.use` 关闭。这说明最终配置还受到 profile 层的影响。
 
-## Profile 强制的 32 位 ABI
+## 历史原因：Profile 强制的 32 位 ABI
 
 自定义 profile 中存在类似：
 
@@ -67,7 +67,7 @@ llvm-runtimes/libcxxabi abi_x86_32 abi_x86_64
 llvm-runtimes/libcxx abi_x86_32 abi_x86_64
 ```
 
-仓库中的实际强制项见 [`profile/package.use.force/llvm`](https://github.com/Cyberl-ty02/dotfiles/blob/main/gentoo_setting/pc/portage/profile/package.use.force/llvm)。当 flag 被 profile force 后，只在 `/etc/portage/package.use` 写：
+当时 dotfiles 还有一个本地 `profile/package.use.force/llvm` 文件。flag 被 profile force 后，只在 `/etc/portage/package.use` 写：
 
 ```text
 llvm-core/llvm:19 -abi_x86_32
@@ -89,10 +89,10 @@ llvm-core/llvm:19 -abi_x86_32
 认定 CUDA Toolkit 必然需要 LLVM 19
 ```
 
-## 待验证方案一：只解除旧 LLVM 的 32 位 force
+## 当时的候选方案一：只解除旧 LLVM 的 32 位 force
 
-> **待验证**
-> 这是缩小故障面的候选方案，尚缺少完整重编译结果。
+> **历史候选方案**
+> 这是当时缩小故障面的思路，不是当前 LLVM 22 系统需要继续保留的配置。
 
 思路是保持系统整体 multilib，只针对旧 LLVM slot 撤销继承的 `abi_x86_32` force，再在 package.use 中关闭该 flag。不要直接修改 `/etc/portage/make.profile` 符号链接指向的仓库 profile 文件；本地覆盖应放在 `/etc/portage/profile/` 中。
 
@@ -104,7 +104,7 @@ emerge -pv llvm-core/llvm:19
 
 只有预览中 `abi_x86_32` 确实不再启用，才进入重编译。不能因为配置文件写入成功，就假设 Portage 已接受覆盖。
 
-## 待验证方案二：追踪 LLVM targets 来源
+## 当时的候选方案二：追踪 LLVM targets 来源
 
 全局已经设置 `LLVM_TARGETS="NVPTX WebAssembly X86"`，但预览仍出现更多 target，因此需要搜索所有 Portage 层级：
 
@@ -127,7 +127,7 @@ package.use 文件
 
 只有找到最终生效来源，才能判断是否应关闭 Hexagon 等无关后端。
 
-## 待验证方案三：检查真实依赖树
+## 当时的候选方案三：检查真实依赖树
 
 先分别预览两个目标包，并查询 LLVM 19 的反向依赖：
 
@@ -149,7 +149,17 @@ CUDA host compiler 是否可以使用其支持范围内的 GCC
 
 如果没有这一步，就无法区分“目标软件的必要依赖”与“系统维护计划顺带重建的旧包”。
 
-## 当前结论
+## 迁移后的当前状态
+
+清理完成后，`qlist -ICv` 只显示 LLVM/Clang 22；LLVM 19 曾服务旧 CUDA 依赖，LLVM 21 曾参与源码 Firefox 过渡，但两者都不再是当前方案。CUDA 13.4.1 使用当前 clang 环境，Firefox 与 Thunderbird 都使用 ESR 153.4.0 和 `LLVM_SLOT=22`。
+
+选择 Firefox ESR 不是为了回避安全更新，而是用较长的主版本周期减少频繁源码编译的成本；ESR 仍通过点版本获得安全维护。`firefox-bin` 已退出当前方案，Thunderbird 也取代了 KMail/Akonadi 的主要使用路径，但这只证明软件包迁移完成，不证明旧邮件数据曾被自动、完整、无损转换。
+
+Rust 清理也遵循依赖图而不是版本数字：world 中旧的显式 `rust-bin:1.94.1` 与 `rust-bin:1.95.0` 已删除并精确 depclean；当前 1.98.1 与 1.99.0 仍受实际依赖保护，因此保留。相同原则适用于 Python、Fcitx 和其他多槽位包。
+
+已安装的 `sec-keys/openpgp-keys-llvm-21.1.4` 是 LLVM 上游签名密钥包；包版本号不表示系统仍安装 LLVM 21 主槽位。判断工具链必须查看 `llvm-core/*`、`llvm-runtimes/*` 与 Portage 依赖图，不能按密钥包名称推断。
+
+## 历史故障的结论
 
 目前可以可靠写下的结论是：
 
@@ -158,9 +168,11 @@ CUDA host compiler 是否可以使用其支持范围内的 GCC
 错误路径涉及 Hexagon 与新 Clang/libc++ 编译旧 LLVM 的组合
 profile force 使普通 package.use 无法关闭 32 位 ABI
 缩减旧 slot 的 ABI 或 target 是合理排查方向
-最终修复仍需 emerge 预览和完整重编译验证
+这些结论只描述当时的失败，不能外推为当前仍需保留 LLVM 19
 ```
 
-2026-10-13 的真机已经同时安装 LLVM 19/22、CUDA Toolkit 12.9.2 与源码构建的 Firefox 153.4.0，说明当前软件组合能够完成安装；但现状并不能反向证明上面哪一项候选原因单独修复了旧故障。因此本文保留原始错误路径和排查方法，不把后来的成功构建包装成已经证实的单一修复方案。
+当前 LLVM 22、CUDA 13.4.1、Firefox ESR 与 Thunderbird ESR 已能共同存在，但这个最终状态不能反向证明当年哪一项候选改动单独解决了 LLVM 19 的编译错误。本文保留原始错误路径和依赖分析方法，不把“旧槽位已经退出依赖图”包装成某个未经单独验证的万能修复。
+
+参考：[Mozilla 的 Firefox ESR 渠道说明](https://firefox-admin-docs.mozilla.org/guides/firefox-channels/)。
 
 关于同一 Gentoo 环境的桌面排错，参见：[Gentoo OpenRC 桌面排错：中文字体、KDE 托盘与 PipeWire](/posts/gentoo-openrc-desktop-troubleshooting/gentoo-openrc-desktop-troubleshooting/)。
