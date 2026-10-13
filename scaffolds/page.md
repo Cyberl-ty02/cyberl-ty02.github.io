@@ -3,6 +3,6 @@ title: {{ title }}
 date: {{ date }}
 comments: false
 toc: false
-donate: true
+donate: false
 share: true
 ---

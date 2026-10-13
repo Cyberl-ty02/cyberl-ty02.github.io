@@ -15,7 +15,7 @@ tags:
 
 ## [Doom Emacs](https://github.com/Cyberl-ty02/dotfiles/tree/main/dot_config/doom)
 
-2026-10-13 核验时，PC、WSL 与 `manifests/core.txt` 都重新选择 `app-editors/emacs`。真机运行 Emacs 31.1-r2，Doom 框架位于 `~/.config/emacs`，私人配置位于 `~/.config/doom`，shell 的 `EDITOR` 与 `VISUAL` 也已切换为 Emacs。
+2026-10-13 核验时，Gentoo PC 运行 Emacs 31.1-r2，Doom 框架位于 `~/.config/emacs`，私人配置位于 `~/.config/doom`，shell 的 `EDITOR` 与 `VISUAL` 也已切换为 Emacs。仓库保留的 WSL world 与 `manifests/core.txt` 同样选择 `app-editors/emacs`，但 WSL 当前没有安装，这些文件只是以后重建的输入。
 
 仓库只保存可审阅的 Doom 配置；框架 checkout、包、缓存和生成状态仍按账户隔离。普通用户可运行：
 
@@ -25,7 +25,7 @@ gentoo_setting/scripts/deploy-doom.sh
 
 root 使用 `--root` 部署同一份已审核的私人配置内容，但文件由 root 自己拥有，框架、插件、缓存与生成状态也保持账户隔离。脚本使用官方 `doomemacs/core`，并在同步后逐个比较受管文件；需要跟随 Doom 上游时显式加入 `--upgrade`，普通同步不会在背后更新框架。
 
-Windows 的目标编辑器是 Scoop Emacs，并复用这份 Doom 私有配置。现有 `dot_config/nvim/` 与 Windows Neovim 入口只作为待实机迁移的交接和回滚输入；Windows 验收前不由 Linux 线程提前删除。
+Windows 已部署并验证 Scoop Emacs 31.1。Doom 框架与生成状态位于 `%APPDATA%\.emacs.d`，`%APPDATA%\.config\doom` 联接到仓库的 `dot_config\doom`；PowerShell、Git Bash、Git 与 Yazi 通过 `~/.local/bin` 中的包装器调用它。`dot_config/nvim`、Windows Neovim 安装入口以及本机配置和缓存已经清理，不再作为迁移或回滚输入；这不等同于确认 Neovim 程序本体已经卸载。
 
 ## [chezmoi 用户配置层](https://github.com/Cyberl-ty02/dotfiles/blob/main/gentoo_setting/README.md)
 
@@ -35,11 +35,12 @@ Windows 的目标编辑器是 Scoop Emacs，并复用这份 Doom 私有配置。
 
 | 层级 | 内容 | 共享边界 |
 | --- | --- | --- |
-| PC Portage | LLVM profile、SonicDE、NVIDIA、Secure Boot、binhost | 只用于实体机角色 |
-| WSL Portage | WSL profile、独立 binhost 与硬件 mask | 不覆盖 PC |
+| Gentoo PC 当前配置 | LLVM profile、SonicDE、NVIDIA、Secure Boot、binhost | 当前实体机角色，人工审核后部署 |
+| WSL 保留配置 | WSL profile、独立 binhost、硬件 mask、world 与 `wsl.conf` | 当前未安装，只作未来重建输入，不覆盖 PC |
+| Windows 已部署配置 | PowerShell loader、Doom 包装器、Terminal Fragment、Yazi 与 VSCodium 设置 | 由独立的 `windows_setting/` source 管理 |
 | 角色清单 | core、development、desktop、nvidia、pc-host、wsl、optional | 用于预览和按需恢复 |
-| 用户配置 | Doom、Zsh、Git 通用选项与开发工具镜像 | PC/WSL 共用，Windows选择性迁移 |
-| 生成状态 | Doom 框架、插件缓存、数据库和桌面会话 | 每个账户/机器独立，不入库 |
+| 跨平台用户配置 | Doom、Git 通用选项与开发工具镜像 | 按平台选择性复用，不覆盖系统策略 |
+| 每机生成状态 | Doom 框架、插件缓存、数据库、桌面会话和编辑器缓存 | 每个账户/机器独立，不入库 |
 
 默认命令只做 dry run：
 
@@ -105,7 +106,7 @@ permit nopass user cmd shutdown
 
 ## [`wsl.conf`](https://github.com/Cyberl-ty02/dotfiles/blob/main/gentoo_setting/wsl/wsl.conf)
 
-当前维护的是 Gentoo OpenRC WSL 环境使用的 [`/etc/wsl.conf`](https://github.com/Cyberl-ty02/dotfiles/blob/main/gentoo_setting/wsl/wsl.conf)。它保持 WSL 启动简单，不默认拉起完整 OpenRC，并明确配置 automount、interop、用户和网络行为：
+仓库仍维护未来 Gentoo OpenRC WSL 重建可使用的 [`/etc/wsl.conf`](https://github.com/Cyberl-ty02/dotfiles/blob/main/gentoo_setting/wsl/wsl.conf)。当前没有安装 Gentoo WSL，因此下面是保留配置的语义，不是运行状态核验。它保持启动简单，不默认拉起完整 OpenRC，并明确配置 automount、interop、用户和网络行为：
 
 ```ini
 [boot]

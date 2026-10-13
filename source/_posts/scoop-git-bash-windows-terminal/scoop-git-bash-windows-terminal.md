@@ -18,7 +18,7 @@ scoop install git
 
 这样做的好处是安装、更新、卸载都比较干净。不过它也有一个小差异：官方 Git for Windows 安装包通常会自动在 Windows Terminal 中添加 **Git Bash** 配置文件，而 Scoop 安装的 Git 不一定会自动添加。
 
-所以，如果想在 Windows Terminal 的下拉菜单中直接打开 Git Bash，就需要手动添加一个 profile。
+所以，如果想在 Windows Terminal 的下拉菜单中直接打开 Git Bash，需要补充一个 profile。单机可以手动添加；需要迁移时，更适合使用 Windows Terminal Fragment，让自定义 profile 与系统、Visual Studio、WSL 及其他软件生成的 profile 分开。
 
 ## 确认 Scoop Git 的安装路径
 
@@ -40,15 +40,41 @@ scoop prefix git
 C:\ProgramData\scoop\apps\git\current
 ```
 
+路径不能只靠“普通安装”或“全局安装”推断。先让 Scoop 返回当前前缀，再检查 Bash 与图标是否真实存在：
+
+```powershell
+$gitRoot = scoop prefix git
+$bash = Join-Path $gitRoot 'bin\bash.exe'
+$icon = Join-Path $gitRoot 'ucrt64\share\git\git-for-windows.ico'
+
+$gitRoot
+Test-Path -LiteralPath $bash
+Test-Path -LiteralPath $icon
+```
+
+2026-10-13 的当前 Scoop Git 使用 `ucrt64\share\git\git-for-windows.ico`，旧的 `mingw64` 路径已经不适用。这个目录仍只是核验快照；其他 Scoop 构建或未来版本可能改变布局。图标不存在时，省略 `icon` 比填写未经核验的路径更稳妥。
+
 实际写 Windows Terminal 配置时，普通用户安装可以用 `%USERPROFILE%` 代替真实用户名，这样更干净，也更适合写进笔记：
 
 ```text
 %USERPROFILE%\scoop\apps\git\current
 ```
 
-## 打开 Windows Terminal 配置文件
+## 优先使用 Fragment
 
-打开 Windows Terminal，进入：
+当前 dotfiles 把 Git Bash profile 与 Gruvbox 配色放在独立的 [Fragment](https://github.com/Cyberl-ty02/dotfiles/blob/main/windows_setting/AppData/Local/Microsoft/Windows%20Terminal/Fragments/dotfiles/dotfiles.json) 中：
+
+```text
+%LOCALAPPDATA%\Microsoft\Windows Terminal\Fragments\dotfiles\dotfiles.json
+```
+
+Fragment 由 Windows Terminal 自动合并，不需要维护完整的 `profiles.list`。仓库另用 [chezmoi 脚本](https://github.com/Cyberl-ty02/dotfiles/blob/main/windows_setting/.chezmoiscripts/run_after_merge-windows-terminal-settings.ps1.tmpl) 把 `terminal/preferences.json` 中少量偏好增量写入已有 `settings.json`。Azure、Visual Studio、WSL 以及第三方自动生成的 profile 继续留在本机，不会因同步 dotfiles 被整份覆盖或删除。
+
+这种拆分适合跨机器迁移，但 Fragment 中使用 `%USERPROFILE%\scoop`，所以仍需先运行 `scoop prefix git` 核验安装范围。若实际是全局 Scoop，应为该机器调整命令路径，不能假定 `C:\ProgramData` 永远成立。
+
+## 手动添加单个 profile
+
+不使用 Fragment 时，可以打开 Windows Terminal，进入：
 
 ```text
 设置 -> 打开 JSON 文件
@@ -64,7 +90,7 @@ C:\ProgramData\scoop\apps\git\current
 }
 ```
 
-然后在 `list` 数组中添加一个新的配置对象。
+然后只在 `list` 数组中添加一个新的配置对象。不要用示例替换整个 `settings.json`，也不要清空看似陌生的自动生成 profile。
 
 ## 普通 Scoop 用户安装版配置
 
@@ -76,7 +102,7 @@ C:\ProgramData\scoop\apps\git\current
   "name": "Git Bash (Scoop)",
   "commandline": "\"%USERPROFILE%\\scoop\\apps\\git\\current\\bin\\bash.exe\" --login -i",
   "startingDirectory": "%USERPROFILE%",
-  "icon": "%USERPROFILE%\\scoop\\apps\\git\\current\\mingw64\\share\\git\\git-for-windows.ico",
+  "icon": "%USERPROFILE%\\scoop\\apps\\git\\current\\ucrt64\\share\\git\\git-for-windows.ico",
   "hidden": false
 }
 ```
@@ -105,7 +131,7 @@ C:\ProgramData\scoop\apps\git\current
   "name": "Git Bash (Scoop Global)",
   "commandline": "\"C:\\ProgramData\\scoop\\apps\\git\\current\\bin\\bash.exe\" --login -i",
   "startingDirectory": "%USERPROFILE%",
-  "icon": "C:\\ProgramData\\scoop\\apps\\git\\current\\mingw64\\share\\git\\git-for-windows.ico",
+  "icon": "C:\\ProgramData\\scoop\\apps\\git\\current\\ucrt64\\share\\git\\git-for-windows.ico",
   "hidden": false
 }
 ```
@@ -159,7 +185,7 @@ bin\bash.exe --login -i
 
 ## 小结
 
-Scoop 版 Git 本身没有问题，只是没有像官方 exe 安装包那样自动帮 Windows Terminal 注册 Git Bash profile。
+Scoop 版 Git 本身没有问题，只是未必像官方 exe 安装包那样自动帮 Windows Terminal 注册 Git Bash profile。当前 dotfiles 使用 Fragment 添加 Git Bash/Gruvbox，并只增量合并少量偏好；手动编辑则适合单机临时配置。
 
 手动添加后，核心配置其实就是：
 
@@ -167,4 +193,4 @@ Scoop 版 Git 本身没有问题，只是没有像官方 exe 安装包那样自�
 "commandline": "\"%USERPROFILE%\\scoop\\apps\\git\\current\\bin\\bash.exe\" --login -i"
 ```
 
-这个方案比较干净，也符合 Scoop 的使用习惯。后续 Git 更新时，`current` 目录会自动指向当前版本，通常不需要再改配置。
+`current` 目录会跟随 Scoop 更新，但其内部的 `ucrt64` 等布局仍可能改变。更新后若图标失效，重新执行 `scoop prefix git` 与 `Test-Path`；无法确认图标时直接省略 `icon`，不要为修复一个图标而覆盖完整 Terminal 配置。

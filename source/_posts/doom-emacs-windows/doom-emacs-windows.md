@@ -11,12 +11,14 @@ tags:
 - 开发工具
 ---
 
-这篇文章最初只整理 Windows 下的 Doom Emacs 命令，后来曾因主力编辑器切换而归档。2026-10-13，Gentoo PC 与 WSL 已重新启用 Doom Emacs，因此本文恢复维护，并以当前 Linux 配置为主；旧 Windows 布局留在后文作为历史参考。
+这篇文章最初只整理 Windows 下的 Doom Emacs 命令，后来曾因主力编辑器切换而归档。2026-10-13 重新核验后，Gentoo PC 与 Windows 都已经完成 Doom Emacs 部署；Gentoo WSL 当前没有安装，仓库中的 WSL 配置只保留作以后重建的输入。本文分别记录 Linux XDG 布局与 Windows AppData 默认布局，不再把其中一套目录规则套到另一套系统。
 
-> **当前核验状态**
-> 真机安装 `app-editors/emacs-31.1-r2`，Doom 框架位于 `~/.config/emacs`，私人配置位于 `~/.config/doom`；shell 的 `EDITOR`、`VISUAL` 和 `PATH` 均已切换到这套布局。框架 origin 已统一为官方 `https://github.com/doomemacs/core`，`~/.emacs.d` 与 `~/.doom.d` 当前都不存在。
+> **当前核验状态（2026-10-13）**
+> Gentoo PC 安装 `app-editors/emacs-31.1-r2`，框架位于 `~/.config/emacs`，私人配置位于 `~/.config/doom`。Windows 使用 Scoop Emacs 31.1，框架位于 `%APPDATA%\.emacs.d`，私人配置入口位于 `%APPDATA%\.config\doom`，后者是指向 dotfiles `dot_config\doom` 的目录联接。两端框架 origin 都是官方 `https://github.com/doomemacs/core`。Windows 已通过 `doom sync`、`doom doctor` 和 `early-init.el` 完整加载核验；doctor 剩余的 native compilation、fontconfig、Windows symlink、Markdown 编译器与 shellcheck 提示属于可选能力，不表示框架安装失败。版本号只是本次核验快照。
 
 ## 当前目录边界
+
+Gentoo 使用 XDG 路径：
 
 ```text
 ~/.config/emacs   Doom 框架、包、生成状态与 bin/doom
@@ -26,13 +28,21 @@ tags:
 ~/.cache/emacs    可重新生成的缓存
 ```
 
+Windows 不设置全局 `HOME`、`EMACSDIR` 或 `DOOMDIR`，也不使用 `--init-directory`，而是沿用原生 Emacs 与 Doom 的默认查找规则：
+
+```text
+%APPDATA%\.emacs.d       Doom 框架、包与生成状态
+%APPDATA%\.config\doom  指向 dotfiles\dot_config\doom 的目录联接
+%USERPROFILE%\.local\bin  Doom 命令与编辑器包装器
+```
+
 dotfiles 只维护 `~/.config/doom` 中的 `init.el`、`config.el`、`custom.el`、`packages.el` 和说明文件。普通用户与 root 使用同一份经过审阅的私有配置内容，但部署后分别由各自账户拥有；Doom 框架、插件 checkout、缓存和生成状态也各自独立，root 不会执行普通用户可改写的目录。
 
 这也解释了目录大小的差异。2026-10-13 的真机快照中，私有配置约 20 KiB，普通用户的 Doom 框架和插件约 424 MiB；前者适合进入 Git，后者数百 MiB 属于可重建状态，不应连同编译缓存一起同步。
 
 ## 在 Gentoo 中部署
 
-当前 world 与 `manifests/core.txt` 都选择 `app-editors/emacs`。安装 Emacs 后，在 dotfiles 根目录运行：
+当前 PC world、仓库保留的 WSL world 快照与 `manifests/core.txt` 都选择 `app-editors/emacs`。这里的 WSL 文件只表示未来重建选择，不表示当前存在可运行的 WSL。Gentoo 安装 Emacs 后，在 dotfiles 根目录运行：
 
 ```bash
 gentoo_setting/scripts/deploy-doom.sh
@@ -112,26 +122,17 @@ ls -ld \
 
 当前布局的主程序目录是：
 
-```bash
-rm -rf -- ~/.config/emacs
-```
+先确认 `realpath -e ~/.config/emacs` 的结果确实位于当前账户的 home，并确认其中没有未提交修改，再使用带一次确认提示的 `rm -rI -- ~/.config/emacs`。这是不可恢复操作；如果输出路径不符合预期，就不要继续。
 
 如果使用的是旧布局，主程序才可能位于：
 
-```bash
-rm -rf -- ~/.emacs.d
-```
+同样先用 `realpath -e ~/.emacs.d` 核对旧目录，再按实际需要手动删除；不要把 `~/.config/emacs` 与 `~/.emacs.d` 同时当作现行框架目录。
 
 ### 删除可重新生成的数据与缓存
 
 不同 Emacs/Doom 版本可能使用其中一部分目录；只删除上一步已经核对过的路径：
 
-```bash
-rm -rf -- ~/.cache/emacs
-rm -rf -- ~/.local/share/doom
-rm -rf -- ~/.local/share/emacs
-rm -rf -- ~/.local/state/emacs
-```
+逐项用 `realpath -e` 查看目标后，再对确实属于当前账户且可重建的目录使用 `rm -rI -- <已核对的单一路径>`。不要把列表直接交给一条批量递归删除命令。
 
 ### 删除私人配置
 
@@ -144,23 +145,48 @@ test ! -e ~/doom-config-backup && \
 
 确认备份可读后，才删除当前私人配置：
 
-```bash
-rm -rf -- ~/.config/doom
-```
+确认备份后，再对已经核对的 `~/.config/doom` 使用 `rm -rI -- ~/.config/doom`。如果它是符号链接，先用 `readlink` 确认目标；删除链接与删除其目标不是同一件事。
 
 旧环境还可能使用 `~/.doom.d`；同样只有在确认已备份或不再需要时才清理：
 
-```bash
-rm -rf -- ~/.doom.d
-```
+先用 `realpath -e ~/.doom.d` 或 `readlink ~/.doom.d` 判断它是目录还是链接，再决定是否删除，不要照抄一条同时覆盖新旧布局的清理命令。
 
 删除这些目录不会从 Gentoo world 移除 Emacs。若还要卸载软件包，应先用 `emerge --deselect app-editors/emacs` 调整显式选择，再预览依赖清理；本文不建议自动执行真实 `depclean`。
 
-## Windows 迁移边界
+## Windows 已完成的部署
 
-Windows 的目标是由 Scoop 安装 Emacs，并复用同一份 Doom 私有配置；具体 shim、Emacs Client 和 GUI 启动方式必须由能够访问 Windows 真机的线程验证。现有 Windows Neovim/LazyVim 文件只是迁移交接与回滚输入，不是最终跨平台方案；Linux 侧不会在 Windows 验收之前提前删除它们。
+Windows 由 Scoop 提供 Emacs 31.1，[`windows_setting/install_doom.ps1`](https://github.com/Cyberl-ty02/dotfiles/blob/main/windows_setting/install_doom.ps1) 负责安装、修复和同步 Doom。首次部署在 dotfiles 根目录运行：
 
-Windows 也应使用官方 `doomemacs/core`，但不能把 Linux 的框架、包 checkout 或缓存直接复制过去。Doom 官方 FAQ 同样建议跨机器同步私有配置而非整个框架目录，因为生成文件和字节码可能包含系统及路径差异。
+```powershell
+.\windows_setting\install_doom.ps1
+```
+
+脚本会核验 `dot_config\doom` 的受管文件，按需克隆官方 `doomemacs/core` 到 `%APPDATA%\.emacs.d`，并把 `%APPDATA%\.config\doom` 联接到仓库中的私人配置。日常拉取 dotfiles 变更后再次运行同一命令即可同步；`-SkipSync` 只适用于离线调整联接或 origin、明确不希望执行 `doom sync` 的场景，`-Upgrade` 则用于主动跟随 Doom 框架及其管理的包，不应混入每次普通同步。
+
+chezmoi 还部署三个位于 `~/.local/bin` 的包装器：
+
+- `doom.cmd` 调用 `%APPDATA%\.emacs.d\bin\doom.ps1`；
+- `doom-editor.cmd` 优先在当前终端连接 Emacs server，否则以 `emacs.exe -nw` 启动；
+- `doom-emacs.cmd` 优先建立 GUI client frame，否则直接启动 GUI Emacs。
+
+PowerShell 和 Git Bash 把 `doom-editor.cmd` 用作 `EDITOR`、`VISUAL` 与 `GIT_EDITOR`；Git 的 `core.editor` 也指向它。Yazi 的 `edit` opener 使用终端包装器，PowerShell/Git Bash 中的 `e` 则使用 GUI 包装器。这样可以共享入口，但不会把 Linux 的框架、包 checkout 或缓存复制到 Windows。
+
+Windows Neovim 配置、数据和临时缓存已经清理，`dot_config/nvim` 与 `windows_setting/install_nvim.ps1` 也已从 dotfiles 删除。这里只说明配置退役，不据此声称 Neovim 程序本体已经卸载。
+
+### Windows 清理前的边界
+
+Windows 的私人配置路径是目录联接。任何删除前先关闭 Emacs，列出路径并检查联接目标：
+
+```powershell
+$paths = @(
+  "$env:APPDATA\.emacs.d"
+  "$env:APPDATA\.config\doom"
+)
+Get-Item -LiteralPath $paths -Force -ErrorAction SilentlyContinue |
+  Format-List FullName, Attributes, LinkType, Target
+```
+
+只有 `%APPDATA%\.config\doom` 的 `Target` 明确指向当前 dotfiles 的 `dot_config\doom` 时，才能把它当作可重建联接处理；不要对联接目标执行递归删除。`%APPDATA%\.emacs.d` 可能包含尚未同步的框架修改，删除不可恢复，必须先检查 `git status` 并单独备份需要保留的内容。
 
 ## 参考
 
@@ -168,3 +194,4 @@ Windows 也应使用官方 `doomemacs/core`，但不能把 Linux 的框架、包
 - [Doom Emacs FAQ](https://github.com/doomemacs/core/blob/master/docs/faq.org)
 - [dotfiles：Doom Emacs configuration](https://github.com/Cyberl-ty02/dotfiles/blob/main/dot_config/doom/README.md)
 - [dotfiles：deploy-doom.sh](https://github.com/Cyberl-ty02/dotfiles/blob/main/gentoo_setting/scripts/deploy-doom.sh)
+- [dotfiles：Windows Doom installer](https://github.com/Cyberl-ty02/dotfiles/blob/main/windows_setting/install_doom.ps1)

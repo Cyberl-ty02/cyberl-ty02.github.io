@@ -1204,7 +1204,7 @@ test -d ~/.zim/modules/powerlevel10k
 
 ### 恢复 Doom Emacs
 
-当前 PC、WSL 与共享 core 清单都使用 `app-editors/emacs`；Windows 目标环境也迁移为 Scoop Emacs，并复用同一组 Doom 私人配置。既有 Windows Neovim 文件在本地迁移验收前只作为交接和回滚输入，Linux 侧不提前删除。Doom 的私人配置位于 dotfiles 的 [`dot_config/doom/`](https://github.com/Cyberl-ty02/dotfiles/tree/main/dot_config/doom)，框架本体则由部署脚本检出到 `~/.config/emacs`。
+当前 PC world、仓库保留的 WSL world 快照与共享 core 清单都选择 `app-editors/emacs`；WSL 当前未安装，这一选择只用于未来重建。Windows 已完成 Scoop Emacs 部署并复用同一组 Doom 私人配置，Neovim 过渡文件也已从 dotfiles 删除。Doom 的私人配置位于 dotfiles 的 [`dot_config/doom/`](https://github.com/Cyberl-ty02/dotfiles/tree/main/dot_config/doom)，Gentoo 框架本体则由部署脚本检出到 `~/.config/emacs`。
 
 先在已经审核的 dotfiles checkout 中预览并应用普通用户配置：
 
