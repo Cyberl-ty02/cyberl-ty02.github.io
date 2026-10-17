@@ -11,10 +11,10 @@ tags:
 - 开发工具
 ---
 
-这篇文章最初只整理 Windows 下的 Doom Emacs 命令，后来曾因主力编辑器切换而归档。2026-10-13 重新核验后，Gentoo PC 与 Windows 都已经完成 Doom Emacs 部署；Gentoo WSL 当前没有安装，仓库中的 WSL 配置只保留作以后重建的输入。本文分别记录 Linux XDG 布局与 Windows AppData 默认布局，不再把其中一套目录规则套到另一套系统。
+这篇文章最初只整理 Windows 下的 Doom Emacs 命令，后来曾因主力编辑器切换而归档。2026-10-17 重新核验后，Gentoo PC 与 Windows 都已经完成 Doom Emacs 部署；Gentoo WSL 当前没有安装，仓库中的 WSL 配置只保留作以后重建的输入。本文分别记录 Linux XDG 布局与 Windows AppData 布局，不把其中一套目录规则套到另一套系统。
 
-> **当前核验状态（2026-10-13）**
-> Gentoo PC 安装 `app-editors/emacs-31.1-r2`，框架位于 `~/.config/emacs`，私人配置位于 `~/.config/doom`。Windows 使用 Scoop Emacs 31.1，框架位于 `%APPDATA%\.emacs.d`，私人配置入口位于 `%APPDATA%\.config\doom`，后者是指向 dotfiles `dot_config\doom` 的目录联接。两端框架 origin 都是官方 `https://github.com/doomemacs/core`。Windows 已通过 `doom sync`、`doom doctor` 和 `early-init.el` 完整加载核验；doctor 剩余的 native compilation、fontconfig、Windows symlink、Markdown 编译器与 shellcheck 提示属于可选能力，不表示框架安装失败。版本号只是本次核验快照。
+> **当前核验状态（2026-10-17）**
+> Gentoo PC 安装 `app-editors/emacs-31.1-r2`，框架位于 `~/.config/emacs`，私人配置位于 `~/.config/doom`。Windows 使用 Scoop Emacs 31.1 与 Doom 2.2.4，框架位于 `%APPDATA%\.emacs.d`，私人配置入口位于 `%APPDATA%\.config\doom`，后者是指向 dotfiles `dot_config\doom` 的目录联接。两端框架 origin 都是官方 `https://github.com/doomemacs/core`。Windows 已通过 `doom sync --env`、`doom doctor` 和 `early-init.el` 完整加载核验；doctor 剩余的 native compilation、fontconfig、Windows symlink、Markdown 编译器与 shellcheck 提示属于可选能力，不表示框架安装失败。版本号和路径只是本次机器快照。
 
 ## 当前目录边界
 
@@ -28,7 +28,7 @@ Gentoo 使用 XDG 路径：
 ~/.cache/emacs    可重新生成的缓存
 ```
 
-Windows 不设置全局 `HOME`、`EMACSDIR` 或 `DOOMDIR`，也不使用 `--init-directory`，而是沿用原生 Emacs 与 Doom 的默认查找规则：
+Windows 不设置全局 `EMACSDIR` 或 `DOOMDIR`，也不永久覆盖用户的 `HOME`。框架和私人配置仍使用 AppData 布局，但启动时必须经过 Doom 的 profile 入口，由 `doom emacs` 为当前框架补充正确的 `--init-directory`：
 
 ```text
 %APPDATA%\.emacs.d       Doom 框架、包与生成状态
@@ -165,11 +165,74 @@ Windows 由 Scoop 提供 Emacs 31.1，[`windows_setting/install_doom.ps1`](https
 
 chezmoi 还部署三个位于 `~/.local/bin` 的包装器：
 
-- `doom.cmd` 调用 `%APPDATA%\.emacs.d\bin\doom.ps1`；
-- `doom-editor.cmd` 优先在当前终端连接 Emacs server，否则以 `emacs.exe -nw` 启动；
-- `doom-emacs.cmd` 优先建立 GUI client frame，否则直接启动 GUI Emacs。
+- `doom.cmd` 只在自身进程内清除 Git Bash 传入的 `HOME`，再调用 `%APPDATA%\.emacs.d\bin\doom.ps1`；
+- `doom-editor.cmd` 优先在当前终端连接 Emacs server；没有 server 时调用 `doom.cmd emacs -- -nw`；
+- `doom-emacs.cmd` 优先建立 GUI client frame；没有 server 时调用 `doom.cmd emacs --`。
 
 PowerShell 和 Git Bash 把 `doom-editor.cmd` 用作 `EDITOR`、`VISUAL` 与 `GIT_EDITOR`；Git 的 `core.editor` 也指向它。Yazi 的 `edit` opener 使用终端包装器，PowerShell/Git Bash 中的 `e` 则使用 GUI 包装器。这样可以共享入口，但不会把 Linux 的框架、包 checkout 或缓存复制到 Windows。
+
+### 三类现象不要混在一起
+
+Windows 上遇到启动或显示异常时，可以先按界面特征区分：
+
+- 出现 GNU Emacs 默认欢迎页：Doom profile 没有被正确引导；
+- Doom 已经加载，但 Backtrace 报 `Could not run Git` 或 `Searching for program: No such file or directory, git`：Doom 的环境快照仍保存旧 `PATH`；
+- modeline 出现 `0F0C`、`0F3E` 一类十六进制方块：当前字体缺少 Nerd Font 私用区 glyph，不是文本编码损坏。
+
+这三类问题分别属于启动入口、环境快照和字体，不能用同一条“重装 Doom”结论代替排查。
+
+### 为什么必须经过 `doom emacs`
+
+Doom 2.2.4 与 Emacs 31.1 的当前组合中，直接运行裸 `emacs.exe` 或 `emacs.exe -nw`，可能只进入原生 GNU Emacs，而没有加载 Doom profile。`doom emacs` 会为这份 Doom 框架补充正确的 `--init-directory`，因此包装器在没有可连接的 server 时也必须继续通过 Doom CLI 启动，而不是退回裸 Emacs。
+
+Git Bash 会设置 POSIX 风格的 `HOME`，原生 Windows Emacs/Doom 则使用 AppData 布局。`doom.cmd` 因而使用 `setlocal`，只在包装器进程及其子进程中清除 `HOME`；不要在系统环境变量、PowerShell profile 或 Bash profile 中全局删除、永久覆盖用户的 `HOME`。
+
+### 刷新过期的 Doom 环境快照
+
+Doom 生成的 `05-doom-env.load.el` 可能保存旧 `PATH`。从 Scoop Git 迁移到 winget 安装的 Git for Windows 后，即使系统 `PATH` 已经更新，旧 Emacs 进程中的 Magit 仍可能找不到 `git`。
+
+Doom 2.2.4 不应再使用旧式、不带输出文件参数的 `doom env`。先在当前 PowerShell 中确认 Git 和相关路径：
+
+```powershell
+Get-Command git
+$env:Path -split ';' | Where-Object { $_ -match 'Git|pnpm' }
+```
+
+当前快照应包含 `C:\Program Files\Git\cmd`，并且不再残留旧 Scoop Git 或已经退役的 pnpm 路径。确认当前用户与机器的 `PATH` 正确后刷新环境：
+
+```powershell
+doom sync --env
+doom doctor
+```
+
+包装器会在自己的进程中补充 `%ProgramFiles%\Git\cmd`，避免父进程尚未刷新机器 `PATH` 时立即失败；但持久环境仍应在当前机器上核验，不能长期依赖这一层兜底。
+
+### 修复 modeline 字体方块
+
+`0F0C`、`0F3E` 等方块对应 Nerd Font 私用区字符缺字。当前 Windows 已安装 `IntoneMono NFM`，共享 Doom 配置通过 `doom-font` 在 GUI frame 中显式选择该字体。
+
+修改字体或启动配置后，应完全关闭旧 Emacs server、GUI frame 和终端实例，再重新启动。已经运行的 Emacs 进程不会自动重新执行启动配置，仅新建一个 client frame 也不一定能验证改动。
+
+### 日常核验
+
+PowerShell 中可以检查：
+
+```powershell
+doom --version
+doom doctor
+doom sync --env
+Get-Command git
+```
+
+Git Bash 中确认函数与终端编辑器包装器已经加载：
+
+```bash
+type doom
+type doom-editor
+doom --version
+```
+
+这里不依赖内部 Lisp 变量判断 Doom 版本；`doom --version` 与实际启动结果更适合作为日常核验入口。
 
 Windows Neovim 配置、数据和临时缓存已经清理，`dot_config/nvim` 与 `windows_setting/install_nvim.ps1` 也已从 dotfiles 删除。这里只说明配置退役，不据此声称 Neovim 程序本体已经卸载。
 
