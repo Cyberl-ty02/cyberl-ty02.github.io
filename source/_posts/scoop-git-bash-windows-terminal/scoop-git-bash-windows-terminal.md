@@ -1,5 +1,5 @@
 ---
-title: 为 Scoop 版 Git 添加 Windows Terminal 的 Git Bash 配置
+title: 为 winget Git 配置 Windows Terminal，并让 Git Bash 正确启动 Doom Emacs
 comments: true
 toc: true
 donate: false
@@ -10,187 +10,138 @@ tags:
 - Windows
 - 开发工具
 ---
-在 Windows 上，我更倾向使用 Scoop 安装 Git，而不是直接使用官方 exe 安装包：
 
-```powershell
-scoop install git
-```
+这篇文章最初记录 Scoop Git 的 Windows Terminal profile。2026-10-17 重新核验时，当前 Windows 已改用 winget 安装的 Git for Windows，Scoop Git 已移除；Scoop 仍可继续管理其他工具，但不再承担 Git。
 
-这样做的好处是安装、更新、卸载都比较干净。不过它也有一个小差异：官方 Git for Windows 安装包通常会自动在 Windows Terminal 中添加 **Git Bash** 配置文件，而 Scoop 安装的 Git 不一定会自动添加。
+目前的结论是：Windows Terminal 使用独立 Fragment 添加 Git Bash 与 Gruvbox 配色，主 `settings.json` 只增量合并少量偏好；Git Bash 中的 Doom Emacs 则通过 `~/.local/bin` 包装器启动，避免 POSIX 风格 `HOME` 干扰原生 Windows 的 AppData 布局。
 
-所以，如果想在 Windows Terminal 的下拉菜单中直接打开 Git Bash，需要补充一个 profile。单机可以手动添加；需要迁移时，更适合使用 Windows Terminal Fragment，让自定义 profile 与系统、Visual Studio、WSL 及其他软件生成的 profile 分开。
+## 当前路径与核验
 
-## 确认 Scoop Git 的安装路径
-
-先在 PowerShell 中执行：
-
-```powershell
-scoop prefix git
-```
-
-如果是普通用户安装，通常路径类似：
+当前 Git Bash 与图标路径为：
 
 ```text
-%USERPROFILE%\scoop\apps\git\current
+%ProgramFiles%\Git\bin\bash.exe
+%ProgramFiles%\Git\mingw64\share\git\git-for-windows.ico
 ```
 
-如果是全局安装，则可能是：
-
-```text
-C:\ProgramData\scoop\apps\git\current
-```
-
-路径不能只靠“普通安装”或“全局安装”推断。先让 Scoop 返回当前前缀，再检查 Bash 与图标是否真实存在：
+路径可能随安装方式或 Git for Windows 版本变化。写入 Terminal 配置前，先在 PowerShell 中检查当前机器：
 
 ```powershell
-$gitRoot = scoop prefix git
-$bash = Join-Path $gitRoot 'bin\bash.exe'
-$icon = Join-Path $gitRoot 'ucrt64\share\git\git-for-windows.ico'
+Get-Command git
 
-$gitRoot
+$bash = Join-Path $env:ProgramFiles 'Git\bin\bash.exe'
+$icon = Join-Path $env:ProgramFiles 'Git\mingw64\share\git\git-for-windows.ico'
+
 Test-Path -LiteralPath $bash
 Test-Path -LiteralPath $icon
 ```
 
-2026-10-13 的当前 Scoop Git 使用 `ucrt64\share\git\git-for-windows.ico`，旧的 `mingw64` 路径已经不适用。这个目录仍只是核验快照；其他 Scoop 构建或未来版本可能改变布局。图标不存在时，省略 `icon` 比填写未经核验的路径更稳妥。
+当前使用 `%ProgramFiles%`，不是旧 Scoop 目录。如果图标不存在，可以先省略 `icon`；不要因为一个可选图标路径失效就覆盖整份 Terminal 配置。
 
-实际写 Windows Terminal 配置时，普通用户安装可以用 `%USERPROFILE%` 代替真实用户名，这样更干净，也更适合写进笔记：
+## 使用独立的 Windows Terminal Fragment
 
-```text
-%USERPROFILE%\scoop\apps\git\current
-```
-
-## 优先使用 Fragment
-
-当前 dotfiles 把 Git Bash profile 与 Gruvbox 配色放在独立的 [Fragment](https://github.com/Cyberl-ty02/dotfiles/blob/main/windows_setting/AppData/Local/Microsoft/Windows%20Terminal/Fragments/dotfiles/dotfiles.json) 中：
+当前 dotfiles 中的 [Fragment](https://github.com/Cyberl-ty02/dotfiles/blob/main/windows_setting/AppData/Local/Microsoft/Windows%20Terminal/Fragments/dotfiles/dotfiles.json) 位于：
 
 ```text
 %LOCALAPPDATA%\Microsoft\Windows Terminal\Fragments\dotfiles\dotfiles.json
 ```
 
-Fragment 由 Windows Terminal 自动合并，不需要维护完整的 `profiles.list`。仓库另用 [chezmoi 脚本](https://github.com/Cyberl-ty02/dotfiles/blob/main/windows_setting/.chezmoiscripts/run_after_merge-windows-terminal-settings.ps1.tmpl) 把 `terminal/preferences.json` 中少量偏好增量写入已有 `settings.json`。Azure、Visual Studio、WSL 以及第三方自动生成的 profile 继续留在本机，不会因同步 dotfiles 被整份覆盖或删除。
-
-这种拆分适合跨机器迁移，但 Fragment 中使用 `%USERPROFILE%\scoop`，所以仍需先运行 `scoop prefix git` 核验安装范围。若实际是全局 Scoop，应为该机器调整命令路径，不能假定 `C:\ProgramData` 永远成立。
-
-## 手动添加单个 profile
-
-不使用 Fragment 时，可以打开 Windows Terminal，进入：
-
-```text
-设置 -> 打开 JSON 文件
-```
-
-找到类似下面的位置：
+文件内容如下，profile 的路径、GUID、名称与 Gruvbox 配色均来自当前实际配置：
 
 ```json
-"profiles": {
-  "list": [
-    ...
+{
+  "profiles": [
+    {
+      "commandline": "\"%ProgramFiles%\\Git\\bin\\bash.exe\" --login -i",
+      "guid": "{5b8b2d9f-5655-4d9a-a427-cf494de4e17a}",
+      "hidden": false,
+      "icon": "%ProgramFiles%\\Git\\mingw64\\share\\git\\git-for-windows.ico",
+      "name": "Git Bash",
+      "startingDirectory": "%USERPROFILE%"
+    }
+  ],
+  "schemes": [
+    {
+      "background": "#282828",
+      "black": "#282828",
+      "blue": "#458588",
+      "brightBlack": "#928374",
+      "brightBlue": "#83A598",
+      "brightCyan": "#8EC07C",
+      "brightGreen": "#B8BB26",
+      "brightPurple": "#D3869B",
+      "brightRed": "#FB4934",
+      "brightWhite": "#EBDBB2",
+      "brightYellow": "#FABD2F",
+      "cursorColor": "#EBDBB2",
+      "cyan": "#689D6A",
+      "foreground": "#EBDBB2",
+      "green": "#98971A",
+      "name": "GruvboxDark",
+      "purple": "#B16286",
+      "red": "#CC241D",
+      "selectionBackground": "#665C54",
+      "white": "#A89984",
+      "yellow": "#D79921"
+    }
   ]
 }
 ```
 
-然后只在 `list` 数组中添加一个新的配置对象。不要用示例替换整个 `settings.json`，也不要清空看似陌生的自动生成 profile。
+Fragment 由 Windows Terminal 自动合并，因此不需要在主 `settings.json` 中维护完整的 `profiles.list`。dotfiles 的 [偏好合并脚本](https://github.com/Cyberl-ty02/dotfiles/blob/main/windows_setting/.chezmoiscripts/run_after_merge-windows-terminal-settings.ps1.tmpl) 只更新复制行为、默认 profile、主题、profile defaults 和几项快捷键，并移除早期由 dotfiles 写入主配置的旧 Git Bash/Gruvbox 副本。
 
-### 普通 Scoop 用户安装版配置
+Azure、Visual Studio、WSL 和其他软件生成的 profile 仍由本机维护，不会被 Fragment 或增量脚本整份覆盖。
 
-如果 Git 安装在用户目录下，可以添加：
+## 为什么使用 `bin\bash.exe --login -i`
 
-```json
-{
-  "guid": "{d1f2a8c5-6b7e-4f9a-9c2e-8a7b3f6d9012}",
-  "name": "Git Bash (Scoop)",
-  "commandline": "\"%USERPROFILE%\\scoop\\apps\\git\\current\\bin\\bash.exe\" --login -i",
-  "startingDirectory": "%USERPROFILE%",
-  "icon": "%USERPROFILE%\\scoop\\apps\\git\\current\\ucrt64\\share\\git\\git-for-windows.ico",
-  "hidden": false
-}
-```
-
-保存后重启 Windows Terminal，就可以在下拉菜单中看到：
+Fragment 的启动命令是：
 
 ```text
-Git Bash (Scoop)
+"%ProgramFiles%\Git\bin\bash.exe" --login -i
 ```
 
-这里使用 `current` 目录的好处是，后续 Git 更新时它会继续指向当前版本，一般不需要频繁修改 Windows Terminal 配置。
+`git-bash.exe` 更像启动器，通常会建立独立的 Mintty 窗口；Windows Terminal profile 需要的是在当前终端窗格内运行的 shell，因此直接调用 `bin\bash.exe`。
 
-### 全局 Scoop 安装版配置
+其中 `--login` 让 Bash 加载登录配置，`-i` 表示交互模式。这样 `~/.bash_profile` 中的 PATH、编辑器变量和 Doom 包装函数才能按预期加载。
 
-如果 Git 是通过全局 Scoop 安装的，路径可能在：
+## 从 Git Bash 启动 Doom Emacs
+
+Git Bash 会设置 POSIX 风格的 `HOME`，但原生 Windows Emacs/Doom 的当前布局位于 `%APPDATA%`。因此 Bash profile 不应直接裸跑 `emacs.exe`，而是把 `%USERPROFILE%\.local\bin` 加入 PATH，再通过包装器调用：
+
+```bash
+if command -v doom-editor.cmd >/dev/null 2>&1; then
+    export EDITOR=doom-editor.cmd VISUAL=doom-editor.cmd GIT_EDITOR=doom-editor.cmd
+    doom() { doom.cmd "$@"; }
+    alias e=doom-emacs.cmd
+fi
+```
+
+`doom.cmd` 只在自身进程中清除 Bash 传入的 `HOME`，并调用 `%APPDATA%\.emacs.d\bin\doom.ps1`。终端编辑器与 GUI 包装器在没有现成 server 时分别转发到：
 
 ```text
-C:\ProgramData\scoop\apps\git\current
+doom.cmd emacs -- -nw
+doom.cmd emacs --
 ```
 
-那么可以改成：
+这样 Doom CLI 会为框架补充正确的 `--init-directory`。直接在 Git Bash 中运行裸 `emacs.exe -nw` 可能只显示 GNU Emacs 默认欢迎页，而不是 Doom。
 
-```json
-{
-  "guid": "{9a0cfae1-3318-4a6e-a7c7-61f8f8f4c21b}",
-  "name": "Git Bash (Scoop Global)",
-  "commandline": "\"C:\\ProgramData\\scoop\\apps\\git\\current\\bin\\bash.exe\" --login -i",
-  "startingDirectory": "%USERPROFILE%",
-  "icon": "C:\\ProgramData\\scoop\\apps\\git\\current\\ucrt64\\share\\git\\git-for-windows.ico",
-  "hidden": false
-}
+可以在 Git Bash 中做只读核验：
+
+```bash
+type doom
+type doom-editor
+type git
+doom --version
 ```
 
-### 为什么不用 git-bash.exe
+更完整的启动、环境快照和字体排查见站内文章：[Doom Emacs 安装、同步与清理](/posts/doom-emacs-windows/doom-emacs-windows/)。
 
-一开始可能会想到直接调用：
+## 历史方案：Scoop Git
 
-```text
-git-bash.exe
-```
-
-但在 Windows Terminal 中，更推荐直接调用：
-
-```text
-bin\bash.exe --login -i
-```
-
-原因是 `git-bash.exe` 更像一个启动器，可能会拉起独立的 Mintty 窗口；而 `bash.exe --login -i` 更适合作为 Windows Terminal 的 shell profile。
-
-其中：
-
-```text
---login
-```
-
-表示以登录 shell 启动。
-
-```text
--i
-```
-
-表示交互模式。
-
-这样启动后的体验更接近正常的 Git Bash。
-
-### 最小可用配置
-
-如果图标路径出问题，可以先删掉 `icon` 字段，只保留最小配置：
-
-```json
-{
-  "guid": "{d1f2a8c5-6b7e-4f9a-9c2e-8a7b3f6d9012}",
-  "name": "Git Bash (Scoop)",
-  "commandline": "\"%USERPROFILE%\\scoop\\apps\\git\\current\\bin\\bash.exe\" --login -i",
-  "startingDirectory": "%USERPROFILE%"
-}
-```
-
-这样也可以正常启动 Git Bash。
+早期版本使用 Scoop Git，并分别处理用户级、全局安装目录和 `ucrt64` 图标路径。这些内容只适用于当时的安装，已经不是当前配置。迁移后应避免同时保留 winget Git 与 Scoop Git，否则可能出现重复可执行文件、不同 Bash 运行时和 PATH 顺序歧义。
 
 ## 小结
 
-Scoop 版 Git 本身没有问题，只是未必像官方 exe 安装包那样自动帮 Windows Terminal 注册 Git Bash profile。当前 dotfiles 使用 Fragment 添加 Git Bash/Gruvbox，并只增量合并少量偏好；手动编辑则适合单机临时配置。
+当前方案使用 winget 提供完整的 Git for Windows，Terminal Fragment 只管理自有 Git Bash profile 与 Gruvbox 配色，偏好脚本则对主配置做有限的增量合并。Git Bash 通过 `doom.cmd`、`doom-editor.cmd` 和 `doom-emacs.cmd` 进入 AppData 中的 Doom，而不是依赖 Bash 的 `HOME` 或直接启动裸 Emacs。
 
-手动添加后，核心配置其实就是：
-
-```json
-"commandline": "\"%USERPROFILE%\\scoop\\apps\\git\\current\\bin\\bash.exe\" --login -i"
-```
-
-`current` 目录会跟随 Scoop 更新，但其内部的 `ucrt64` 等布局仍可能改变。更新后若图标失效，重新执行 `scoop prefix git` 与 `Test-Path`；无法确认图标时直接省略 `icon`，不要为修复一个图标而覆盖完整 Terminal 配置。
+这种分层既保留 Windows Terminal 自动生成的 profile，也避免 Scoop Git 与 winget Git 并存造成的 PATH 歧义。
