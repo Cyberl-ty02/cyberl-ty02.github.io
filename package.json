@@ -11,14 +11,16 @@
   "scripts": {
     "build": "bun run check && bun run build:runtime && bun run build:site && bun run check:generated",
     "build:runtime": "bun run tools/build-runtime.ts",
-    "build:site": "hexo generate",
+    "build:site": "bunx hexo generate",
     "check": "bun run check:types && bun run test:contracts && bun run check:content",
     "check:content": "bun run tools/check-content.ts",
     "check:generated": "bun run tools/check-generated.ts",
-    "check:types": "tsc --noEmit",
-    "clean": "hexo clean",
-    "deploy": "hexo deploy",
-    "server": "bun run build:runtime && hexo server",
+    "check:types": "bunx tsc --noEmit",
+    "clean": "bunx hexo clean",
+    "deploy": "bunx hexo deploy",
+    "server": "bun run build:runtime && bunx hexo server",
+    "server:disabled": "bun run build:runtime --comments=disabled && bunx hexo server",
+    "server:twikoo": "bun run build:runtime --comments=twikoo && bunx hexo server",
     "test:contracts": "bun test tests"
   },
   "hexo": {
@@ -26,7 +28,7 @@
   },
   "overrides": {
     "brace-expansion": "2.1.2",
-    "dompurify": "3.4.12",
+    "dompurify": "3.4.16",
     "form-data": "4.0.6",
     "glob": "^10.3.10",
     "js-yaml": "4.3.0",
@@ -36,6 +38,7 @@
   "devDependencies": {
     "@types/bun": "^1.4.2",
     "@waline/client": "3.15.2",
+    "twikoo": "2.0.15",
     "typescript": "^5.9.3"
   },
   "dependencies": {

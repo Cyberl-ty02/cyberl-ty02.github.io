@@ -25,13 +25,14 @@
       "devDependencies": {
         "@types/bun": "^1.4.2",
         "@waline/client": "3.15.2",
+        "twikoo": "2.0.15",
         "typescript": "^5.9.3",
       },
     },
   },
   "overrides": {
     "brace-expansion": "2.1.2",
-    "dompurify": "3.4.12",
+    "dompurify": "3.4.16",
     "form-data": "4.0.6",
     "glob": "^10.3.10",
     "js-yaml": "4.3.0",
@@ -68,6 +69,8 @@
     "@nodable/entities": ["@nodable/entities@3.1.0", "https://mirrors.cernet.edu.cn/npm/@nodable/entities/-/entities-3.1.0.tgz", {}, "sha512-LsS/DjHr+uDM647Gru/cA8+J3a3HfhttwCKLyuoyN7yXTFCxKBtSgMQBvrW9yNPa2/zDRUNuGPaH5QUFoa4arQ=="],
 
     "@pkgjs/parseargs": ["@pkgjs/parseargs@0.11.0", "https://mirrors.cernet.edu.cn/npm/@pkgjs/parseargs/-/parseargs-0.11.0.tgz", {}, "sha512-+1VkjdD0QBLPodGrJUeqarH8VAIvQODIbwh9XpP5Syisf7YoQgsJKPNFoqqLQlu+VQ/tVSshMR6loPMn8U+dPg=="],
+
+    "@twikoojs/shared": ["@twikoojs/shared@2.0.15", "https://registry.npmmirror.com/@twikoojs/shared/-/shared-2.0.15.tgz", {}, "sha512-3r9AK08Xm3qkEVNFmXEu1v6qsUmSU+su6bXNZxNZxVbcGFnWo0+TddO3BoqdNUHwkysnn329O9qXMYz3bgAymA=="],
 
     "@types/bun": ["@types/bun@1.4.2", "https://mirrors.cernet.edu.cn/npm/@types/bun/-/bun-1.4.2.tgz", { "dependencies": { "bun-types": "1.4.2" } }, "sha512-GimotNn7+ZV0uVArItBbriZsR1oNf0+WTzPkdcFrzShI7k2norL0uzEaJT8T33dWr7O/c9ZDuAFQrctKCi72oQ=="],
 
@@ -219,7 +222,7 @@
 
     "domhandler": ["domhandler@5.0.3", "https://mirrors.cernet.edu.cn/npm/domhandler/-/domhandler-5.0.3.tgz", { "dependencies": { "domelementtype": "^2.3.0" } }, "sha512-cgwlv/1iFQiFnU96XXgROh8xTeetsnJiDsTc7TYCLFd9+/WNkIqPTxiM/8pSd8VIrhXGTf1Ny1q1hquVqDJB5w=="],
 
-    "dompurify": ["dompurify@3.4.12", "https://mirrors.cernet.edu.cn/npm/dompurify/-/dompurify-3.4.12.tgz", { "optionalDependencies": { "@types/trusted-types": "^2.0.7" } }, "sha512-zQvGet8Z2sWbQhCmfFz/T5QWH2oBmjnqK3qvOjaqaNLrLEF912WamU+ohnTp0TCep/MFVHpdJuCZEdFOdTnEFg=="],
+    "dompurify": ["dompurify@3.4.16", "https://registry.npmmirror.com/dompurify/-/dompurify-3.4.16.tgz", { "optionalDependencies": { "@types/trusted-types": "^2.0.7" } }, "sha512-sqo+pNp3qRhCIpbgRi1y8Tgk27Bo2Ry7w0dC1NBeNTdZChWjz9Xb/KOoZbRP/R6pQZ80Qw8YhXw13hWWBbMRnQ=="],
 
     "domutils": ["domutils@3.2.2", "https://mirrors.cernet.edu.cn/npm/domutils/-/domutils-3.2.2.tgz", { "dependencies": { "dom-serializer": "^2.0.0", "domelementtype": "^2.3.0", "domhandler": "^5.0.3" } }, "sha512-6kZKyUajlDuqlHKVX1w7gyslj9MPIXzIFiz/rGu35uC1wMi+kMhQwGhl4lt9unC9Vb9INnY9Z3/ZA3+FhASLaw=="],
 
@@ -602,6 +605,8 @@
     "tr46": ["tr46@5.1.1", "https://mirrors.cernet.edu.cn/npm/tr46/-/tr46-5.1.1.tgz", { "dependencies": { "punycode": "^2.3.1" } }, "sha512-hdF5ZgjTqgAntKkklYw0R03MG2x/bSzTtkxmIRw/sTNV8YXsCJ1tfLAX23lhxhHJlEf3CRCOCGGWw3vI3GaSPw=="],
 
     "tslib": ["tslib@2.8.1", "https://mirrors.cernet.edu.cn/npm/tslib/-/tslib-2.8.1.tgz", {}, "sha512-oJFu94HQb+KVduSUQL7wnpmqnfmLsOA/nAh6b6EH0wCEoK0/mPeXU6c3wKDV83MkOuHPRHtSXKKU99IBazS/2w=="],
+
+    "twikoo": ["twikoo@2.0.15", "https://registry.npmmirror.com/twikoo/-/twikoo-2.0.15.tgz", { "dependencies": { "@twikoojs/shared": "2.0.15" } }, "sha512-y99CvRNsK1UomzeeSpUR3DT5B0+qDAOcYkk3DKdtOdV/GBVAJy3MFRA7lhXUJM7sb0wWNqNf4f22xSrQUEs5Rw=="],
 
     "typed-array-buffer": ["typed-array-buffer@1.0.3", "http://repo.nju.edu.cn/npm/typed-array-buffer/-/typed-array-buffer-1.0.3.tgz", { "dependencies": { "call-bound": "^1.0.3", "es-errors": "^1.3.0", "is-typed-array": "^1.1.14" } }, "sha512-nAYYwfY3qnzX30IkA6AQZjVbtK6duGontcQm1WSG1MD94YLqK0515GNApXkoxKOWMusVssAHWLh9SeaoefYFGw=="],
 
