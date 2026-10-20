@@ -3,6 +3,20 @@ Thumbs.db
 db.json
 *.log
 node_modules/
+node_modules*-backup-*/
 public/
 .deploy*/
 _multiconfig.yml
+
+# Local service credentials and database exports
+.env
+.env.*
+!.env.example
+atlas-credentials.env
+project.yaml
+project.sanitized.yaml
+Zeabur-Archive-*/
+backup-*.zip
+*.bson
+*.bson.gz
+mongodump/

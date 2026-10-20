@@ -92,6 +92,43 @@ if (!/^donate:\r?\n\s+enable:\s+false\s*$/mu.test(themeConfig)) {
 if (/https:\/\/(?:unpkg|cdn\.jsdelivr)\.com\/@waline\/client/iu.test(themeConfig)) {
   problems.push("_config.kratos-rebirth.yml: Waline 应使用锁定版本的本地构建资源");
 }
+if (/https:\/\/(?:unpkg|cdn\.jsdelivr)\.com\/twikoo/iu.test(themeConfig)) {
+  problems.push("_config.kratos-rebirth.yml: Twikoo 应使用锁定版本的本地资源");
+}
+
+const commentConfig = await Bun.file("frontend/comments/config.ts").text();
+if (!/DEFAULT_COMMENT_PROVIDER\s*=\s*"(?:legacy-waline|twikoo|disabled)"/u.test(commentConfig)) {
+  problems.push("frontend/comments/config.ts: DEFAULT_COMMENT_PROVIDER 缺失或不受支持");
+}
+if (!/DEFAULT_COMMENT_PROVIDER\s*=\s*"twikoo"/u.test(commentConfig)) {
+  problems.push("frontend/comments/config.ts: 正式评论 Provider 必须为 twikoo");
+}
+if (!commentConfig.includes("https://cybltwicom.netlify.app/.netlify/functions/twikoo")) {
+  problems.push("frontend/comments/config.ts: 缺少已部署的公开 Twikoo Netlify endpoint");
+}
+
+const packageJson = await Bun.file("package.json").json() as {
+  scripts?: Record<string, string>;
+};
+if (packageJson.scripts?.["server:twikoo"] !== "bun run build:runtime --comments=twikoo && bunx hexo server") {
+  problems.push("package.json: 缺少受控的本地 Twikoo 预览命令");
+}
+if (packageJson.scripts?.["server:disabled"] !== "bun run build:runtime --comments=disabled && bunx hexo server") {
+  problems.push("package.json: 缺少仅限本地的评论紧急关闭预览命令");
+}
+
+const sensitiveGlob = new Bun.Glob("{frontend,docs}/**/*.{ts,md,json}");
+for await (const path of sensitiveGlob.scan({ cwd: process.cwd(), onlyFiles: true })) {
+  const contents = await Bun.file(path).text();
+  for (const match of contents.matchAll(/mongodb(?:\+srv)?:\/\/[^\s)`"']+/giu)) {
+    if (!/(?:<[^>]+>|REDACTED|\*\*\*|…)/iu.test(match[0])) {
+      problems.push(`${path}: 不得保存未经显式占位或脱敏的 MongoDB 连接字符串`);
+    }
+  }
+  if (/MONGODB_URI\s*=\s*[^\s<][^\r\n]*/iu.test(contents)) {
+    problems.push(`${path}: 不得保存 MONGODB_URI 的真实值`);
+  }
+}
 
 for (const staleLock of ["package-lock.json", "pnpm-lock.yaml", "yarn.lock"]) {
   if (await Bun.file(staleLock).exists()) problems.push(`${staleLock}: 不应与 bun.lock 并存`);
