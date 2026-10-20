@@ -51,12 +51,19 @@ GitHub Actions every week through `.github/dependabot.yml`.
 ## Comment system
 
 The production comment provider is Twikoo, backed by Netlify Functions and
-MongoDB Atlas. The retired Waline service is no longer loaded by production
-pages, and its six historical comments have been migrated. Database credentials
-and admin tokens remain server-side and are never part of the browser bundle.
+MongoDB Atlas. The retired Waline runtime, endpoint and client dependency have
+been removed. Six historical comments were rebuilt from the original GitHub
+Issue records after the old database export proved unsuitable as their final
+source of truth. Database credentials and admin tokens remain server-side and
+are never part of the browser bundle.
 
 Ordinary builds use `DEFAULT_COMMENT_PROVIDER = "twikoo"` and the public Netlify
 Functions endpoint. `bun run server:twikoo` remains available as an explicit
 local preview command. For an emergency local no-backend check, run
 `bun run server:disabled`; this override affects only that preview process and
 does not change the source default.
+
+The theme still emits `waline-comment-count` and `waline-pageview-count` as
+upstream-compatible marker classes. The active runtime uses the provider-neutral
+`comment-count` and `pageview-count` classes; no Waline JavaScript or stylesheet
+is loaded or generated.

@@ -1,3 +1,5 @@
-source/comments/waline.js linguist-generated=true
-source/comments/waline.css linguist-generated=true
+source/comments/comments.js linguist-generated=true
+source/comments/comments.css linguist-generated=true
+source/comments/twikoo.js linguist-generated=true
+source/comments/twikoo/** linguist-vendored=true
 scripts/date-from-git.js linguist-generated=true

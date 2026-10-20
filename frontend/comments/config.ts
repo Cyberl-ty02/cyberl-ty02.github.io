@@ -31,10 +31,6 @@ function selectedTwikooEndpoint(): string {
  */
 export const commentRuntimeConfig = {
   provider: selectedProvider(),
-  legacyWaline: {
-    serverURL: "https://cyblwalcom.zeabur.app/",
-    turnstileKey: "0x4AAAAAADfi8AljGZqoAdyH",
-  },
   twikoo: {
     envId: selectedTwikooEndpoint(),
     includeReply: false,

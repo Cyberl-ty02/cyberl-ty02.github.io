@@ -2,7 +2,6 @@ import { DEFAULT_COMMENT_PROVIDER } from "../frontend/comments/config.ts";
 import type { CommentProviderName } from "../frontend/comments/types.ts";
 
 const supportedProviders = new Set<CommentProviderName>([
-  "legacy-waline",
   "twikoo",
   "disabled",
 ]);
@@ -27,6 +26,9 @@ export function resolveCommentBuildSelection(
   }
 
   const rawOverride = providerArguments[0]?.slice("--comments=".length);
+  if (rawOverride === "legacy-waline") {
+    throw new Error("legacy-waline 已退役；仅支持 twikoo 或 disabled");
+  }
   if (rawOverride !== undefined && !supportedProviders.has(rawOverride as CommentProviderName)) {
     throw new Error(`不支持的评论预览提供者：${rawOverride}`);
   }

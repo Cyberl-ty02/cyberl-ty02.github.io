@@ -186,7 +186,7 @@ describe("comment provider configuration", () => {
       }),
     };
     const uninstall = installCommentRuntime(
-      withProvider("legacy-waline"),
+      withProvider("twikoo", TWIKOO_NETLIFY_ENDPOINT),
       fakeWindow,
       emptyDocument,
       async () => module,
@@ -323,6 +323,47 @@ describe("Twikoo comment counts", () => {
     });
     expect(result.status).toBe("error");
   });
+
+  test("updates comment counts while keeping pageviews hidden", async () => {
+    const pageviewWrapper = { hidden: false };
+    const pageview = {
+      closest: () => pageviewWrapper,
+    } as unknown as HTMLElement;
+    const comment = {
+      dataset: { path: "/posts/hello-world/hello-world/" },
+      textContent: "",
+    } as unknown as HTMLElement;
+    const document = {
+      querySelectorAll: (selector: string) => {
+        if (selector === ".pageview-count") return [pageview];
+        if (selector === ".comment-count") return [comment];
+        return [];
+      },
+    } as unknown as Document;
+    const provider = createTwikooProvider(
+      withProvider("twikoo", TWIKOO_NETLIFY_ENDPOINT),
+      async () => ({
+        getCommentsCount: async () => [{
+          url: "/posts/hello-world/hello-world/",
+          count: 6,
+        }],
+        init: async () => undefined,
+      }),
+    );
+
+    await provider.load({
+      container: null,
+      document,
+      path: "/posts/hello-world/hello-world/",
+      pathname: "/posts/hello-world/hello-world/",
+      signal: new AbortController().signal,
+    });
+
+    expect(comment.textContent).toBe("6");
+    expect(comment.dataset.countState).toBe("ready");
+    expect(pageviewWrapper.hidden).toBeTrue();
+    provider.dispose();
+  });
 });
 
 describe("rendered comment contract", () => {
@@ -334,7 +375,7 @@ describe("rendered comment contract", () => {
     expect(css).toContain('html[data-theme="dark"] #comments-root');
   });
 
-  test("keeps the old count class only as a template compatibility marker", async () => {
+  test("keeps the upstream count class only as a template compatibility marker", async () => {
     const themeConfig = await Bun.file("_config.kratos-rebirth.yml").text();
     expect(themeConfig).toContain("comment-count waline-comment-count");
     expect(themeConfig).not.toContain('/comments/waline.css?v=');
