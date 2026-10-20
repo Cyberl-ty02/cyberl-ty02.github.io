@@ -32,9 +32,6 @@ for await (const path of articleGlob.scan({ cwd: process.cwd(), onlyFiles: true 
 const runtimeAssets = [
   "public/comments/comments.js",
   "public/comments/comments.css",
-  "public/comments/waline.js",
-  "public/comments/waline.css",
-  "public/comments/waline-overrides.css",
   "public/comments/twikoo.js",
   "public/comments/twikoo/twikoo.min.js",
   "public/comments/twikoo/LICENSE",
@@ -46,11 +43,16 @@ for (const path of runtimeAssets) {
   if (!(await Bun.file(path).exists())) problems.push(`${path}: 缺少本地评论系统构建资源`);
 }
 
+for (const path of [
+  "public/comments/waline.js",
+  "public/comments/waline.css",
+  "public/comments/waline-overrides.css",
+]) {
+  if (await Bun.file(path).exists()) problems.push(`${path}: 已退役的 Waline 资源不应继续生成`);
+}
+
 if (await home.exists()) {
   const html = await home.text();
-  if (/https:\/\/(?:unpkg|cdn\.jsdelivr)\.com\/@waline\/client/iu.test(html)) {
-    problems.push(`${homePath}: 仍从第三方 CDN 加载 Waline 客户端`);
-  }
   if (/https:\/\/(?:unpkg|cdn\.jsdelivr)\.com\/twikoo/iu.test(html)) {
     problems.push(`${homePath}: 仍从第三方 CDN 加载 Twikoo 客户端`);
   }
@@ -60,14 +62,8 @@ if (await home.exists()) {
   ]) {
     if (!html.includes(asset)) problems.push(`${homePath}: 未引用本地资源 ${asset}`);
   }
-  if (/\/comments\/waline(?:-overrides)?\.css\?v=/u.test(html)) {
-    problems.push(`${homePath}: 正式页面不应注入旧 Waline 样式`);
-  }
-  if (html.includes("cyblwalcom.zeabur.app")) {
-    problems.push(`${homePath}: 正式页面不应引用已退役的 Waline endpoint`);
-  }
-  if (html.includes('<script defer type="module" src="/comments/waline.js')) {
-    problems.push(`${homePath}: 仍直接注入旧 Waline 入口，可能与提供者调度器重复初始化`);
+  if (/waline(?:-overrides)?\.(?:css|js)|cyblwalcom\.zeabur\.app/iu.test(html)) {
+    problems.push(`${homePath}: 正式页面不应引用已退役的 Waline 资源或 endpoint`);
   }
   if (html.includes("/comments/twikoo/twikoo.min.js")) {
     problems.push(`${homePath}: Twikoo 未启用时不应直接注入其客户端`);
@@ -85,8 +81,8 @@ if (await Bun.file(dispatcherPath).exists()) {
   if (!generatedDispatcher.includes(`comments-provider:${DEFAULT_COMMENT_PROVIDER}`)) {
     problems.push(`${dispatcherPath}: 普通构建标记与 DEFAULT_COMMENT_PROVIDER 不一致`);
   }
-  if (!generatedDispatcher.includes("/comments/waline.js?v=20261020-2")) {
-    problems.push(`${dispatcherPath}: 缺少 legacy-waline 动态提供者入口`);
+  if (/legacy-waline|waline\.js|cyblwalcom\.zeabur\.app/iu.test(generatedDispatcher)) {
+    problems.push(`${dispatcherPath}: 不应包含已退役的 Waline 运行链`);
   }
   if (!generatedDispatcher.includes("/comments/twikoo.js?v=20261020-2")) {
     problems.push(`${dispatcherPath}: 缺少与页面缓存版本一致的 Twikoo 动态入口`);
@@ -120,7 +116,7 @@ if (await samplePost.exists()) {
     problems.push(`${samplePostPath}: 评论路径没有保留目录式 permalink 与尾斜杠`);
   }
   if (!html.includes("comment-count waline-comment-count")) {
-    problems.push(`${samplePostPath}: 评论计数器缺少新旧兼容类名`);
+    problems.push(`${samplePostPath}: 评论计数器缺少上游主题兼容类名`);
   }
 }
 
@@ -130,6 +126,9 @@ for await (const path of generatedGlob.scan({ cwd: process.cwd(), onlyFiles: tru
   const contents = await Bun.file(path).text();
   if (/mongodb(?:\+srv)?:\/\//iu.test(contents)) {
     problems.push(`${path}: 生成结果包含 MongoDB 连接字符串`);
+  }
+  if (/cyblwalcom\.zeabur\.app|(?:src|href)=["'][^"']*\/comments\/waline(?:-overrides)?\.(?:css|js)/iu.test(contents)) {
+    problems.push(`${path}: 生成结果包含已退役的 Waline endpoint 或可加载资源引用`);
   }
 }
 

@@ -26,13 +26,6 @@ const targets: BuildTarget[] = [
     banner: `/* comments-provider:${commentBuild.effectiveProvider} */`,
   },
   {
-    entrypoint: "frontend/waline.ts",
-    outdir: "source/comments",
-    target: "browser",
-    format: "esm",
-    minify: true,
-  },
-  {
     entrypoint: "frontend/twikoo.ts",
     outdir: "source/comments",
     target: "browser",

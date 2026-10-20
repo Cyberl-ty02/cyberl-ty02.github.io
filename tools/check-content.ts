@@ -89,15 +89,12 @@ const themeConfig = await Bun.file("_config.kratos-rebirth.yml").text();
 if (!/^donate:\r?\n\s+enable:\s+false\s*$/mu.test(themeConfig)) {
   problems.push("_config.kratos-rebirth.yml: donate.enable 必须保持为 false");
 }
-if (/https:\/\/(?:unpkg|cdn\.jsdelivr)\.com\/@waline\/client/iu.test(themeConfig)) {
-  problems.push("_config.kratos-rebirth.yml: Waline 应使用锁定版本的本地构建资源");
-}
 if (/https:\/\/(?:unpkg|cdn\.jsdelivr)\.com\/twikoo/iu.test(themeConfig)) {
   problems.push("_config.kratos-rebirth.yml: Twikoo 应使用锁定版本的本地资源");
 }
 
 const commentConfig = await Bun.file("frontend/comments/config.ts").text();
-if (!/DEFAULT_COMMENT_PROVIDER\s*=\s*"(?:legacy-waline|twikoo|disabled)"/u.test(commentConfig)) {
+if (!/DEFAULT_COMMENT_PROVIDER\s*=\s*"(?:twikoo|disabled)"/u.test(commentConfig)) {
   problems.push("frontend/comments/config.ts: DEFAULT_COMMENT_PROVIDER 缺失或不受支持");
 }
 if (!/DEFAULT_COMMENT_PROVIDER\s*=\s*"twikoo"/u.test(commentConfig)) {
@@ -106,15 +103,33 @@ if (!/DEFAULT_COMMENT_PROVIDER\s*=\s*"twikoo"/u.test(commentConfig)) {
 if (!commentConfig.includes("https://cybltwicom.netlify.app/.netlify/functions/twikoo")) {
   problems.push("frontend/comments/config.ts: 缺少已部署的公开 Twikoo Netlify endpoint");
 }
+if (/legacy-waline|cyblwalcom\.zeabur\.app/iu.test(commentConfig)) {
+  problems.push("frontend/comments/config.ts: 不应保留已退役的 Waline Provider 或 endpoint");
+}
 
 const packageJson = await Bun.file("package.json").json() as {
   scripts?: Record<string, string>;
+  devDependencies?: Record<string, string>;
 };
 if (packageJson.scripts?.["server:twikoo"] !== "bun run build:runtime --comments=twikoo && bunx hexo server") {
   problems.push("package.json: 缺少受控的本地 Twikoo 预览命令");
 }
 if (packageJson.scripts?.["server:disabled"] !== "bun run build:runtime --comments=disabled && bunx hexo server") {
   problems.push("package.json: 缺少仅限本地的评论紧急关闭预览命令");
+}
+if (packageJson.devDependencies?.["@waline/client"]) {
+  problems.push("package.json: 不应保留已退役的 @waline/client 依赖");
+}
+
+for (const retiredAsset of [
+  "frontend/waline.ts",
+  "source/comments/waline.js",
+  "source/comments/waline.css",
+  "source/comments/waline-overrides.css",
+]) {
+  if (await Bun.file(retiredAsset).exists()) {
+    problems.push(`${retiredAsset}: 已退役的 Waline 运行资源仍然存在`);
+  }
 }
 
 const sensitiveGlob = new Bun.Glob("{frontend,docs}/**/*.{ts,md,json}");

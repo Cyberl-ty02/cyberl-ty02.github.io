@@ -25,8 +25,6 @@ const installations = new WeakMap<object, () => void>();
 
 function providerAsset(config: CommentRuntimeConfig): string | null {
   switch (config.provider) {
-    case "legacy-waline":
-      return "/comments/waline.js?v=20261020-2";
     case "twikoo":
       return isConfiguredTwikooEnvId(config.twikoo.envId)
         ? "/comments/twikoo.js?v=20261020-2"
@@ -165,7 +163,7 @@ export function installCommentRuntime(
   runtimeWindow.addEventListener("pjax:success", afterPjax);
   runtimeWindow.addEventListener("pjax:complete", afterPjaxComplete);
   prepareLazyLoad();
-  // 保持旧 Waline 入口的首屏行为：首个页面立即加载；后续 PJAX 页面交给主题懒加载。
+  // 首个页面立即加载；后续 PJAX 页面交给主题的懒加载回调。
   void loadCurrentView();
   runtimeWindow.loadComments = null;
 

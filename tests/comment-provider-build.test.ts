@@ -67,7 +67,7 @@ describe("generated comment provider", () => {
     expect(generated.source).toContain(`comments-provider:${DEFAULT_COMMENT_PROVIDER}`);
   });
 
-  for (const provider of ["legacy-waline", "twikoo", "disabled"] as const) {
+  for (const provider of ["twikoo", "disabled"] as const) {
     test(`explicit ${provider} build exports the selected provider`, async () => {
       const generated = await buildAndReadProvider(provider);
       expect(generated.provider).toBe(provider);
@@ -75,8 +75,8 @@ describe("generated comment provider", () => {
     });
   }
 
-  test("an explicit legacy preview does not change the following ordinary build", async () => {
-    expect((await buildAndReadProvider("legacy-waline")).provider).toBe("legacy-waline");
+  test("an explicit disabled preview does not change the following ordinary build", async () => {
+    expect((await buildAndReadProvider("disabled")).provider).toBe("disabled");
     expect((await buildAndReadProvider()).provider).toBe(DEFAULT_COMMENT_PROVIDER);
   });
 
@@ -97,7 +97,7 @@ describe("generated comment provider", () => {
       "--twikoo-endpoint=https://cybltwicom.netlify.app/.netlify/functions/twikoo",
     ])).toThrow("http://127.0.0.1:8081");
     expect(() => resolveCommentBuildSelection([
-      "--comments=legacy-waline",
+      "--comments=disabled",
       "--twikoo-endpoint=http://127.0.0.1:8081",
     ])).toThrow("twikoo provider");
     expect(() => resolveCommentBuildSelection([
@@ -108,11 +108,22 @@ describe("generated comment provider", () => {
   });
 
   test("rejects duplicate or unknown preview arguments", () => {
+    expect(() => resolveCommentBuildSelection(["--comments=legacy-waline"]))
+      .toThrow("legacy-waline 已退役");
     expect(() => resolveCommentBuildSelection(["--comments=unknown"]))
       .toThrow("不支持的评论预览提供者");
     expect(() => resolveCommentBuildSelection([
       "--comments=twikoo",
       "--comments=disabled",
     ])).toThrow("只能指定一个");
+  });
+
+  test("generated production and disabled bundles contain no retired Waline chain", async () => {
+    for (const provider of [undefined, "disabled"] as const) {
+      const generated = await buildAndReadProvider(provider);
+      expect(generated.source).not.toContain("legacy-waline");
+      expect(generated.source).not.toContain("cyblwalcom.zeabur.app");
+      expect(generated.source).not.toContain("/comments/waline.js");
+    }
   });
 });

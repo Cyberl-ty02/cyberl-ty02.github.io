@@ -1,9 +1,4 @@
-export type CommentProviderName = "legacy-waline" | "twikoo" | "disabled";
-
-export interface LegacyWalineConfig {
-  serverURL: string;
-  turnstileKey?: string;
-}
+export type CommentProviderName = "twikoo" | "disabled";
 
 export interface TwikooConfig {
   envId: string | null;
@@ -12,7 +7,6 @@ export interface TwikooConfig {
 
 export interface CommentRuntimeConfig {
   provider: CommentProviderName;
-  legacyWaline: LegacyWalineConfig;
   twikoo: TwikooConfig;
 }
 
