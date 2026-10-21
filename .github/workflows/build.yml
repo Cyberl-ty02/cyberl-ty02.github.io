@@ -39,6 +39,11 @@ jobs:
       - name: Check generated pages
         run: bun run check:generated
 
+      # Keep the Pages artifact from the normal checkout, but require the same
+      # commit to build identically from a real detached linked worktree.
+      - name: Verify Ubuntu linked-worktree contract
+        run: bun run tools/check-linked-worktree.ts
+
       - name: Upload artifacts for pages
         uses: actions/upload-pages-artifact@v5
         with:
