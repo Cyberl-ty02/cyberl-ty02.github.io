@@ -14,6 +14,10 @@ tags:
 
 本文记录当时的现象、原因和最终处理方式，方便以后重新部署时回查。
 
+> **后续状态（2026-10-21）**
+>
+> 本文保留 2026 年从 Gitalk 迁到 Waline、并统一 Bun 工具链时的真实排错过程。原 Waline 服务后来退役，本站当前使用 Twikoo；旧数据核查、六条历史评论重建、PJAX 适配及生产上线过程另见：[从 Gitalk、Waline 到 Twikoo：Hexo 博客评论迁移与数据修复实践](/posts/gitalk-waline-twikoo-migration/gitalk-waline-twikoo-migration/)。下文提到的 Waline endpoint、资源和源码均是当时状态，不代表当前生产配置。
+
 ## 从 Gitalk 迁移到 Waline
 
 Gitalk 把评论保存在 GitHub Issues 中，优点是几乎不需要维护额外服务，但访客必须登录 GitHub 才能评论。对于希望允许匿名访客留言的博客，这个门槛还是偏高。
@@ -104,13 +108,13 @@ Invoke-RestMethod `
 
 更换评论系统后，Edge 中一度只显示一个白色窄框，而 Firefox 隐私窗口可以正常显示完整评论框。这类现象通常说明 HTML 容器已经生成，但 Waline 的样式或模块脚本没有正确加载，或者浏览器仍在使用旧缓存。
 
-当前主题使用独立容器挂载 Waline：
+当时主题使用独立容器挂载 Waline：
 
 ```html
 <div id="w-comments" class="kr-comments lazy-load" data-path="$PATH"></div>
 ```
 
-当前不再让浏览器在运行时从第三方 CDN 下载 Waline，而是把锁定在
+当时已不再让浏览器在运行时从第三方 CDN 下载 Waline，而是把锁定在
 `bun.lock` 中的 `@waline/client` 编译为本地样式和模块脚本：
 
 ```html
@@ -128,7 +132,7 @@ Waline v3 前端脚本由 Bun 编译为 ES module
 修改本地 JS/CSS 后给 URL 增加版本参数，避免旧缓存继续生效
 ```
 
-源码位于 `frontend/waline.ts`。PJAX 切换文章时，旧实例和未完成的计数请求都要先销毁或取消：
+当时的源码位于 `frontend/waline.ts`；该运行链现已退役并从仓库删除。PJAX 切换文章时，旧实例和未完成的计数请求都要先销毁或取消：
 
 ```typescript
 import { init, type WalineInstance } from '@waline/client';
