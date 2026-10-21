@@ -2,6 +2,12 @@ import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 import { DEFAULT_COMMENT_PROVIDER } from "../frontend/comments/config.ts";
+import {
+  bundledRuntimeArtifacts,
+  runtimeArtifacts,
+  twikooLocaleNames,
+  vendoredRuntimeArtifacts,
+} from "./runtime-artifacts.ts";
 
 const problems: string[] = [];
 const homePath = "public/index.html";
@@ -29,18 +35,67 @@ for await (const path of articleGlob.scan({ cwd: process.cwd(), onlyFiles: true 
   }
 }
 
-const runtimeAssets = [
-  "public/comments/comments.js",
-  "public/comments/comments.css",
-  "public/comments/twikoo.js",
-  "public/comments/twikoo/twikoo.min.js",
-  "public/comments/twikoo/LICENSE",
-  // Twikoo 将 zh-CN 与 en 内联在主包中；用另一个语言分片验证复制步骤。
-  "public/comments/twikoo/locales/zh-TW.js",
-] as const;
+function publicOutput(output: string): string | null {
+  return output.startsWith("source/") ? `public/${output.slice("source/".length)}` : null;
+}
 
-for (const path of runtimeAssets) {
-  if (!(await Bun.file(path).exists())) problems.push(`${path}: 缺少本地评论系统构建资源`);
+for (const artifact of runtimeArtifacts) {
+  const outputExists = await Bun.file(artifact.output).exists();
+  if (!outputExists) {
+    problems.push(`${artifact.output}: 缺少声明的生成物或第三方资源`);
+  }
+  const published = publicOutput(artifact.output);
+  if (published && !(await Bun.file(published).exists())) {
+    problems.push(`${published}: 生成站点缺少声明的运行资源`);
+  } else if (published && outputExists) {
+    const sourceBytes = Buffer.from(await Bun.file(artifact.output).arrayBuffer());
+    const publishedBytes = Buffer.from(await Bun.file(published).arrayBuffer());
+    if (!sourceBytes.equals(publishedBytes)) {
+      problems.push(`${published}: 与受跟踪的生成物 ${artifact.output} 不一致`);
+    }
+  }
+}
+
+for (const artifact of bundledRuntimeArtifacts) {
+  const file = Bun.file(artifact.output);
+  if (!(await file.exists()) || artifact.format === "css") continue;
+  const contents = await file.text();
+  if (artifact.format === "esm" && !/\bexport\s*(?:\{|[A-Za-z_$])/u.test(contents)) {
+    problems.push(`${artifact.output}: 预期为浏览器 ESM 生成物`);
+  }
+  if (artifact.format === "cjs" && !contents.includes("module.exports")) {
+    problems.push(`${artifact.output}: 预期为 Hexo CommonJS 生成物`);
+  }
+}
+
+for (const artifact of vendoredRuntimeArtifacts) {
+  const source = Bun.file(artifact.source);
+  const output = Bun.file(artifact.output);
+  if (!(await source.exists()) || !(await output.exists())) continue;
+  if (!Buffer.from(await source.arrayBuffer()).equals(Buffer.from(await output.arrayBuffer()))) {
+    problems.push(`${artifact.output}: 第三方资源与 ${artifact.source} 不一致`);
+  }
+  if (!(await Bun.file(artifact.licenseOutput).exists())) {
+    problems.push(`${artifact.output}: 缺少必要的第三方许可证`);
+  }
+}
+
+const generatedLocales = new Set<string>();
+for await (const locale of new Bun.Glob("*.js").scan({
+  cwd: "source/comments/twikoo/locales",
+  onlyFiles: true,
+})) {
+  generatedLocales.add(locale);
+}
+for (const locale of twikooLocaleNames) {
+  if (!generatedLocales.has(locale)) {
+    problems.push(`source/comments/twikoo/locales/${locale}: 缺少声明的 Twikoo locale`);
+  }
+}
+for (const locale of generatedLocales) {
+  if (!(twikooLocaleNames as readonly string[]).includes(locale)) {
+    problems.push(`source/comments/twikoo/locales/${locale}: 未在生成物清单中声明`);
+  }
 }
 
 for (const path of [
