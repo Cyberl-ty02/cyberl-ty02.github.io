@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { execFile } from "node:child_process";
 
 import frontMatter from "hexo-front-matter";
 import git, { Errors, type ReadCommitResult } from "isomorphic-git";
@@ -32,7 +33,75 @@ interface HexoRuntime {
 
 declare const hexo: HexoRuntime | undefined;
 
+export type GitLayout =
+  | {
+      kind: "directory";
+      gitDir: string;
+      commonDir: string;
+    }
+  | {
+      kind: "git-file";
+      gitDir: string;
+      commonDir: string;
+    };
+
+export interface DateFromGitOptions {
+  gitExecutable?: string;
+}
+
+export function inspectGitLayout(repoDir: string): GitLayout {
+  const dotGit = path.join(repoDir, ".git");
+  const stat = fs.statSync(dotGit);
+
+  if (stat.isDirectory()) {
+    return { kind: "directory", gitDir: dotGit, commonDir: dotGit };
+  }
+  if (!stat.isFile()) throw new Error(`${dotGit} is neither a Git directory nor a gitdir file`);
+
+  const pointer = fs.readFileSync(dotGit, "utf8").trim().match(/^gitdir:\s*(.+)$/iu)?.[1];
+  if (!pointer) throw new Error(`${dotGit} does not contain a valid gitdir pointer`);
+
+  const gitDir = path.resolve(repoDir, pointer);
+  if (!fs.statSync(gitDir).isDirectory()) throw new Error(`Git private directory is invalid`);
+
+  const commonDirFile = path.join(gitDir, "commondir");
+  const commonDir = fs.existsSync(commonDirFile)
+    ? path.resolve(gitDir, fs.readFileSync(commonDirFile, "utf8").trim())
+    : gitDir;
+  if (!fs.statSync(commonDir).isDirectory()) throw new Error(`Git common directory is invalid`);
+
+  return { kind: "git-file", gitDir, commonDir };
+}
+
 export async function datesFromGit(repoDir: string, filePath: string): Promise<{
+  created: Moment;
+  updated: Moment;
+}>;
+export async function datesFromGit(
+  repoDir: string,
+  filePath: string,
+  options: DateFromGitOptions,
+): Promise<{
+  created: Moment;
+  updated: Moment;
+}>;
+export async function datesFromGit(
+  repoDir: string,
+  filePath: string,
+  options: DateFromGitOptions = {},
+): Promise<{
+  created: Moment;
+  updated: Moment;
+}> {
+  const layout = inspectGitLayout(repoDir);
+  if (layout.kind === "git-file") {
+    return datesFromGitCli(repoDir, filePath, options.gitExecutable ?? "git");
+  }
+
+  return datesFromIsomorphicGit(repoDir, filePath);
+}
+
+async function datesFromIsomorphicGit(repoDir: string, filePath: string): Promise<{
   created: Moment;
   updated: Moment;
 }> {
@@ -87,6 +156,69 @@ export async function datesFromGit(repoDir: string, filePath: string): Promise<{
         ? moment(commits[0]!.commit.author.timestamp * 1000)
         : now.clone(),
   };
+}
+
+async function datesFromGitCli(
+  repoDir: string,
+  filePath: string,
+  executable: string,
+): Promise<{ created: Moment; updated: Moment }> {
+  const relativePath = path.relative(repoDir, filePath).split(path.sep).join("/");
+  const args = [
+    "--no-pager",
+    "--literal-pathspecs",
+    "-C",
+    repoDir,
+    "log",
+    "--follow",
+    "--format=%at",
+    "--",
+    relativePath,
+  ];
+
+  let output: string;
+  try {
+    output = await execFileUtf8(executable, args);
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code === "ENOENT") {
+      throw new Error(
+        `Git CLI is required for linked worktree history, but "${executable}" was not found`,
+        { cause: error },
+      );
+    }
+    throw new Error(`Git CLI could not read linked worktree history`, { cause: error });
+  }
+
+  const timestamps = output
+    .split(/\r?\n/gu)
+    .map((line) => Number(line.trim()))
+    .filter((timestamp) => Number.isSafeInteger(timestamp) && timestamp > 0);
+  const now = moment();
+
+  return {
+    created: timestamps.length > 0 ? moment(timestamps.at(-1)! * 1000) : now.clone(),
+    updated: timestamps.length > 0 ? moment(timestamps[0]! * 1000) : now.clone(),
+  };
+}
+
+function execFileUtf8(executable: string, args: string[]): Promise<string> {
+  return new Promise((resolve, reject) => {
+    execFile(
+      executable,
+      args,
+      {
+        encoding: "utf8",
+        env: { ...process.env, GIT_OPTIONAL_LOCKS: "0" },
+        maxBuffer: 1024 * 1024,
+        windowsHide: true,
+      },
+      (error, stdout) => {
+        if (error) reject(error);
+        else resolve(stdout);
+      },
+    );
+  });
 }
 
 async function commitExists(repoDir: string, commitOid: string): Promise<boolean> {
