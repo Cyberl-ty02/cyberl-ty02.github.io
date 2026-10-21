@@ -16,7 +16,7 @@ toc: true
 
 博客目前使用 [Hexo](https://hexo.io/) 生成静态页面，主题为 [Kratos : Rebirth](https://github.com/Candinya/Kratos-Rebirth)。部署在 GitHub Pages 上。
 
-评论系统使用 [Waline](https://waline.js.org/)，早期曾经尝试过 Gitalk，后来迁回 Waline；历史评论已经迁移到新的评论系统中。
+评论系统目前使用 [Twikoo](https://twikoo.js.org/)。本站早期使用 Gitalk，后来迁到 Waline；原 Waline 服务退役后，又将经原始资料核验的历史评论重建到 Twikoo。完整过程见：[从 Gitalk、Waline 到 Twikoo：Hexo 博客评论迁移与数据修复实践](/posts/gitalk-waline-twikoo-migration/gitalk-waline-twikoo-migration/)。
 
 包管理器使用 [Bun](https://bun.sh/)，博客自有的检查脚本也已迁移到 Bun + TypeScript；Hexo 与 Kratos-Rebirth 主题仍保持上游原有边界。Gentoo PC 与 Windows 已使用同一组 Doom 私人配置，Windows 的 Scoop Emacs 部署也已经完成；图形化编辑和既有同步场景仍保留 [VSCodium](https://vscodium.com/)。Gentoo WSL 当前未安装，仓库中的 WSL 配置只作为未来重建输入；Neovim 过渡配置已经从 dotfiles 删除。
 
