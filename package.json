@@ -3,7 +3,7 @@
   "description": "Cyberl-ty02 的 Bun、TypeScript 与 Hexo 博客",
   "version": "0.0.0",
   "private": true,
-  "packageManager": "bun@1.4.2",
+  "packageManager": "bun@1.4.4",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Cyberl-ty02/cyberl-ty02.github.io.git"
@@ -36,7 +36,7 @@
     "ws": "8.21.1"
   },
   "devDependencies": {
-    "@types/bun": "^1.4.2",
+    "@types/bun": "1.4.4",
     "twikoo": "2.0.15",
     "typescript": "^5.9.3"
   },
