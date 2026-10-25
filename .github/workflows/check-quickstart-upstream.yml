@@ -19,7 +19,9 @@ jobs:
 
     steps:
       - name: Checkout blog
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Compare recorded and current upstream revisions
         id: upstream
@@ -51,7 +53,7 @@ jobs:
 
       - name: Create or update upstream review issue
         if: steps.upstream.outputs.changed == 'true'
-        uses: actions/github-script@v9
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         env:
           BASELINE_SHA: ${{ steps.upstream.outputs.baseline }}
           LATEST_SHA: ${{ steps.upstream.outputs.latest }}
