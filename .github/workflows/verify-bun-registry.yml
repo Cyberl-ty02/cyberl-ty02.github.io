@@ -1,0 +1,73 @@
+name: Verify Bun Registry
+
+on:
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  contents: read
+
+jobs:
+  verify-registry:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: package.json
+
+      - name: Verify official Registry cold install
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          expected_lock="cc10322b1284c910d76a2cd4fae84c8b97493d468af348c5635501d416ca3e36"
+          expected_bunfig=$'[install]\nregistry = "https://registry.npmjs.org/"'
+          actual_bunfig="$(cat bunfig.toml)"
+          test "$actual_bunfig" = "$expected_bunfig"
+          test "$(bun --version)" = "1.4.4"
+          test ! -e node_modules
+
+          lock_before="$(sha256sum bun.lock | cut -d ' ' -f 1)"
+          test "$lock_before" = "$expected_lock"
+
+          cache_dir="${RUNNER_TEMP}/bun-registry-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          install_log="${RUNNER_TEMP}/bun-install-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}.log"
+          test ! -e "$cache_dir"
+          mkdir -p "$cache_dir"
+          export BUN_INSTALL_CACHE_DIR="$cache_dir"
+
+          bun install --frozen-lockfile --verbose 2>&1 | tee "$install_log"
+
+          lock_after="$(sha256sum bun.lock | cut -d ' ' -f 1)"
+          test "$lock_after" = "$expected_lock"
+          git diff --exit-code -- bun.lock bunfig.toml
+
+          official_requests="$(grep -Eoc 'https://registry\.npmjs\.org/' "$install_log" || true)"
+          third_party_requests="$(grep -Eioc 'mirrors\.cernet\.edu\.cn|repo\.nju\.edu\.cn|registry\.npmmirror\.com' "$install_log" || true)"
+          plain_http_requests="$(grep -Eoc 'http://[^[:space:]]+' "$install_log" || true)"
+          integrity_errors="$(grep -Eioc 'integrity[^[:cntrl:]]*(error|mismatch|fail)' "$install_log" || true)"
+          installed_summary="$(grep -Eo '[0-9]+ packages installed' "$install_log" | tail -n 1 || true)"
+
+          test "$third_party_requests" = "0"
+          test "$plain_http_requests" = "0"
+          test "$integrity_errors" = "0"
+
+          {
+            echo '## Bun Registry verification'
+            echo
+            echo "- Bun: $(bun --version)"
+            echo "- Lock SHA-256 before: $lock_before"
+            echo "- Lock SHA-256 after: $lock_after"
+            echo "- Install result: ${installed_summary:-not reported by Bun}"
+            echo "- Observable official npm requests: $official_requests"
+            echo "- Observable third-party mirror requests: $third_party_requests"
+            echo "- Observable plain HTTP requests: $plain_http_requests"
+            echo "- Observable integrity errors: $integrity_errors"
+          } >> "$GITHUB_STEP_SUMMARY"
