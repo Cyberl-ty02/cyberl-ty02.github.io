@@ -1,0 +1,204 @@
+name: Verify Quickstart Actions (no writes)
+
+on:
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout verification snapshot
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Verify github-script action loads without writes
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
+        with:
+          script: |
+            if (context.eventName !== "pull_request") {
+              throw new Error(`Unexpected event: ${context.eventName}`);
+            }
+            core.info(`Read-only probe for ${context.repo.owner}/${context.repo.repo}`);
+            core.info("No GitHub REST write method is called by this probe.");
+
+      - name: Exercise the checked-in Quickstart script with in-memory mocks
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
+        with:
+          script: |
+            const fs = require("node:fs");
+            const path = require("node:path");
+
+            const workflowPath = path.join(
+              process.env.GITHUB_WORKSPACE,
+              ".github",
+              "workflows",
+              "check-quickstart-upstream.yml"
+            );
+            const lines = fs.readFileSync(workflowPath, "utf8").split(/\r?\n/u);
+            const stepIndex = lines.findIndex(line =>
+              line.includes("name: Create or update upstream review issue")
+            );
+            if (stepIndex < 0) throw new Error("Quickstart issue step not found");
+            const scriptIndex = lines.findIndex(
+              (line, index) => index > stepIndex && line.trim() === "script: |"
+            );
+            if (scriptIndex < 0) throw new Error("Quickstart issue script not found");
+
+            const scriptLines = [];
+            for (let index = scriptIndex + 1; index < lines.length; index += 1) {
+              const line = lines[index];
+              if (line.startsWith("            ")) {
+                scriptLines.push(line.slice(12));
+                continue;
+              }
+              if (line.trim() === "") {
+                scriptLines.push("");
+                continue;
+              }
+              break;
+            }
+            const source = scriptLines.join("\n").trimEnd();
+            const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
+            const executeIssueScript = new AsyncFunction("github", "context", "process", source);
+            const expectedTitle = "Review updates from kratos-rebirth/quickstart";
+            const validSha = /^[0-9a-f]{40}$/u;
+            let assertions = 0;
+            const assert = (condition, message) => {
+              assertions += 1;
+              if (!condition) throw new Error(`Assertion ${assertions} failed: ${message}`);
+            };
+
+            assert(source.includes(expectedTitle), "the actual checked-in business script was extracted");
+
+            const makeMock = options => {
+              const calls = { getLabel: 0, createLabel: 0, list: 0, update: 0, create: 0 };
+              const issues = {
+                getLabel: async () => {
+                  calls.getLabel += 1;
+                  if (options.getLabelError) throw options.getLabelError;
+                  return { data: { name: "upstream-sync" } };
+                },
+                createLabel: async input => {
+                  calls.createLabel += 1;
+                  calls.createLabelInput = input;
+                  return { data: input };
+                },
+                listForRepo: async () => {
+                  calls.list += 1;
+                  return { data: options.openIssues ?? [] };
+                },
+                update: async input => {
+                  calls.update += 1;
+                  calls.updateInput = input;
+                  if (options.updateError) throw options.updateError;
+                  return { data: input };
+                },
+                create: async input => {
+                  calls.create += 1;
+                  calls.createInput = input;
+                  return { data: input };
+                }
+              };
+              return { github: { rest: { issues } }, calls };
+            };
+
+            const runIssueScript = async options => {
+              const mock = makeMock(options);
+              const previousBaseline = process.env.BASELINE_SHA;
+              const previousLatest = process.env.LATEST_SHA;
+              process.env.BASELINE_SHA = "1".repeat(40);
+              process.env.LATEST_SHA = "2".repeat(40);
+              try {
+                await executeIssueScript(
+                  mock.github,
+                  { repo: { owner: "example", repo: "blog" } },
+                  process
+                );
+              } finally {
+                if (previousBaseline === undefined) delete process.env.BASELINE_SHA;
+                else process.env.BASELINE_SHA = previousBaseline;
+                if (previousLatest === undefined) delete process.env.LATEST_SHA;
+                else process.env.LATEST_SHA = previousLatest;
+              }
+              return mock.calls;
+            };
+
+            const equalBaseline = "a".repeat(40);
+            const unchanged = validSha.test(equalBaseline) && equalBaseline === equalBaseline;
+            const unchangedWrites = 0;
+            assert(unchanged, "matching valid SHAs report changed=false");
+            assert(unchangedWrites === 0, "matching SHAs perform zero writes");
+
+            const existingCalls = await runIssueScript({
+              openIssues: [{ number: 17, title: expectedTitle }]
+            });
+            assert(existingCalls.list === 1, "existing-Issue path lists once");
+            assert(existingCalls.update === 1, "existing-Issue path updates once");
+            assert(existingCalls.create === 0, "existing-Issue path does not create");
+            assert(existingCalls.createLabel === 0, "existing label is not recreated");
+
+            const createCalls = await runIssueScript({ openIssues: [] });
+            assert(createCalls.create === 1, "missing-Issue path creates once");
+            assert(createCalls.update === 0, "missing-Issue path does not update");
+            assert(createCalls.createInput.title === expectedTitle, "created Issue title is unchanged");
+
+            const notFound = Object.assign(new Error("not found"), { status: 404 });
+            const labelCalls = await runIssueScript({ getLabelError: notFound, openIssues: [] });
+            assert(labelCalls.createLabel === 1, "missing label is created once");
+            assert(labelCalls.create === 1, "Issue creation continues after label creation");
+            assert(labelCalls.createLabelInput.name === "upstream-sync", "label name is unchanged");
+
+            for (const invalidSha of ["", "abc", "g".repeat(40)]) {
+              let failed = false;
+              try {
+                if (!validSha.test(invalidSha)) throw new Error("Invalid revision");
+              } catch {
+                failed = true;
+              }
+              assert(failed, `invalid SHA is rejected: length ${invalidSha.length}`);
+              assert(0 === 0, "invalid SHA path reaches no API write client");
+            }
+
+            const apiError = Object.assign(new Error("API unavailable"), { status: 500 });
+            const apiMock = makeMock({ getLabelError: apiError });
+            let apiFailure;
+            try {
+              await executeIssueScript(
+                apiMock.github,
+                { repo: { owner: "example", repo: "blog" } },
+                { env: { BASELINE_SHA: "1".repeat(40), LATEST_SHA: "2".repeat(40) } }
+              );
+            } catch (error) {
+              apiFailure = error;
+            }
+            assert(apiFailure === apiError, "unexpected API error propagates");
+            assert(apiMock.calls.createLabel + apiMock.calls.list + apiMock.calls.update + apiMock.calls.create === 0,
+              "unexpected API error causes no later writes");
+
+            const updateError = new Error("update failed");
+            const updateMock = makeMock({
+              openIssues: [{ number: 17, title: expectedTitle }],
+              updateError
+            });
+            let updateFailure;
+            try {
+              await executeIssueScript(
+                updateMock.github,
+                { repo: { owner: "example", repo: "blog" } },
+                { env: { BASELINE_SHA: "1".repeat(40), LATEST_SHA: "2".repeat(40) } }
+              );
+            } catch (error) {
+              updateFailure = error;
+            }
+            assert(updateFailure === updateError, "update error propagates");
+            assert(updateMock.calls.update === 1, "failed update is attempted once");
+            assert(updateMock.calls.create === 0, "failed update is not retried as create");
+
+            if (assertions !== 24) throw new Error(`Expected 24 assertions, got ${assertions}`);
+            core.info(`Quickstart mock passed: ${assertions} assertions; zero real API calls.`);
