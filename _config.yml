@@ -104,10 +104,6 @@ ignore:
 ## Themes: https://hexo.io/themes/
 theme: kratos-rebirth
 
-plugin:
- - hexo-generator-feed
- - hexo-generator-sitemap
-
 feed:
  type: atom
  path: atom.xml
@@ -117,8 +113,3 @@ sitemap:
   path: sitemap.xml
   template: ./sitemap_template.xml
   rel: false
-
-# Deployment
-## Docs: https://hexo.io/docs/one-command-deployment
-deploy:
-  type: ''
