@@ -1,69 +1,53 @@
-# Introduction
+# Cyberl Blog
 
-My own blog.
+Cyberl Blog is a personal technical blog about operating systems, development
+tools, and maintaining a modern Hexo site.
 
-# Contents
+## Website
 
-Some codes,  some instructions.
+The published site is available at [kagaranakaki.top](https://kagaranakaki.top/).
 
+## Technology stack
 
-**P.S.** try to use the **comment system.**
+The site uses [Hexo](https://hexo.io/) with
+[Kratos-Rebirth](https://github.com/Candinya/Kratos-Rebirth), Bun, TypeScript,
+Twikoo, and GitHub Pages.
 
-## Upstream maintenance
+## Local development
 
-This blog was created from
-[`kratos-rebirth/quickstart`](https://github.com/kratos-rebirth/quickstart),
-but a repository created from a template is not a fork and does not receive
-template commits automatically.
-
-The weekly `Check quickstart upstream` workflow compares quickstart's current
-`main` with the reviewed revision in `.github/quickstart-upstream.sha`. When the
-template changes, it creates or updates one `upstream-sync` issue with a compare
-link. Changes must be reviewed and ported selectively because this repository
-uses Bun and a TypeScript validation layer and contains blog-specific
-configuration, while the template may use a different package manager or
-deployment workflow. Hexo and `hexo-theme-kratos-rebirth` remain the compatibility
-boundary. Blog-owned TypeScript lives under `frontend/`, `plugins/` and `tools/`;
-Bun compiles browser assets into `source/comments/` and the local Hexo filter into
-`scripts/`, preserving the JavaScript integration points expected by Hexo and the
-theme.
-
-For a local checkout, add the read-only upstream remote once and inspect it with:
+[Bun](https://bun.sh/) is required. Install the locked dependencies and build the
+site with:
 
 ```bash
-git remote add upstream https://github.com/kratos-rebirth/quickstart.git
-git fetch upstream main
-git diff "$(cat .github/quickstart-upstream.sha)"..upstream/main
+bun install --frozen-lockfile
+bun run build
 ```
 
-Do not merge the unrelated template history wholesale. After selected changes
-pass `bun install --frozen-lockfile`, `bun run check` and `bun run build`, update
-`.github/quickstart-upstream.sha` to the reviewed `upstream/main` commit.
+Start the local Hexo server with:
 
-`bun run build` performs TypeScript checks and compatibility tests, validates
-source content, compiles blog-owned runtime assets, generates the Hexo site, and
-then validates privacy-sensitive rendered output. CI exposes the same phases as
-separate steps for clearer failure logs.
+```bash
+bun run server
+```
 
-Dependabot separately tracks the text `bun.lock` dependencies every day and
-GitHub Actions every week through `.github/dependabot.yml`.
+The standard TypeScript, test, and content checks can be run separately with
+`bun run check`. Additional maintenance contracts are documented in
+[`AGENTS.md`](AGENTS.md).
 
-## Comment system
+## Maintenance
 
-The production comment provider is Twikoo, backed by Netlify Functions and
-MongoDB Atlas. The retired Waline runtime, endpoint and client dependency have
-been removed. Six historical comments were rebuilt from the original GitHub
-Issue records after the old database export proved unsuitable as their final
-source of truth. Database credentials and admin tokens remain server-side and
-are never part of the browser bundle.
+This repository was created from
+[`kratos-rebirth/quickstart`](https://github.com/kratos-rebirth/quickstart).
+Upstream changes are reviewed and ported selectively so the blog can retain its
+Bun and TypeScript workflow without forking Hexo or the theme.
 
-Ordinary builds use `DEFAULT_COMMENT_PROVIDER = "twikoo"` and the public Netlify
-Functions endpoint. `bun run server:twikoo` remains available as an explicit
-local preview command. For an emergency local no-backend check, run
-`bun run server:disabled`; this override affects only that preview process and
-does not change the source default.
+See [`AGENTS.md`](AGENTS.md) for source-of-truth boundaries, complete validation
+entry points, generated-resource ownership, and release safety rules.
 
-The theme still emits `waline-comment-count` and `waline-pageview-count` as
-upstream-compatible marker classes. The active runtime uses the provider-neutral
-`comment-count` and `pageview-count` classes; no Waline JavaScript or stylesheet
-is loaded or generated.
+## Related articles
+
+- [Hexo 博客迁移 Waline 与 Bun 的踩坑记录](https://kagaranakaki.top/posts/hexo-waline-bun-notes/hexo-waline-bun-notes/)
+- [从 Gitalk、Waline 到 Twikoo：Hexo 博客评论迁移与数据修复实践](https://kagaranakaki.top/posts/gitalk-waline-twikoo-migration/gitalk-waline-twikoo-migration/)
+
+## License
+
+The repository is available under the [MIT License](LICENSE).
