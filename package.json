@@ -18,7 +18,6 @@
     "check:types": "bunx tsc --noEmit",
     "check:types:fast": "bun check --no-script --no-pretty",
     "clean": "bunx hexo clean",
-    "deploy": "bunx hexo deploy",
     "server": "bun run build:runtime && bunx hexo server",
     "server:disabled": "bun run build:runtime --comments=disabled && bunx hexo server",
     "server:twikoo": "bun run build:runtime --comments=twikoo && bunx hexo server",
