@@ -14,9 +14,11 @@ tags:
 
 本文记录当时的现象、原因和最终处理方式，方便以后重新部署时回查。
 
-> **后续状态（2026-10-21）**
+> **后续状态（2026-10-27）**
 >
 > 本文保留 2026 年从 Gitalk 迁到 Waline、并统一 Bun 工具链时的真实排错过程。原 Waline 服务后来退役，本站当前使用 Twikoo；旧数据核查、六条历史评论重建、PJAX 适配及生产上线过程另见：[从 Gitalk、Waline 到 Twikoo：Hexo 博客评论迁移与数据修复实践](/posts/gitalk-waline-twikoo-migration/gitalk-waline-twikoo-migration/)。下文提到的 Waline endpoint、资源和源码均是当时状态，不代表当前生产配置。
+>
+> 之后完成的 TypeScript 7、Bun 双层类型检查、linked worktree、CI 权限收敛和可复现构建整理，见：[从 Hexo 到 Bun + TypeScript：个人博客工程现代化与可复现构建实践](/posts/hexo-bun-typescript-phase7-modernization/hexo-bun-typescript-phase7-modernization/)。当前维护入口以仓库根目录的 [AGENTS.md](https://github.com/Cyberl-ty02/cyberl-ty02.github.io/blob/main/AGENTS.md) 和 `package.json` 为准；本文中的命令、版本与工作流片段应按各段所述日期理解。
 
 ## 从 Gitalk 迁移到 Waline
 
@@ -210,6 +212,8 @@ Error: Process completed with exit code 1.
 
 ### GitHub Actions 统一使用 Bun
 
+> 下面是迁移当时的工作流形态，用来说明 pnpm/Bun 混用的故障原因，不是当前可直接复制的安全模板。当前仓库已经把第三方 Action 固定到完整 Commit SHA，并进一步收窄 PR 与 Pages 部署权限。
+
 最终工作流的核心步骤为：
 
 ```yaml
@@ -301,7 +305,7 @@ Hexo 插件源码：plugins/*.ts，编译为 Node 兼容的 CommonJS
 
 `tsconfig.json` 使用 Bun 推荐的 bundler module resolution、`types: ["bun"]`、`strict` 与 `noEmit`。`bun test` 会用临时 Git 仓库验证同内容文章改名后仍能保留初次提交时间，并以最新提交作为更新时间；`tools/check-content.ts` 会检查全部文章的 front matter、分类与标签上限、`donate: false`、主题级捐赠开关、旧锁文件以及一组高置信度隐私/凭据模式；`tools/check-generated.ts` 则在 Hexo 完成后检查首页、文章页、Waline 本地资源、页脚链接和捐赠入口。
 
-原生 TypeScript 不能直接放进根目录 `scripts/`，因为 Hexo 会把那里当作 JavaScript 插件目录。仓库只把 Bun 生成的 `scripts/date-from-git.js` 放在该位置，源码保留在 `plugins/date-from-git.ts`。这个本地插件继续注册标准的 `before_post_render` 过滤器，并通过纯 JavaScript 的 `isomorphic-git` 读取对象库；兼容层按 blob 身份安全跟随无内容变化且目标唯一的改名，遇到歧义则停止追溯，而不会猜测文件身份。它不再执行 `git log | tail`，也不需要启动 `/bin/sh` 或系统 Git 子进程。
+原生 TypeScript 不能直接放进根目录 `scripts/`，因为 Hexo 会把那里当作 JavaScript 插件目录。仓库只把 Bun 生成的 `scripts/date-from-git.js` 放在该位置，源码保留在 `plugins/date-from-git.ts`。这个本地插件继续注册标准的 `before_post_render` 过滤器。普通 checkout 通过纯 JavaScript 的 `isomorphic-git` 读取对象库；兼容层按 blob 身份安全跟随无内容变化且目标唯一的改名，遇到歧义则停止追溯，而不会猜测文件身份。它不再执行 `git log | tail`，也不需要 `/bin/sh`。后来为支持 `.git` 是指针文件的 detached linked worktree，才增加通过参数数组调用只读 Git CLI 的独立分支；这不是普通 checkout 的默认路径。
 
 [2026-09-29 的失败作业](https://github.com/Cyberl-ty02/cyberl-ty02.github.io/actions/runs/36583236945/job/109456634872) 暴露了另一层边界：`actions/checkout` 默认只获取一层历史，HEAD 仍记录父提交 OID，但对象库中没有那个父提交。日期插件继续寻找旧路径时，`isomorphic-git` 因缺失对象抛出 `NotFoundError`，所以本地完整仓库构建成功、CI 却在 Hexo 阶段退出 2。
 
@@ -317,6 +321,8 @@ Hexo 插件源码：plugins/*.ts，编译为 Node 兼容的 CommonJS
 回归测试会构造一个父提交对象不可用的临时仓库。浅克隆下的创建时间只能退化为最早可见提交时间，因此正式部署仍使用完整历史；容错分支解决的是可用性，不是假装恢复不存在的历史。
 
 项目脚本拆分为：
+
+> 以下 `package.json` 片段是 2026-09-29 阶段的结构快照。当前命令应直接查看仓库中的 `package.json`；后续新增的 Bun-native 快速检查和诊断 parity 是独立入口，并不自动包含在这里展示的 `check` 中。
 
 ```json
 {
@@ -348,6 +354,8 @@ bun run build
 这组命令和 GitHub Actions 保持一致。若本地成功而 CI 失败，再检查 Bun 版本、环境变量和 Linux/Windows 差异；若两边使用的命令本身不同，排错会多出一层没有必要的变量。
 
 ### Bun/npm 国内镜像
+
+> 本节记录 2026-09-01 的用户级网络配置。当前博客仓库已经在 `bunfig.toml` 中固定使用 npm 官方 Registry；用户主目录中的镜像设置不是仓库事实来源，也不应覆盖 CI 的可复现依赖来源。
 
 当前用户级配置让 Bun 与 npm 都使用 CERNET npm 入口：
 
