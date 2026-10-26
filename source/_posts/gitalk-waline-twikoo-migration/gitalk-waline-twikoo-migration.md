@@ -5,7 +5,7 @@ toc: true
 donate: false
 share: true
 date: 2026-10-22 00:00:00
-updated: 2026-10-22 00:00:00
+updated: 2026-10-27 00:00:00
 categories: 网站与博客
 tags:
 - 博客
@@ -16,6 +16,10 @@ tags:
 最终，我没有把 Waline 的 MongoDB 备份直接视作唯一真相。备份先被只读盘点和转换，在隔离数据库中通过了技术验收；但人工与最初的 GitHub Issue 对照后，仍发现内容关系不够准确。最后上线的六条历史评论，改为依据 GitHub Issue #8 的原始 Markdown、顺序以及 UTC 创建和编辑时间重新建立。
 
 本文记录这条弯路，也记录迁移完成后如何用 TypeScript、Bun、事务、备份恢复和真实 linked worktree 测试，把“现在能显示”变成“以后还能维护”。文中的版本和外部服务状态核查于 2026-10-21。
+
+> **后续工程状态（2026-10-27）**
+>
+> 本文中的 Bun 1.4.2、TypeScript 5.9.3、测试数和文章数都是 2026-10-21/22 的验收快照，不是当前维护常量。评论迁移的事实与结论保持不变；之后完成的 TypeScript 7、Bun-native 快速检查、诊断 parity、Actions 权限收敛和最小文档入口，另见：[从 Hexo 到 Bun + TypeScript：个人博客工程现代化与可复现构建实践](/posts/hexo-bun-typescript-phase7-modernization/hexo-bun-typescript-phase7-modernization/)。
 
 <!-- more -->
 
@@ -233,7 +237,7 @@ CI 会在 Ubuntu Runner 上创建 detached linked worktree，在其中冻结安�
 
 截至 2026-10-21，这两条依赖路径没有可直接采用的兼容修复版本。它们主要位于构建和本地服务链，本站生产端是静态文件，并不意味着风险为零，也不应该通过忽略审计结果制造“零漏洞”。后续要继续跟踪 Hexo 及父依赖的修复，而不是凭空指定不存在的安全版本。
 
-当前工具链仍是 TypeScript 5.9.3。更深的 TypeScript 7 迁移属于未来独立阶段，本文没有把它写成已经完成的成果。
+截至本文原始验收所依据的 2026-10-21 基线，工具链仍是 TypeScript 5.9.3，当时 TypeScript 7 迁移确实尚未完成。该迁移随后作为独立阶段落地；这里保留原时间点，避免把后来的成果倒写进评论迁移过程。
 
 ## 最后留下的几条原则
 
