@@ -5,7 +5,7 @@ toc: true
 donate: false
 share: true
 date: 2026-10-27 00:00:00
-updated: 2026-10-27 00:00:00
+updated: 2026-10-28 00:00:00
 categories: 网站与博客
 tags:
 - 博客
@@ -66,7 +66,7 @@ tools/*.ts           --Bun runtime------> 构建与验证过程
 
 ## 生成资源也是供应链的一部分
 
-评论前端包含两类资源：本站维护的 TypeScript/CSS，以及从锁定 Twikoo 包复制的客户端文件。`tools/runtime-artifacts.ts` 把两类资源放进同一份 manifest：当前包括四项自有生成物，以及 Twikoo 客户端、七个 locale 和 MIT LICENSE 等九项 vendored 文件。
+浏览器运行资源包含两类内容：本站维护的 TypeScript/CSS，以及从锁定依赖复制的客户端、样式、字体与许可证。`tools/runtime-artifacts.ts` 把它们放进同一份 manifest；后来加入的共享 KaTeX 与文章访问量仍沿用这条可追溯生成链，具体维护过程见[给 Hexo 博客补上数学公式、文章访问量与友链申请](/posts/hexo-katex-pageviews-friends-maintenance/hexo-katex-pageviews-friends-maintenance/)。
 
 这份清单解决了几个容易被忽视的问题：
 
