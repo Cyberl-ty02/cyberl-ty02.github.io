@@ -44,7 +44,7 @@ nav:
         url: /friends/
       - label: 申友链
         icon: plus-circle
-        url: https://github.com/Cyberl-ty02/friends
+        url: https://github.com/Cyberl-ty02/friends/issues/new?template=friend.yml
 
 # Footer 页脚配置
 footer:
