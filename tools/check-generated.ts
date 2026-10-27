@@ -23,6 +23,9 @@ if (!(await home.exists())) {
   if (html.includes('id="kr-donate-modal"') || html.includes("krOpenDonateModal()")) {
     problems.push(`${homePath}: 生成首页仍包含捐赠入口或弹窗`);
   }
+  if (html.includes("pageview-count")) {
+    problems.push(`${homePath}: 首页不应输出文章访问量占位`);
+  }
 }
 
 const articleGlob = new Bun.Glob("public/posts/**/*.html");
@@ -130,8 +133,8 @@ if (await home.exists()) {
   for (const asset of [
     "/katex/katex.min.css?v=0.19.0",
     "/katex/katex-overrides.css?v=20261027-1",
-    "/comments/comments.js?v=20261027-1",
-    "/comments/comments.css?v=20261020-2",
+    "/comments/comments.js?v=20261028-1",
+    "/comments/comments.css?v=20261028-1",
   ]) {
     if (!html.includes(asset)) problems.push(`${homePath}: 未引用本地资源 ${asset}`);
   }
@@ -157,7 +160,7 @@ if (await Bun.file(dispatcherPath).exists()) {
   if (/legacy-waline|waline\.js|cyblwalcom\.zeabur\.app/iu.test(generatedDispatcher)) {
     problems.push(`${dispatcherPath}: 不应包含已退役的 Waline 运行链`);
   }
-  if (!generatedDispatcher.includes("/comments/twikoo.js?v=20261027-1")) {
+  if (!generatedDispatcher.includes("/comments/twikoo.js?v=20261028-1")) {
     problems.push(`${dispatcherPath}: 缺少与页面缓存版本一致的 Twikoo 动态入口`);
   }
 
@@ -190,6 +193,25 @@ if (await samplePost.exists()) {
   }
   if (!html.includes("comment-count waline-comment-count")) {
     problems.push(`${samplePostPath}: 评论计数器缺少上游主题兼容类名`);
+  }
+  if (!html.includes("pageview-count waline-pageview-count")) {
+    problems.push(`${samplePostPath}: 文章访问量缺少上游主题兼容类名`);
+  }
+  if (html.includes('id="twikoo_visitors"')) {
+    problems.push(`${samplePostPath}: 不应启用 Twikoo init 的隐式第二计数入口`);
+  }
+}
+
+const commentsDisabledPostPath =
+  "public/posts/excerpts-from-websites/excerpts-from-websites/index.html";
+const commentsDisabledPost = Bun.file(commentsDisabledPostPath);
+if (await commentsDisabledPost.exists()) {
+  const html = await commentsDisabledPost.text();
+  if (!html.includes("pageview-count waline-pageview-count")) {
+    problems.push(`${commentsDisabledPostPath}: comments:false 文章仍应保留访问量占位`);
+  }
+  if (html.includes("data-comments-container")) {
+    problems.push(`${commentsDisabledPostPath}: comments:false 文章不应输出评论容器`);
   }
 }
 

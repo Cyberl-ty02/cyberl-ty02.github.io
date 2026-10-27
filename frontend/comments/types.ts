@@ -18,11 +18,24 @@ export interface CommentViewContext {
   signal: AbortSignal;
 }
 
+export interface PageViewContext {
+  document: Document;
+  path: string;
+  signal: AbortSignal;
+  viewId: number;
+}
+
 export interface CommentProvider {
   load(context: CommentViewContext): Promise<void>;
   dispose(): void;
 }
 
+export interface PageViewTracker {
+  load(context: PageViewContext): Promise<void>;
+  dispose(): void;
+}
+
 export interface CommentProviderModule {
   createCommentProvider(config: CommentRuntimeConfig): CommentProvider;
+  createPageViewTracker(config: CommentRuntimeConfig): PageViewTracker;
 }
