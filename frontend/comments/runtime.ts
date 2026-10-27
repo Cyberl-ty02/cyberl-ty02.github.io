@@ -27,7 +27,7 @@ function providerAsset(config: CommentRuntimeConfig): string | null {
   switch (config.provider) {
     case "twikoo":
       return isConfiguredTwikooEnvId(config.twikoo.envId)
-        ? "/comments/twikoo.js?v=20261020-2"
+        ? "/comments/twikoo.js?v=20261027-1"
         : null;
     case "disabled":
       return null;

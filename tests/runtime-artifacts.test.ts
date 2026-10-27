@@ -2,6 +2,8 @@ import { describe, expect, test } from "bun:test";
 
 import {
   bundledRuntimeArtifacts,
+  katexFontExtensions,
+  katexFontFamilies,
   runtimeArtifacts,
   twikooLocaleNames,
   vendoredRuntimeArtifacts,
@@ -36,8 +38,20 @@ describe("runtime artifact manifest", () => {
         format: "css",
       },
       {
+        source: "frontend/katex-overrides.css",
+        output: "source/katex/katex-overrides.css",
+        target: "browser",
+        format: "css",
+      },
+      {
         source: "plugins/date-from-git.ts",
         output: "scripts/date-from-git.js",
+        target: "node",
+        format: "cjs",
+      },
+      {
+        source: "plugins/marked-katex.ts",
+        output: "scripts/marked-katex.js",
         target: "node",
         format: "cjs",
       },
@@ -46,15 +60,39 @@ describe("runtime artifact manifest", () => {
 
   test("tracks the Twikoo client, every locale and the required license", () => {
     expect(twikooLocaleNames).toHaveLength(7);
-    expect(vendoredRuntimeArtifacts).toHaveLength(9);
+    expect(
+      vendoredRuntimeArtifacts.filter((artifact) =>
+        artifact.output.startsWith("source/comments/twikoo/")),
+    ).toHaveLength(9);
     expect(
       vendoredRuntimeArtifacts.filter((artifact) => artifact.format === "license"),
-    ).toHaveLength(1);
+    ).toHaveLength(2);
     expect(
-      vendoredRuntimeArtifacts.every(
+      vendoredRuntimeArtifacts
+        .filter((artifact) => artifact.output.startsWith("source/comments/twikoo/"))
+        .every(
         (artifact) => artifact.licenseOutput === "source/comments/twikoo/LICENSE",
       ),
     ).toBe(true);
+  });
+
+  test("tracks every font referenced by the vendored KaTeX stylesheet", async () => {
+    const css = await Bun.file("node_modules/katex/dist/katex.min.css").text();
+    const referencedFonts = [...css.matchAll(/url\(fonts\/([^)]+)\)/gu)]
+      .map((match) => match[1])
+      .filter((font): font is string => font !== undefined);
+    const declaredFonts = vendoredRuntimeArtifacts
+      .filter((artifact) => artifact.format === "font")
+      .map((artifact) => artifact.output.slice("source/katex/fonts/".length));
+
+    expect(katexFontFamilies).toHaveLength(20);
+    expect(katexFontExtensions).toEqual(["ttf", "woff", "woff2"]);
+    expect(new Set(declaredFonts)).toEqual(new Set(referencedFonts));
+    expect(
+      vendoredRuntimeArtifacts
+        .filter((artifact) => artifact.output.startsWith("source/katex/"))
+        .every((artifact) => artifact.licenseOutput === "source/katex/LICENSE"),
+    ).toBeTrue();
   });
 
   test("has no duplicate or retired Waline outputs", () => {

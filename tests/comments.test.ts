@@ -18,7 +18,10 @@ import type {
 import {
   createTwikooProvider,
   fetchTwikooCommentCounts,
+  installKatexBridge,
+  protectAmbiguousInlineDollars,
   resolveTwikooCommentCounts,
+  TWIKOO_KATEX_OPTIONS,
 } from "../frontend/twikoo.ts";
 
 class FakeWindow implements RuntimeWindow {
@@ -147,7 +150,7 @@ describe("comment provider configuration", () => {
     expect(fakeWindow.listeners.get("pjax:complete")?.size).toBe(1);
     await Promise.resolve();
     await Promise.resolve();
-    expect(imports).toEqual(["/comments/twikoo.js?v=20261020-2"]);
+    expect(imports).toEqual(["/comments/twikoo.js?v=20261027-1"]);
     expect(loads).toBe(1);
 
     fakeWindow.dispatch("pjax:complete");
@@ -222,6 +225,40 @@ describe("comment paths", () => {
 });
 
 describe("Twikoo PJAX initialization", () => {
+  test("protects currency while preserving supported comment math delimiters", () => {
+    expect(protectAmbiguousInlineDollars("USD $5 and $10; $5 to $10")).toBe(
+      String.raw`USD \$5 and \$10; \$5 to \$10`,
+    );
+    expect(protectAmbiguousInlineDollars(String.raw`$x$ costs \$5`)).toBe(
+      String.raw`$x$ costs \$5`,
+    );
+    expect(protectAmbiguousInlineDollars(String.raw`$$x^2$$ and \(y\)`)).toBe(
+      String.raw`$$x^2$$ and \(y\)`,
+    );
+    expect(protectAmbiguousInlineDollars("unclosed $ and $$")).toBe(
+      String.raw`unclosed \$ and \$\$`,
+    );
+  });
+
+  test("installs one safe KaTeX auto-render bridge with ordered delimiters", () => {
+    const fakeWindow = {} as Window;
+    installKatexBridge(fakeWindow);
+    const installed = fakeWindow.renderMathInElement;
+    installKatexBridge(fakeWindow);
+
+    expect(fakeWindow.renderMathInElement).toBe(installed);
+    expect(TWIKOO_KATEX_OPTIONS.delimiters.map(({ left }) => left)).toEqual([
+      "$$",
+      "\\[",
+      "\\(",
+      "$",
+    ]);
+    expect(TWIKOO_KATEX_OPTIONS.ignoredTags).toContain("pre");
+    expect(TWIKOO_KATEX_OPTIONS.ignoredTags).toContain("code");
+    expect(TWIKOO_KATEX_OPTIONS.throwOnError).toBeFalse();
+    expect(TWIKOO_KATEX_OPTIONS.trust).toBeFalse();
+  });
+
   test("serializes init calls and never reuses an old page mount selector", async () => {
     type FakeMount = HTMLElement & { isConnected: boolean };
     const mounts: FakeMount[] = [];
@@ -258,10 +295,17 @@ describe("Twikoo PJAX initialization", () => {
       markFirstInitStarted = resolve;
     });
     const selectors: string[] = [];
+    const mathOptions: Array<typeof TWIKOO_KATEX_OPTIONS> = [];
     const client = {
       getCommentsCount: async () => [],
-      init: async ({ el }: { el: string }) => {
+      init: async ({ el, katex: options }: {
+        el: string;
+        envId: string;
+        katex: typeof TWIKOO_KATEX_OPTIONS;
+        path: string;
+      }) => {
         selectors.push(el);
+        mathOptions.push(options);
         if (selectors.length === 1) {
           markFirstInitStarted();
           await firstInitGate;
@@ -295,6 +339,7 @@ describe("Twikoo PJAX initialization", () => {
     await Promise.all([firstLoad, secondLoad]);
 
     expect(selectors).toHaveLength(2);
+    expect(mathOptions).toEqual([TWIKOO_KATEX_OPTIONS, TWIKOO_KATEX_OPTIONS]);
     expect(selectors[0]).not.toBe(selectors[1]);
     expect(mounts[0]?.isConnected).toBeFalse();
     provider.dispose();
