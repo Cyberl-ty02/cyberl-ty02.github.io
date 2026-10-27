@@ -92,6 +92,16 @@ The production comment provider is Twikoo. The `disabled` provider is a local
 no-backend preview mode. Provider selection and endpoint validation live in
 `frontend/comments/config.ts` and `tools/comment-provider-build.ts`.
 
+`bun run server:disabled` previews without a comment backend. `bun run
+server:twikoo` explicitly selects Twikoo but still uses the public production
+Netlify endpoint, so it is not an isolated backend mode. Only a runtime build
+with both `--comments=twikoo` and
+`--twikoo-endpoint=http://127.0.0.1:8081` points the generated client at the
+validated loopback test backend. This is a build-time override: a later `bun run
+server` rebuilds the default runtime and must not be assumed to retain it. Do not
+add an automatic local database or comment-backend launcher without a separate
+demonstrated need.
+
 The production backend is maintained outside this static-site repository. Never
 commit database credentials, backend secrets, admin tokens, raw comment exports,
 or private backup data. Do not operate on historical comments or private backups
@@ -140,5 +150,8 @@ Do not delete licenses, declared locales, the Hexo date compatibility entry, or
 required tracked runtime outputs. Do not casually alter the production comment
 system, clean ignored historical backups, or publish private paths and sensitive
 data. Generated search and sitemap files can contain known byte-level
-nondeterminism; use the repository's stable semantic contracts and investigate
-new differences instead of weakening or over-tightening them.
+nondeterminism. The linked-worktree contract compares article paths, rendered
+dates, and runtime-resource hashes; it does not parse search-index JSON or
+Sitemap XML. Their parseability was checked in an independent production smoke
+test, not by the current permanent automation. Continue to investigate new or
+unexplained differences instead of weakening the existing contracts.
