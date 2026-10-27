@@ -94,7 +94,7 @@ manifest 中运行资源的 SHA-256
 临时 worktree 构建后的 Git 状态
 ```
 
-它没有对整个 `public/` 做盲目的字节镜像。重复 clean build 中，`search/index.html`、`search-index.json` 与 `sitemap.xml` 可能出现已知的字节差异；稳定合同关注文章 URL、日期、受控运行资源和可解析的搜索/站点地图语义。这个边界不能被理解成“任何差异都可以忽略”：新出现的文件变化仍要先解释来源，不能为了绿灯放宽检查。
+它没有对整个 `public/` 做盲目的字节镜像。重复 clean build 中，`search/index.html`、`search-index.json` 与 `sitemap.xml` 可能出现已知的字节差异。仓库自动合同关注文章 URL、渲染日期与受控运行资源；搜索索引 JSON 和 Sitemap XML 的可解析性是在独立生产验收中额外检查的，不是现有自动门禁。三个文件的已知字节差异本身不直接构成回归，但新出现或无法解释的差异仍须调查，不能为了绿灯放宽合同。
 
 ## CI 安全与发布隔离
 
