@@ -80,6 +80,22 @@ for (const artifact of vendoredRuntimeArtifacts) {
   }
 }
 
+const katexCssPath = "source/katex/katex.min.css";
+const katexCss = Bun.file(katexCssPath);
+if (await katexCss.exists()) {
+  const css = await katexCss.text();
+  const declaredOutputs = new Set(runtimeArtifacts.map(({ output }) => output));
+  for (const match of css.matchAll(/url\(fonts\/([^)]+)\)/gu)) {
+    const font = match[1];
+    if (!font || !declaredOutputs.has(`source/katex/fonts/${font}`)) {
+      problems.push(`${katexCssPath}: 字体引用未在运行资源清单中声明: ${font ?? "<missing>"}`);
+    }
+  }
+  if (/url\(["']?(?:https?:)?\/\//iu.test(css)) {
+    problems.push(`${katexCssPath}: KaTeX 样式不应依赖外部 CDN`);
+  }
+}
+
 const generatedLocales = new Set<string>();
 for await (const locale of new Bun.Glob("*.js").scan({
   cwd: "source/comments/twikoo/locales",
@@ -112,7 +128,9 @@ if (await home.exists()) {
     problems.push(`${homePath}: 仍从第三方 CDN 加载 Twikoo 客户端`);
   }
   for (const asset of [
-    "/comments/comments.js?v=20261020-2",
+    "/katex/katex.min.css?v=0.19.0",
+    "/katex/katex-overrides.css?v=20261027-1",
+    "/comments/comments.js?v=20261027-1",
     "/comments/comments.css?v=20261020-2",
   ]) {
     if (!html.includes(asset)) problems.push(`${homePath}: 未引用本地资源 ${asset}`);
@@ -139,7 +157,7 @@ if (await Bun.file(dispatcherPath).exists()) {
   if (/legacy-waline|waline\.js|cyblwalcom\.zeabur\.app/iu.test(generatedDispatcher)) {
     problems.push(`${dispatcherPath}: 不应包含已退役的 Waline 运行链`);
   }
-  if (!generatedDispatcher.includes("/comments/twikoo.js?v=20261020-2")) {
+  if (!generatedDispatcher.includes("/comments/twikoo.js?v=20261027-1")) {
     problems.push(`${dispatcherPath}: 缺少与页面缓存版本一致的 Twikoo 动态入口`);
   }
 

@@ -86,6 +86,17 @@ Preserve the TypeScript source to browser ESM and Hexo CommonJS split. Do not mo
 raw TypeScript into `scripts/` or rewrite stable upstream integration without an
 independent compatibility reason.
 
+## Mathematics
+
+Posts use Markdown with the repository's KaTeX extension. Prefer `$...$` for
+inline math and `$$...$$` on separate lines for display math. Escape an ordinary
+dollar as `\$` when it could be mistaken for a delimiter. Inline code and fenced
+code retain normal Markdown semantics. The blog also accepts `\(...\)` and
+`\[...\]`, but they are compatibility aliases rather than the preferred
+cross-editor form. KaTeX is not a complete LaTeX engine; check its supported
+functions when using uncommon commands. Source remains plain UTF-8 and readable
+offline, while accurate visual output requires a Markdown/KaTeX renderer.
+
 ## Comments and runtime resources
 
 The production comment provider is Twikoo. The `disabled` provider is a local

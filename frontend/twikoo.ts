@@ -1,3 +1,7 @@
+import renderMathInElement, {
+  type RenderMathInElementOptions,
+} from "katex/contrib/auto-render";
+
 import { normalizeCommentPath } from "./comments/path.ts";
 import type {
   CommentProvider,
@@ -16,11 +20,19 @@ interface TwikooClient {
     includeReply: boolean;
     urls: string[];
   }): Promise<TwikooCount[]>;
-  init(options: { el: string; envId: string; path: string }): Promise<void>;
+  init(options: {
+    el: string;
+    envId: string;
+    katex: RenderMathInElementOptions;
+    path: string;
+  }): Promise<void>;
 }
+
+type RenderMathInElement = typeof renderMathInElement;
 
 declare global {
   interface Window {
+    renderMathInElement?: RenderMathInElement;
     twikoo?: TwikooClient;
   }
 }
@@ -28,7 +40,106 @@ declare global {
 const CLIENT_URL = "/comments/twikoo/twikoo.min.js?v=2.0.15";
 let clientPromise: Promise<TwikooClient> | null = null;
 
+export const TWIKOO_KATEX_OPTIONS = {
+  delimiters: [
+    { left: "$$", right: "$$", display: true },
+    { left: "\\[", right: "\\]", display: true },
+    { left: "\\(", right: "\\)", display: false },
+    { left: "$", right: "$", display: false },
+  ],
+  ignoredTags: ["script", "noscript", "style", "textarea", "pre", "code", "option"],
+  maxExpand: 1000,
+  maxSize: 20,
+  strict: "warn",
+  throwOnError: false,
+  trust: false,
+} as const satisfies RenderMathInElementOptions;
+
+function closingInlineDollar(source: string, opening: number): number {
+  for (let index = opening + 1; index < source.length; index += 1) {
+    if (source[index] !== "$" || source[index - 1] === "\\") continue;
+    if (/\s/u.test(source[index - 1] ?? "") || /\d/u.test(source[index + 1] ?? "")) return -1;
+    return index;
+  }
+  return -1;
+}
+
+export function protectAmbiguousInlineDollars(
+  source: string,
+  replacement = "\\$",
+): string {
+  let protectedText = "";
+  let index = 0;
+  while (index < source.length) {
+    if (source[index] === "\\" && source[index + 1] === "$") {
+      protectedText += "\\$";
+      index += 2;
+      continue;
+    }
+    if (source.startsWith("$$", index)) {
+      const closing = source.indexOf("$$", index + 2);
+      if (closing >= 0) {
+        protectedText += source.slice(index, closing + 2);
+        index = closing + 2;
+      } else {
+        protectedText += replacement.repeat(2);
+        index += 2;
+      }
+      continue;
+    }
+    if (source[index] !== "$") {
+      protectedText += source[index];
+      index += 1;
+      continue;
+    }
+
+    const next = source[index + 1] ?? "";
+    const closing = next && !/\s/u.test(next) ? closingInlineDollar(source, index) : -1;
+    if (closing >= 0) {
+      protectedText += source.slice(index, closing + 1);
+      index = closing + 1;
+    } else {
+      protectedText += replacement;
+      index += 1;
+    }
+  }
+  return protectedText;
+}
+
+const ignoredMathSelector =
+  "script,noscript,style,textarea,pre,code,option,.katex,.katex-display";
+
+function transformCommentText(element: HTMLElement, transform: (text: string) => string): void {
+  const visit = (node: Node): void => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      const parent = node.parentElement;
+      if (!parent?.closest(ignoredMathSelector) && node.nodeValue) {
+        node.nodeValue = transform(node.nodeValue);
+      }
+      return;
+    }
+    for (const child of [...node.childNodes]) visit(child);
+  };
+  visit(element);
+}
+
+const safeRenderMathInElement: RenderMathInElement = (element, options) => {
+  let marker = "\uE000cyberl-katex-dollar\uE001";
+  while (element.textContent?.includes(marker)) marker += "\uE001";
+  transformCommentText(element, (text) => protectAmbiguousInlineDollars(text, marker));
+  renderMathInElement(element, options);
+  transformCommentText(element, (text) => text.replaceAll(marker, "$"));
+};
+
+export function installKatexBridge(target: Window): void {
+  if (target.renderMathInElement && target.renderMathInElement !== safeRenderMathInElement) {
+    throw new Error("window.renderMathInElement 已被其他实现占用");
+  }
+  target.renderMathInElement = safeRenderMathInElement;
+}
+
 function loadTwikooClient(document: Document): Promise<TwikooClient> {
+  installKatexBridge(window);
   if (window.twikoo) return Promise.resolve(window.twikoo);
   if (clientPromise) return clientPromise;
 
@@ -171,6 +282,7 @@ export function createTwikooProvider(
         await client.init({
           el: `#${mount.id}`,
           envId: config.twikoo.envId!,
+          katex: TWIKOO_KATEX_OPTIONS,
           path: context.path,
         });
         if (context.signal.aborted || sequence !== loadSequence) mount.replaceChildren();
