@@ -7,6 +7,8 @@ import type {
   CommentProvider,
   CommentRuntimeConfig,
   CommentViewContext,
+  PageViewContext,
+  PageViewTracker,
 } from "./comments/types.ts";
 
 interface TwikooCount {
@@ -20,6 +22,10 @@ interface TwikooClient {
     includeReply: boolean;
     urls: string[];
   }): Promise<TwikooCount[]>;
+  getVisitorsCount(options: {
+    envId: string;
+    path: string;
+  }): Promise<unknown>;
   init(options: {
     el: string;
     envId: string;
@@ -194,14 +200,6 @@ export async function fetchTwikooCommentCounts(
   }
 }
 
-function hidePageviews(document: Document): void {
-  for (const element of document.querySelectorAll<HTMLElement>(".pageview-count")) {
-    const wrapper = element.closest<HTMLElement>("a, li");
-    if (wrapper) wrapper.hidden = true;
-    else element.hidden = true;
-  }
-}
-
 async function updateCommentCounts(
   client: TwikooClient,
   config: CommentRuntimeConfig,
@@ -256,7 +254,6 @@ export function createTwikooProvider(
     async load(context: CommentViewContext): Promise<void> {
       dispose();
       const sequence = loadSequence;
-      hidePageviews(context.document);
       const client = await getClient(context.document);
       if (context.signal.aborted || sequence !== loadSequence) return;
       await updateCommentCounts(
@@ -293,6 +290,106 @@ export function createTwikooProvider(
   };
 }
 
+type PageViewState =
+  | { status: "loading" }
+  | { status: "ready"; count: number }
+  | { status: "error" };
+
+function pageViewElements(document: Document): HTMLElement[] {
+  return [...document.querySelectorAll<HTMLElement>(".pageview-count")];
+}
+
+function renderPageViewState(document: Document, state: PageViewState): void {
+  for (const element of pageViewElements(document)) {
+    const wrapper = element.closest<HTMLElement>("li");
+    if (wrapper) wrapper.hidden = false;
+    element.hidden = false;
+    element.dataset.countState = state.status;
+    element.removeAttribute("title");
+    if (state.status === "loading") {
+      element.textContent = "…";
+    } else if (state.status === "ready") {
+      element.textContent = String(state.count);
+      element.title = `已确认 ${state.count} 次历史访问，本次访问已计入后续统计`;
+    } else {
+      element.textContent = "—";
+      element.title = "访问量暂时无法确认";
+    }
+  }
+}
+
+function confirmedPageViewCount(response: unknown): number | null {
+  if (typeof response !== "object" || response === null) return null;
+  const { time, updated } = response as { time?: unknown; updated?: unknown };
+  return Number.isSafeInteger(time) && (time as number) >= 0 && updated === 1
+    ? time as number
+    : null;
+}
+
+export function createTwikooPageViewTracker(
+  config: CommentRuntimeConfig,
+  getClient: (document: Document) => Promise<TwikooClient> = loadTwikooClient,
+): PageViewTracker {
+  let activeViewId = 0;
+  let sequence = 0;
+  let state: PageViewState = { status: "loading" };
+  let pending: Promise<void> | null = null;
+
+  const dispose = (): void => {
+    sequence += 1;
+    pending = null;
+  };
+
+  return {
+    dispose,
+    async load(context: PageViewContext): Promise<void> {
+      if (context.viewId === activeViewId) {
+        renderPageViewState(context.document, state);
+        await pending;
+        if (!context.signal.aborted && context.viewId === activeViewId) {
+          renderPageViewState(context.document, state);
+        }
+        return;
+      }
+
+      activeViewId = context.viewId;
+      sequence += 1;
+      const currentSequence = sequence;
+      state = { status: "loading" };
+      renderPageViewState(context.document, state);
+
+      const request = (async () => {
+        try {
+          const client = await getClient(context.document);
+          if (context.signal.aborted || currentSequence !== sequence) return;
+          const response = await client.getVisitorsCount({
+            envId: config.twikoo.envId!,
+            path: normalizeCommentPath(context.path, context.path),
+          });
+          if (context.signal.aborted || currentSequence !== sequence) return;
+          const count = confirmedPageViewCount(response);
+          state = count === null ? { status: "error" } : { status: "ready", count };
+          renderPageViewState(context.document, state);
+        } catch (error) {
+          if (context.signal.aborted || currentSequence !== sequence) return;
+          console.error("Twikoo 访问量加载失败", error);
+          state = { status: "error" };
+          renderPageViewState(context.document, state);
+        }
+      })();
+      const settled = request.finally(() => {
+        if (pending === settled) pending = null;
+      });
+      pending = settled;
+      await pending;
+    },
+  };
+}
+
 export function createCommentProvider(config: CommentRuntimeConfig): CommentProvider {
   return createTwikooProvider(config);
+}
+
+export function createPageViewTracker(config: CommentRuntimeConfig): PageViewTracker {
+  return createTwikooPageViewTracker(config);
 }

@@ -20,6 +20,15 @@
   overflow-wrap: anywhere;
 }
 
+.pageview-count {
+  font-variant-numeric: tabular-nums;
+}
+
+.pageview-count[data-count-state="loading"],
+.pageview-count[data-count-state="error"] {
+  opacity: 0.7;
+}
+
 .comments-status {
   margin: 0;
   padding: 1rem;
