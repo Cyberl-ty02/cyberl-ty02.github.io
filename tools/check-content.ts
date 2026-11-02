@@ -1,3 +1,5 @@
+import { parsePostMetadata } from "./content-contracts.ts";
+
 const allowedCategories = new Set([
   "Linux 与 BSD",
   "开发工具",
@@ -31,53 +33,34 @@ const problems: string[] = [];
 const postGlob = new Bun.Glob("source/_posts/**/*.md");
 let postCount = 0;
 
-function scalar(frontMatter: string, key: string): string | undefined {
-  const match = frontMatter.match(new RegExp(`^${key}:\\s*(.*?)\\s*$`, "mu"));
-  return match?.[1]?.replace(/^['"]|['"]$/g, "");
-}
-
-function list(frontMatter: string, key: string): string[] {
-  const lines = frontMatter.split("\n");
-  const start = lines.findIndex((line) => line.trim() === `${key}:`);
-  if (start < 0) return [];
-
-  const values: string[] = [];
-  for (const line of lines.slice(start + 1)) {
-    const match = line.match(/^\s*-\s+(.+?)\s*$/u);
-    if (!match) break;
-    values.push(match[1]!.replace(/^['"]|['"]$/g, ""));
-  }
-  return values;
-}
-
 for await (const path of postGlob.scan({ cwd: process.cwd(), onlyFiles: true })) {
   postCount += 1;
   const contents = await Bun.file(path).text();
-  const match = contents.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n/u);
-
-  if (!match) {
-    problems.push(`${path}: 缺少有效的 YAML front matter`);
+  let metadata;
+  try {
+    metadata = parsePostMetadata(contents);
+  } catch (error) {
+    problems.push(`${path}: ${error instanceof Error ? error.message : String(error)}`);
     continue;
   }
 
-  const frontMatter = match[1]!;
-  const title = scalar(frontMatter, "title");
-  const category = scalar(frontMatter, "categories");
-  const tags = list(frontMatter, "tags");
-
-  if (!title) problems.push(`${path}: 缺少 title`);
-  if (!scalar(frontMatter, "date")) problems.push(`${path}: 缺少 date`);
-  if (scalar(frontMatter, "donate") !== "false") {
+  if (!metadata.title) problems.push(`${path}: 缺少 title`);
+  if (!metadata.hasDate) problems.push(`${path}: 缺少 date`);
+  if (metadata.donate !== false) {
     problems.push(`${path}: donate 必须显式设为 false`);
   }
-  if (!category || !allowedCategories.has(category)) {
-    problems.push(`${path}: 分类不在约定集合中：${category ?? "<missing>"}`);
+  if (!metadata.category || !allowedCategories.has(metadata.category)) {
+    problems.push(`${path}: 分类不在约定集合中：${metadata.category ?? "<missing>"}`);
   }
-  if (tags.length === 0 || tags.length > 2) {
-    problems.push(`${path}: 标签数量必须为 1–2 个，当前为 ${tags.length}`);
-  }
-  for (const tag of tags) {
-    if (!allowedTags.has(tag)) problems.push(`${path}: 标签不在约定集合中：${tag}`);
+  if (!metadata.tags) {
+    problems.push(`${path}: tags 必须是 YAML 字符串列表`);
+  } else {
+    if (metadata.tags.length === 0 || metadata.tags.length > 2) {
+      problems.push(`${path}: 标签数量必须为 1–2 个，当前为 ${metadata.tags.length}`);
+    }
+    for (const tag of metadata.tags) {
+      if (!allowedTags.has(tag)) problems.push(`${path}: 标签不在约定集合中：${tag}`);
+    }
   }
 
   for (const [pattern, description] of privacyPatterns) {
