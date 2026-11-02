@@ -2,6 +2,7 @@ import renderMathInElement, {
   type RenderMathInElementOptions,
 } from "katex/contrib/auto-render";
 
+import { isConfiguredTwikooEnvId } from "./comments/config.ts";
 import { normalizeCommentPath } from "./comments/path.ts";
 import type {
   CommentProvider,
@@ -45,6 +46,17 @@ declare global {
 
 const CLIENT_URL = "/comments/twikoo/twikoo.min.js?v=2.0.15";
 let clientPromise: Promise<TwikooClient> | null = null;
+
+function requiredTwikooEnvId(config: CommentRuntimeConfig): string {
+  if (config.provider !== "twikoo" || !isConfiguredTwikooEnvId(config.twikoo.envId)) {
+    throw new Error("Twikoo provider requires a configured endpoint");
+  }
+  return config.twikoo.envId;
+}
+
+function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
 
 export const TWIKOO_KATEX_OPTIONS = {
   delimiters: [
@@ -202,32 +214,37 @@ export async function fetchTwikooCommentCounts(
 
 async function updateCommentCounts(
   client: TwikooClient,
-  config: CommentRuntimeConfig,
+  envId: string,
+  includeReply: boolean,
   document: Document,
   fallbackPath: string,
   signal: AbortSignal,
 ): Promise<void> {
-  const elements = [...document.querySelectorAll<HTMLElement>(".comment-count")];
-  const paths = elements.map((element) =>
-    normalizeCommentPath(element.dataset.path, fallbackPath),
+  const counters = [...document.querySelectorAll<HTMLElement>(".comment-count")].map(
+    (element) => ({
+      element,
+      path: normalizeCommentPath(element.dataset.path, fallbackPath),
+    }),
   );
 
-  const result = await fetchTwikooCommentCounts(paths, (urls) =>
+  const result = await fetchTwikooCommentCounts(
+    counters.map(({ path }) => path),
+    (urls) =>
       client.getCommentsCount({
-        envId: config.twikoo.envId!,
-        includeReply: config.twikoo.includeReply,
+        envId,
+        includeReply,
         urls,
       }),
   );
   if (signal.aborted) return;
   if (result.status === "ready") {
-    elements.forEach((element, index) => {
-      element.textContent = String(result.counts.get(paths[index]!) ?? 0);
+    for (const { element, path } of counters) {
+      element.textContent = String(result.counts.get(path) ?? 0);
       element.dataset.countState = "ready";
-    });
+    }
   } else {
     console.error("Twikoo 评论计数加载失败", result.error);
-    for (const element of elements) {
+    for (const { element } of counters) {
       element.textContent = "—";
       element.dataset.countState = "error";
       element.title = "评论数暂时无法加载";
@@ -239,6 +256,7 @@ export function createTwikooProvider(
   config: CommentRuntimeConfig,
   getClient: (document: Document) => Promise<TwikooClient> = loadTwikooClient,
 ): CommentProvider {
+  const envId = requiredTwikooEnvId(config);
   let previousContainer: HTMLElement | null = null;
   let loadSequence = 0;
   let initQueue = Promise.resolve();
@@ -258,7 +276,8 @@ export function createTwikooProvider(
       if (context.signal.aborted || sequence !== loadSequence) return;
       await updateCommentCounts(
         client,
-        config,
+        envId,
+        config.twikoo.includeReply,
         context.document,
         context.path,
         context.signal,
@@ -278,7 +297,7 @@ export function createTwikooProvider(
         if (context.signal.aborted || sequence !== loadSequence || !mount.isConnected) return;
         await client.init({
           el: `#${mount.id}`,
-          envId: config.twikoo.envId!,
+          envId,
           katex: TWIKOO_KATEX_OPTIONS,
           path: context.path,
         });
@@ -319,10 +338,13 @@ function renderPageViewState(document: Document, state: PageViewState): void {
 }
 
 function confirmedPageViewCount(response: unknown): number | null {
-  if (typeof response !== "object" || response === null) return null;
-  const { time, updated } = response as { time?: unknown; updated?: unknown };
-  return Number.isSafeInteger(time) && (time as number) >= 0 && updated === 1
-    ? time as number
+  if (!isRecord(response)) return null;
+  const { time, updated } = response;
+  return typeof time === "number" &&
+    Number.isSafeInteger(time) &&
+    time >= 0 &&
+    updated === 1
+    ? time
     : null;
 }
 
@@ -330,6 +352,7 @@ export function createTwikooPageViewTracker(
   config: CommentRuntimeConfig,
   getClient: (document: Document) => Promise<TwikooClient> = loadTwikooClient,
 ): PageViewTracker {
+  const envId = requiredTwikooEnvId(config);
   let activeViewId = 0;
   let sequence = 0;
   let state: PageViewState = { status: "loading" };
@@ -363,7 +386,7 @@ export function createTwikooPageViewTracker(
           const client = await getClient(context.document);
           if (context.signal.aborted || currentSequence !== sequence) return;
           const response = await client.getVisitorsCount({
-            envId: config.twikoo.envId!,
+            envId,
             path: normalizeCommentPath(context.path, context.path),
           });
           if (context.signal.aborted || currentSequence !== sequence) return;

@@ -84,6 +84,10 @@ describe("comment provider configuration", () => {
     expect(isConfiguredTwikooEnvId("http://127.0.0.1:8081")).toBeTrue();
     expect(isConfiguredTwikooEnvId("http://localhost:8081")).toBeFalse();
     expect(isConfiguredTwikooEnvId("http://127.0.0.1:8080")).toBeFalse();
+    expect(() => createTwikooProvider(withProvider("twikoo")))
+      .toThrow("requires a configured endpoint");
+    expect(() => createTwikooPageViewTracker(withProvider("disabled")))
+      .toThrow("requires a configured endpoint");
   });
 
   test("does not import or contact Twikoo when its endpoint is absent", async () => {
@@ -494,10 +498,15 @@ describe("Twikoo article page views", () => {
 
   test("does not invent a count when time or increment evidence is invalid", async () => {
     for (const response of [
+      null,
+      [],
+      "12",
       { time: 3 },
+      { time: "3", updated: 1 },
       { time: -1, updated: 1 },
       { time: Number.NaN, updated: 1 },
       { time: 4, updated: 0 },
+      { time: 4, updated: true },
     ]) {
       const view = fakePageView();
       let requests = 0;
