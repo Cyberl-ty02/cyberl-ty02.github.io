@@ -116,6 +116,12 @@ describe("generated comment provider", () => {
       "--comments=twikoo",
       "--comments=disabled",
     ])).toThrow("只能指定一个");
+    expect(() => resolveCommentBuildSelection(["--comment=disabled"]))
+      .toThrow("不支持的评论构建参数");
+    expect(() => resolveCommentBuildSelection(["--comments"]))
+      .toThrow("必须使用 --comments=<value>");
+    expect(() => resolveCommentBuildSelection(["--twikoo-endpoint="]))
+      .toThrow("必须使用 --twikoo-endpoint=<value>");
   });
 
   test("generated production and disabled bundles contain no retired Waline chain", async () => {
