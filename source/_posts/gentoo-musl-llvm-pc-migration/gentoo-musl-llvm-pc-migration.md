@@ -60,6 +60,8 @@ gcompat 可以处理一部分 glibc ABI，但不是完整 glibc。本轮最小 C
 
 另外建立的独立 glibc stage3 仍保留作对照。它需要单独创建根环境、维护软件、配置 locale 和用户会话接口；安装一个 chroot 工具不会自动完成这些工作。如果最后仍采用这条回退路线，正式教程会明确写出额外空间和维护责任。
 
+Flatpak 的 GPU 路径也做了单独验证：在 musl 宿主隔离根中，只挂入必要 GPU 节点和只读 sysfs，使用 VSCodium 所在的官方 glibc 运行时及 NVIDIA 扩展，CUDA 初始化、显存写入与回读通过；EGL 1.5 / OpenGL 4.6 离屏渲染和像素回读也通过。这条路径没有加载实验 musl 补丁。它仍只是运行时级别的测试，不等于 VSCodium 的全部 GPU 功能、CUDA 开发环境或其他应用已经验收。
+
 Flatpak 提供的 glibc 库不用于满足宿主 Portage 依赖。已经在同一 musl 根中成功安装的宿主库，由 Portage 按版本、USE 和 ABI 复用，不必因为应用再装一次相同版本。
 
 ## 在 chroot 内一键安装 Flatpak 主包
@@ -172,6 +174,10 @@ CUDA 的宿主数学调用和 gcompat amd64 加载器路径也有小型实验补
 现在已经另行建立正确权限的全新 stage3 根：核对 63,870 个归档条目的属主、权限与符号链接，并确认 282 个基础包与官方归档一致。没有把旧实验根的文件归属或用户配置直接带过去。
 
 随后在新根中保留默认 `sandbox`、`userpriv`、`usersandbox`、`ipc-sandbox`、`network-sandbox` 和 `pid-sandbox`，从源码安装官方 hello。编译阶段的实际身份是 Portage UID/GID 250:250，安装后运行输出正确，未引入 GCC 或 glibc。这一步证明了全新 stage3 的安装基础；完整桌面、新内核和启动流程仍须继续验收，不能据此把教程标为迁移完成。
+
+从这个全新根再做完整桌面预演，会遇到旧实验根已不再暴露的 GLib → docutils → Pillow → HarfBuzz → GLib 引导循环。候选方案是先临时设置 `dev-python/pillow -truetype`，安装 GLib/HarfBuzz 后移除临时设置，再按最终 USE 重建 Pillow。关闭后完整依赖预演通过，没有计划引入 GCC、glibc、GNU Emacs 或 QtWebEngine；完整安装和恢复步骤还没有在这个新根执行，临时配置不能直接作为最终配置发布。
+
+另一个要保留的 profile 细节是：Gentoo musl 已屏蔽 `kde-plasma/powerdevil[filecaps]`。SonicDE 的实现包与兼容包要同时采用 `-filecaps`，否则会出现 USE 依赖冲突；这不是因为 stage3 解压权限不足，也不应靠关闭整个 Portage 沙箱解决。
 
 候选 Btrfs 布局是在现有文件系统内新增 `@musl`，保留原 `@`、`@home` 和启动项。`/dev/nvme1n1p2` 是分区设备，不是要赋给子卷的名字，也不需要仅为此次迁移重新格式化分区。
 
