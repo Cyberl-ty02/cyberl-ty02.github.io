@@ -177,9 +177,13 @@ CUDA 的宿主数学调用和 gcompat amd64 加载器路径也有小型实验补
 
 ## 旧 world 的覆盖范围
 
-桌面批次安装通过不代表旧系统软件全部迁移。按旧 `world` 的 91 项直接选择逐项核对时，新根原生已装 25 项，微信与 VSCodium 两项由 Flatpak 提供；其余包括待原生预演的软件、闭源兼容与 NVIDIA/CUDA 拆分项，以及按方案排除的 GNU Emacs、mold。配置仓库的 [`world-migration.tsv`](https://github.com/Cyberl-ty02/dotfiles/blob/experiment/musl-llvm-migration/gentoo_setting/experiments/musl-llvm-pc/world-migration.tsv) 保存逐项状态，“待预演”不等于不支持 musl。
+桌面批次安装通过不代表旧系统软件全部迁移。按旧 `world` 的 91 项直接选择核对，三项服务软件批次结束时原生覆盖 28 项，微信与 VSCodium 两项由 Flatpak 提供；其余包括待原生预演的软件、闭源兼容与 NVIDIA/CUDA 拆分项，以及按方案排除的 GNU Emacs、mold。配置仓库的 [`world-migration.tsv`](https://github.com/Cyberl-ty02/dotfiles/blob/experiment/musl-llvm-migration/gentoo_setting/experiments/musl-llvm-pc/world-migration.tsv) 保存逐项状态，“待预演”不等于不支持 musl。
 
-PostgreSQL、ClamAV、ClamTk 尚未安装，正在补做依赖预演。数据库软件安装与旧数据转储恢复分开处理，ClamAV 的签名更新和实际扫描也另行验收。此前 `--oneshot` 桌面安装没有登记新根 `world`，已把软件选择登记列为启动前必做步骤；完成前不运行 `depclean`，避免把保留的软件当作未选中的依赖移除。
+PostgreSQL 18.6、ClamAV 1.5.3、ClamTk 6.18-r2 随后已在默认 Portage 用户和沙箱下安装完成。PostgreSQL 工具能正常执行，没有初始化或迁移旧数据库；ClamAV 对自定义无害签名的正、负样本扫描结果正确，正式病毒库更新仍待验收。ClamTk 在私有显示中正常打开，但最初界面仍是英文：musl 下需明确绑定 gettext 目录，已整理为一行、按版本限定的补丁，实际重建和私有显示的中文界面通过。此前 `--oneshot` 留下的空 `world` 已在该批次通过 Portage 登记 32 项软件选择；迁移验收期间仍不运行 `depclean`。
+
+其余软件已完成逐项预演；关键词、USE 等必要配置调整后，43 项原生软件的合并预演已通过，正在构建。Node.js 的依赖允许选择 Gentoo 官方 `llvm-runtimes/libatomic-stub`，明确加入该包后，Firefox／Thunderbird 的合并预演不再选择 GCC；大型应用仍需单独构建。KTorrent 关闭可选内嵌 WebEngine，避免额外网页引擎构建。QQ、LocalSend、FlClash 的 glibc 预编译界面另行验证，不把关键词通过当作 ABI 兼容通过。
+
+Bun 官方 musl baseline 归档也已按发布资产 SHA256 校验。它需要 musl 版 C++ 运行库，复用已验签的 Alpine 约 2.7MiB `libstdc++` 后，在私有目录通过 JavaScript、中文文本与人民币格式化测试，没有安装 GCC 编译器或 glibc。这条路线尚未完成 Portage 打包，不全局修改库路径，也不能把私有测试结果写成新根已经安装 Bun。
 
 ## 新根、子卷和回退
 
