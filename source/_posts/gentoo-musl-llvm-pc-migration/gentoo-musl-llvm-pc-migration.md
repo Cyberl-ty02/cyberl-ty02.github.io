@@ -173,7 +173,7 @@ Sonic Login Manager 6.8.0.3 还暴露了一个头文件问题：`SelfProvisioner
 
 CUDA 的宿主数学调用和 gcompat amd64 加载器路径也有小型实验补丁。最小验证通过不等于完整 ebuild、CUDA SDK 或原生 NVIDIA 图形兼容已经验收；补丁状态在仓库说明中单列。
 
-新环境不默认安装 GNU Emacs。Neomacs 已有 Gentoo overlay，但仍是实验软件；musl、现有 Doom 配置及中文输入等尚待验证。若它不满足需要，本轮不会自动退回安装旧 Emacs，原系统与 Windows 配置继续保留。
+新环境不默认安装 GNU Emacs。Neomacs 已有 Gentoo overlay，但仍是实验软件；固定上游提交后，真正 musl 根的依赖预演通过，共四个新包，不引入 GCC 或 glibc，已排在当前软件补齐批次之后。源码编译、现有 Doom 配置及中文输入等尚待验证。安装并验收后，可用 `eselect editor set neomacs` 选择它，再执行 `source /etc/profile`；eselect editor 已支持自定义程序名，无需修改模块。若它不满足需要，本轮不会自动退回安装旧 Emacs，原系统与 Windows 配置继续保留。
 
 ## 旧 world 的覆盖范围
 
@@ -183,9 +183,9 @@ PostgreSQL 18.6、ClamAV 1.5.3、ClamTk 6.18-r2 随后已在默认 Portage 用�
 
 其余软件已完成逐项预演；关键词、USE 等必要配置调整后，连同 PostgreSQL LLVM/JIT、NetworkManager iwd、Btrfs udev 和 XLibre Xvfb 功能恢复，共 48 个直接选择项的合并预演通过，正在构建，最终状态仍需逐项核对。Node.js 的依赖允许选择 Gentoo 官方 `llvm-runtimes/libatomic-stub`，明确加入该包后，Firefox／Thunderbird 的合并预演不再选择 GCC；大型应用仍需单独构建。KTorrent 关闭可选内嵌 WebEngine，避免额外网页引擎构建。QQ、LocalSend、FlClash 的 glibc 预编译界面另行验证，不把关键词通过当作 ABI 兼容通过。
 
-补齐过程中还遇到 lowdown 3.1.1 的 BSD 配置宏与 musl 头文件冲突，以及 ipset 7.24 的过期导出表被 LLD 拒绝。前者直接回补上游修复，后者保存为版本限定的本地源码补丁；两者均通过全新根正常沙箱编译安装，中文转换／帮助命令通过。补丁集中保存在仓库补丁组中，不修改系统头文件或全局放宽链接校验。本轮国内镜像使用临时 `no_proxy` 直连，其余地址保留本地代理；校验策略保持启用。
+补齐过程中还遇到 lowdown 3.1.1 的 BSD 配置宏与 musl 头文件冲突，以及 ipset 7.24 的过期导出表被 LLD 拒绝。前者直接回补上游修复，后者保存为版本限定的本地源码补丁；两者均通过全新根正常沙箱编译安装，中文转换／帮助命令通过。nftables 1.1.7 的 xtables 兼容还需让 libc 的 Ethernet 头文件先于 Linux UAPI 包含，这项版本限定补丁也已通过正常沙箱编译安装，未操作真实防火墙规则。补丁集中保存在仓库补丁组中，不修改系统头文件或全局放宽链接校验。本轮国内镜像使用临时 `no_proxy` 直连，其余地址保留本地代理；校验策略保持启用。
 
-Bun 官方 musl baseline 归档也已按发布资产 SHA256 校验。它需要 musl 版 C++ 运行库，复用已验签的 Alpine 约 2.7MiB `libstdc++` 后，在私有目录通过 JavaScript、中文文本与人民币格式化测试，没有安装 GCC 编译器或 glibc。这条路线尚未完成 Portage 打包，不全局修改库路径，也不能把私有测试结果写成新根已经安装 Bun。
+Bun 官方 musl baseline 归档也已按发布资产 SHA256 校验。它需要 musl 版 C++ 运行库，复用已验签的 Alpine 约 2.7MiB `libstdc++`，在独立官方 stage3 中完成正常 Portage 沙箱安装，JavaScript、中文与人民币格式化通过，没有安装 GCC 编译器或 glibc。Alpine 与 Gentoo 的 libc／LLVM ABI 库名差异由配方内的 patchelf 修正，最终 SONAME 检查没有未解析依赖；运行库仅用于私有 wrapper，不全局修改库路径。配方已整理成新增小型运行库包及修改既有 Bun 配方的两组补丁，主桌面实验根集成排队，完整博客依赖安装与构建仍待验证。
 
 ## 新根、子卷和回退
 
