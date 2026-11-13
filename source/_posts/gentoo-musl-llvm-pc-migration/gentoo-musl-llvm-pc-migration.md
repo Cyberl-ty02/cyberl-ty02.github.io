@@ -39,8 +39,8 @@ default/linux/amd64/23.0/musl/llvm
 | Flatpak | 由 musl 原生编译，完成应用部署和安装后触发器复核 | 真机桌面 Portal 和设备交互 |
 | 微信 | 独立显示中出现中文登录界面 | 未登录；聊天、中文输入、音视频 |
 | VSCodium | 八个选定扩展实际激活，中文 notebook 读取和 Jupyter 原生 ZeroMQ 中文消息往返通过 | notebook kernel 执行、调试、所有扩展与凭据 |
-| SonicDE/XLibre/Rime | 依赖预演通过，源码构建中；原生 Qt、GTK 及 Flatpak VSCodium 通过 Fcitx/Rime 实际提交“你好” | 新桌面登录、其他应用输入法和实际硬件显示 |
-| 全新 stage3 安装基础 | 正确权限解压、基础包核验通过；默认 Portage 用户与沙箱源码安装官方 hello 通过 | 完整桌面与内核安装 |
+| SonicDE/XLibre/Rime | 全新根完整桌面安装通过；原生 Qt、GTK 及 Flatpak VSCodium 通过 Fcitx/Rime 实际提交“你好” | 新桌面登录、其他应用输入法和实际硬件显示 |
+| 全新 stage3 安装基础 | 正确权限解压、默认用户与沙箱完整桌面安装通过，Pillow truetype 已恢复 | 新内核安装及真机验收 |
 | 新根启动 | 尚未执行 | 内核/initramfs、Secure Boot、第一次启动和回退 |
 
 VSCodium 本轮验证的扩展包括 Python、debugpy、Jupyter、Jupyter Renderers、Ruff、rust-analyzer、Tinymist 和 Office。没有把原用户的凭据复制到实验环境，也没有把“扩展目录存在”当作“扩展加载成功”。
@@ -165,7 +165,11 @@ Fcitx 5.1.21 另有旧 Wayland CMake finder 与当前 SonicDE ECM 不匹配的�
 
 补丁现在按软件整理在仓库的 [patchsets 目录](https://github.com/Cyberl-ty02/dotfiles/tree/experiment/musl-llvm-migration/gentoo_setting/experiments/musl-llvm-pc/patchsets)，每组写明适用版本、验证状态和移除条件，避免长期维护整份本地 ebuild 副本。配方依赖变更放 `repository/`，源码变更放 `source/`；Portage 用户源码补丁不能补齐缺失的 `DEPEND`。
 
-本轮 Sonic 图像编辑 0.7.0.1 就需要这两层：配方声明 Highway 依赖，源码使用其标准 `hwy` CMake Config。等效修正在 musl/Clang/Highway 1.4.0 下编译安装通过，补丁组也在独立工作副本完成应用与反向撤回检查。正在运行的实验构建暂保留旧配方快照，后续新根另行验证补丁组路径，避免重复应用。上游修复后分别核对两层，不反向撤销已经进入上游提交的修正。
+本轮 Sonic 图像编辑 0.7.0.1 就需要这两层：配方声明 Highway 依赖，源码使用其标准 `hwy` CMake Config。等效修正在 musl/Clang/Highway 1.4.0 下编译安装通过，补丁组也在独立工作副本完成应用与反向撤回检查。原实验根保留旧配方快照作对照；全新根随后也已通过上游配方加版本限定用户补丁安装图像编辑组件，VDB 来源保持 `sonicde`，日志确认源码补丁实际应用。上游修复后分别核对两层，不反向撤销已经进入上游提交的修正。
+
+Sonic Login Manager 6.8.0.3 还暴露了一个头文件问题：`SelfProvisioner.h` 使用 POSIX 的 `uid_t`、`gid_t` 和 `mode_t`，没有直接包含定义它们的头文件。单独补上 `<sys/types.h>` 后，musl/Clang 编译安装通过；这也是独立源码补丁组，不改变登录、PAM 或权限逻辑。
+
+原实验根的桌面源码构建已通过。在私有 Xvfb、独立 D-Bus 和用户配置中，SonicDE 窗口管理器、桌面 shell 持续运行并提供接口，中文欢迎界面和壁纸实际绘制出来。该测试采用软件 QML、关闭合成，且没有系统总线与物理设备；它不覆盖真实登录、硬件显示、关机或音频。音量界面的配置缺口也在这一步发现：meta 的 `pulseaudio` 开关选择界面，服务端仍用 PipeWire。补齐后，私有会话的面板、时钟和音量图标绘制正常，PipeWire 进程与 Pulse 兼容套接字通过检查；真实播放和麦克风仍待启动后验证。
 
 CUDA 的宿主数学调用和 gcompat amd64 加载器路径也有小型实验补丁。最小验证通过不等于完整 ebuild、CUDA SDK 或原生 NVIDIA 图形兼容已经验收；补丁状态在仓库说明中单列。
 
@@ -177,9 +181,11 @@ CUDA 的宿主数学调用和 gcompat amd64 加载器路径也有小型实验补
 
 现在已经另行建立正确权限的全新 stage3 根：核对 63,870 个归档条目的属主、权限与符号链接，并确认 282 个基础包与官方归档一致。没有把旧实验根的文件归属或用户配置直接带过去。
 
-随后在新根中保留默认 `sandbox`、`userpriv`、`usersandbox`、`ipc-sandbox`、`network-sandbox` 和 `pid-sandbox`，从源码安装官方 hello。编译阶段的实际身份是 Portage UID/GID 250:250，安装后运行输出正确，未引入 GCC 或 glibc。这一步证明了全新 stage3 的安装基础；完整桌面、新内核和启动流程仍须继续验收，不能据此把教程标为迁移完成。
+随后在新根中保留默认 `sandbox`、`userpriv`、`usersandbox`、`ipc-sandbox`、`network-sandbox` 和 `pid-sandbox`，从源码安装官方 hello。编译阶段的实际身份是 Portage UID/GID 250:250，安装后运行输出正确，未引入 GCC 或 glibc。这一步证明了全新 stage3 的安装基础；新内核和启动流程仍须继续验收，不能据此把教程标为迁移完成。
 
-从这个全新根再做完整桌面预演，会遇到旧实验根已不再暴露的 GLib → docutils → Pillow → HarfBuzz → GLib 引导循环。候选方案是先临时设置 `dev-python/pillow -truetype`，安装 GLib/HarfBuzz 后移除临时设置，再按最终 USE 重建 Pillow。关闭后完整依赖预演通过，没有计划引入 GCC、glibc、GNU Emacs 或 QtWebEngine；完整安装和恢复步骤还没有在这个新根执行，临时配置不能直接作为最终配置发布。
+从这个全新根再做完整桌面预演，会遇到旧实验根已不再暴露的 GLib → docutils → Pillow → HarfBuzz → GLib 引导循环。候选方案是先临时设置 `dev-python/pillow -truetype`，安装 GLib/HarfBuzz 后移除临时设置，再按最终 USE 重建 Pillow。关闭后完整依赖预演通过，没有计划引入 GCC、glibc、GNU Emacs 或 QtWebEngine；随后已在这个新根实际完成两阶段引导：GLib/HarfBuzz 安装通过，Pillow 已恢复 `truetype`，临时开关删除，默认 Portage 用户和沙箱保留，未引入 GCC。随后完整桌面安装通过，共 926 个包，保留默认 Portage 用户与沙箱，未引入 GCC；图像编辑组件使用上游 SonicDE 配方加补丁组。新内核和真机启动仍待验收，临时配置不能直接作为最终配置发布。
+
+全新根随后也在独立 Xvfb、私有 D-Bus 和隔离用户配置中通过桌面运行检查：窗口管理器、shell 进程及总线接口持续可用，中文欢迎界面与面板正常绘制，PipeWire 进程和兼容套接字检查通过。该测试仍使用软件 QML、关闭合成，没有真实设备与系统总线，不能作为登录管理器、硬件显示、音频播放或 Portal 的验收。新根音量界面补齐、系统 locale 和系统级 Flatpak 的安装后检查另行推进，不借用原实验根的结果。
 
 另一个要保留的 profile 细节是：Gentoo musl 已屏蔽 `kde-plasma/powerdevil[filecaps]`。SonicDE 的实现包与兼容包要同时采用 `-filecaps`，否则会出现 USE 依赖冲突；这不是因为 stage3 解压权限不足，也不应靠关闭整个 Portage 沙箱解决。
 

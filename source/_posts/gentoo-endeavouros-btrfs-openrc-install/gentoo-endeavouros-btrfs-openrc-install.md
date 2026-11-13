@@ -23,9 +23,12 @@ sticky: 1
 > 分区、格式化、生成 fstab 和安装 EFI 启动项都可能造成数据损失或启动失败。命令中的设备名全部是占位示例。执行前必须用 `lsblk -f`、`findmnt` 和固件启动模式确认自己的目标，双系统环境尤其不能格式化已有 Windows ESP。
 
 > **musl/LLVM 实验路线**
-> 2026-11-13 另行开展了[从官方 musl/LLVM stage3 安装的实验](/posts/gentoo-musl-llvm-pc-migration/gentoo-musl-llvm-pc-migration/)，尚未完成新根真机启动。本篇继续按 glibc 主线维护；不要在已有系统上仅切换 profile，也不要把本文的 GCC fallback、NVIDIA 依赖和 `locale-gen` 流程整套复制到 musl 根。
+> 本文以已验证的 glibc/LLVM 路线为主线，在有差异的小节内用独立环境面板列出 glibc/LLVM 与 musl/LLVM。每节只执行所选分支的内容，共用步骤保留在面板外。两条路线的 init 都是 OpenRC；LiveCD 自身的命令另有阶段标识。
+> 2026-11-13 开展的 [musl/LLVM 迁移实验](/posts/gentoo-musl-llvm-pc-migration/gentoo-musl-llvm-pc-migration/)仍未完成新根真机启动，面板会明确列出尚未验收的边界。不要在已有系统上仅切换 profile 来迁移 libc。
 
 ## 这套安装最后会得到什么
+
+{% collapse glibc/LLVM：当前整机配置 open %}
 
 当前配置的目标不是最小 Gentoo，而是一台日常使用的 amd64 笔记本：
 
@@ -44,6 +47,16 @@ profile：default/linux/amd64/23.0/llvm
 网络：NetworkManager + iwd
 启动：shim + rEFInd + 本地 MOK
 ```
+
+{% endcollapse %}
+
+{% collapse musl/LLVM：实验目标 %}
+
+工具链采用 Clang/LLVM、LLD 和 libc++，profile 为 `default/linux/amd64/23.0/musl/llvm`。主系统、SonicDE/XLibre 与输入法使用原生 musl；闭源桌面应用优先采用独立的 Flatpak glibc 运行时。本轮不默认安装 GCC 或 GNU Emacs。
+
+全新根的默认 Portage 用户与沙箱安装、中文输入和部分 GPU 最小测试已经通过，完整桌面安装仍在推进。内核、NVIDIA 整合、首次启动及回退尚未完成，当前整机配置和 world 清单不能原样作为 musl 配置。
+
+{% endcollapse %}
 
 完整的当前说明见 dotfiles 的 [`gentoo_setting/README.md`](https://github.com/Cyberl-ty02/dotfiles/blob/main/gentoo_setting/README.md)。按角色恢复的软件见 [`manifests/`](https://github.com/Cyberl-ty02/dotfiles/tree/main/gentoo_setting/manifests)，完整真机目标仍保存在 [`world_packages.txt`](https://github.com/Cyberl-ty02/dotfiles/blob/main/gentoo_setting/pc/world_packages.txt)。这里不会把所有软件都解释一遍，而是着重保证第一次重启前已经具备能启动、联网和进入桌面的条件。
 
@@ -171,26 +184,42 @@ lsblk -f
 
 ### 下载并验证 LLVM/OpenRC stage3
 
-当前机器以 `stage3-amd64-llvm-openrc` 和 `default/linux/amd64/23.0/llvm` profile 为基础。进入 [Gentoo AMD64 autobuilds](https://distfiles.gentoo.org/releases/amd64/autobuilds/) 后，选择最新的 `current-stage3-amd64-llvm-openrc`，同时下载压缩包和对应的 `.DIGESTS` 或 `.asc` 文件。
+{% collapse glibc/LLVM：选择stage3 open %}
 
-不要把本文日期对应的 stage3 文件名写死。下载后在文件所在目录验证，例如：
+在 [官方 amd64 autobuilds](https://distfiles.gentoo.org/releases/amd64/autobuilds/) 中选择 `current-stage3-amd64-llvm-openrc`，下载归档及对应 `.DIGESTS` / 签名文件。替换实际时间戳后设置：
 
 ```bash
-sha512sum -c --ignore-missing \
-  stage3-amd64-llvm-openrc-<timestamp>.tar.xz.DIGESTS
+stage3='stage3-amd64-llvm-openrc-<timestamp>.tar.xz'
 ```
 
-需要验证 Gentoo Release Engineering 签名时，应按 Handbook 当前给出的发布密钥和命令操作；不要从第三方文章复制多年未更新的 key ID。
+{% endcollapse %}
 
-验证成功后解压到 Btrfs 根子卷：
+{% collapse musl/LLVM：选择stage3 %}
+
+在同一官方目录选择 `current-stage3-amd64-musl-llvm-openrc`，不要与普通 musl、glibc 或 systemd stage3 混用。替换实际时间戳后设置：
 
 ```bash
-sudo tar xpvf stage3-amd64-llvm-openrc-<timestamp>.tar.xz \
-  --xattrs-include='*.*' --numeric-owner \
+stage3='stage3-amd64-musl-llvm-openrc-<timestamp>.tar.xz'
+```
+
+实验使用的版本只是验证基线；新机器应重新核验当时的归档和发布签名。
+
+{% endcollapse %}
+
+两条分支都在 LiveCD 中验证所选归档，再以 root 权限保留属主和扩展属性解压。以下命令使用刚才选定的 `stage3` 变量：
+
+```bash
+sha512sum -c --ignore-missing "${stage3}.DIGESTS"
+```
+
+校验和之外，按 [Gentoo Handbook](https://wiki.gentoo.org/wiki/Handbook:AMD64/Installation/Base) 当前说明核验发布签名和密钥。签名核验成功后：
+
+```bash
+sudo tar xpvf "$stage3" --xattrs --xattrs-include='*.*' --acls --numeric-owner \
   -C /mnt/gentoo
 ```
 
-解压对象必须直接成为 `/mnt/gentoo/etc`、`/mnt/gentoo/usr` 等目录，不能多套一层 stage3 目录：
+解压结果应直接成为 `/mnt/gentoo/etc`、`/mnt/gentoo/usr` 等目录，不能多套一层：
 
 ```bash
 test -x /mnt/gentoo/bin/bash
@@ -199,24 +228,31 @@ ls -ld /mnt/gentoo/{etc,usr,var}
 
 ### 在 chroot 前保存配置仓库
 
-EndeavourOS LiveCD 有 Git，适合在进入新系统前先把配置和清单放到目标根目录。这样即使 chroot 后浏览器不可用，仍能对照文件：
+EndeavourOS LiveCD 有 Git，可以先把配置仓库带入目标根。两个面板使用同一落点，只执行所选分支：
+
+{% collapse glibc/LLVM：当前配置分支 open %}
 
 ```bash
 sudo git clone https://github.com/Cyberl-ty02/dotfiles.git \
   /mnt/gentoo/root/dotfiles
 ```
 
-也可以只把 PC 配置和 world 清单复制到临时目录：
+当前 `gentoo_setting/pc/` 面向原 glibc 机器；复制前要审阅 CPU、并行度、显卡、mold 和签名设置。
+
+{% endcollapse %}
+
+{% collapse musl/LLVM：迁移实验分支 %}
 
 ```bash
-sudo mkdir -p /mnt/gentoo/root/gentoo-install-reference
-sudo cp -a /mnt/gentoo/root/dotfiles/gentoo_setting/pc \
-  /mnt/gentoo/root/gentoo-install-reference/
+sudo git clone --branch experiment/musl-llvm-migration \
+  https://github.com/Cyberl-ty02/dotfiles.git /mnt/gentoo/root/dotfiles
 ```
 
-这里先“带进去”，不立即覆盖 `/etc/portage`。当前 [`make.conf`](https://github.com/Cyberl-ty02/dotfiles/blob/main/gentoo_setting/pc/portage/make.conf) 包含 `-march=native`、并行度、mold、NVIDIA、Secure Boot 签名和许多桌面 USE flag；它适用于当前机器，但在 MOK 尚未生成、overlay 尚未同步时整套覆盖会让早期排错更困难。
+已验证脚本、必要配置和补丁索引在 `gentoo_setting/experiments/musl-llvm-pc/`。这是进行中的实验分支，不能整棵导入旧 `pc/portage` 或 `world_packages.txt`。
 
-如果不是同一台硬件，尤其要先重写 `COMMON_FLAGS`、`MAKEOPTS`、`VIDEO_CARDS` 和签名设置。不能把 `-march=native` 构建的系统直接当作可迁移二进制镜像。
+{% endcollapse %}
+
+这一步只保存参考文件，尚不覆盖 `/etc/portage`。不同硬件应重写 `COMMON_FLAGS`、`MAKEOPTS`、`VIDEO_CARDS` 和签名路径，不把 `-march=native` 构建结果当作通用二进制镜像。
 
 ### 用 genfstab 生成目标系统挂载表
 
@@ -301,31 +337,52 @@ eselect news list
 eselect profile show
 ```
 
-对本文基线应看到：
+{% collapse glibc/LLVM：profile与locale open %}
+
+`eselect profile show` 应对应：
 
 ```text
 default/linux/amd64/23.0/llvm
 ```
 
-如果不是，先确认下载的 stage3 是否正确，而不是在一个刚解压的系统里贸然跨 init、ABI 或工具链切换 profile。
-
-配置时区和 locale。以下命令针对本文的 glibc profile；musl 不执行 `locale-gen`，改按[实验文章的 libc 分支说明](/posts/gentoo-musl-llvm-pc-migration/gentoo-musl-llvm-pc-migration/)配置。博客本身采用 Asia/Shanghai，当前交互环境所在时区不影响目标系统的选择：
+配置上海时区并生成所需 glibc locale；已有相同声明时不重复追加：
 
 ```bash
 echo 'Asia/Shanghai' > /etc/timezone
 emerge --config sys-libs/timezone-data
-
-printf '%s\n' \
-  'en_US.UTF-8 UTF-8' \
-  'zh_CN.UTF-8 UTF-8' >> /etc/locale.gen
+printf '%s\n' 'en_US.UTF-8 UTF-8' 'zh_CN.UTF-8 UTF-8' >> /etc/locale.gen
 locale-gen
 eselect locale list
+eselect locale set zh_CN.utf8
+env-update
 ```
 
-`/etc/locale.gen` 已有相同声明时不必反复追加。选择 locale 后更新环境：
+{% endcollapse %}
+
+{% collapse musl/LLVM：profile与locale %}
+
+`eselect profile show` 应对应：
+
+```text
+default/linux/amd64/23.0/musl/llvm
+```
+
+目标 chroot 内以 root 使用已验证脚本，先预览再配置：
 
 ```bash
-env-update
+cd /root/dotfiles/gentoo_setting/experiments/musl-llvm-pc
+bash scripts/configure-locale.sh --dry-run
+bash scripts/configure-locale.sh --lang zh_CN.UTF-8 --timezone Asia/Shanghai
+```
+
+需要英文登录环境时，改为 `--lang en_US.UTF-8`，仍可保留上海时区。musl 分支不执行 `locale-gen`，不复制 glibc locale archive。脚本保留原配置备份；日期、货币、排序与编码转换仍须按应用检查，详见迁移实验记录。
+
+{% endcollapse %}
+
+若 profile 不符，先核对 stage3，不通过直接切换 profile 修正下载错误。配置后更新当前 shell；桌面和用户 D-Bus 需重新登录才继承语言：
+
+```bash
+unset LC_ALL
 source /etc/profile
 ```
 
@@ -345,6 +402,8 @@ passwd
 ```
 
 ### 分阶段应用当前 Portage 配置
+
+{% collapse glibc/LLVM：合并当前PC配置 open %}
 
 当前公开配置位于：
 
@@ -401,11 +460,27 @@ emaint sync -a
 ```bash
 eselect repository list -i
 emerge -pv sys-kernel/xanmod-kernel
-emerge -pv sonicde-base/sonic-meta
+emerge -pv sonicde-base/sonicde-meta
 emerge -pv x11-base/xlibre-server
 ```
 
 不要把 overlay 中暂时不存在、被 mask 或只有测试关键字的包统称为“包消失了”。先用 `emerge -pv`、`eix` 和 repository 配置区分来源、关键字与 mask。
+
+{% endcollapse %}
+
+{% collapse musl/LLVM：逐项合并实验配置 %}
+
+保留官方 stage3 的正常 Portage 用户和沙箱；只合并实验目录中逐项验证的配置与补丁组，不复制测试夹的 root 编译设置或整套 PC 配置。当前已完成 GLib/HarfBuzz 引导和 Pillow `truetype` 恢复；完整桌面安装进行中。
+
+```bash
+portageq envvar ELIBC
+portageq envvar FEATURES
+id portage
+```
+
+应确认 `ELIBC=musl`，并保留 `sandbox`、`userpriv`、`usersandbox` 等默认功能。所需 SonicDE/XLibre 仓库、USE、关键字、兼容包约束和补丁的状态见[实验目录](https://github.com/Cyberl-ty02/dotfiles/tree/experiment/musl-llvm-migration/gentoo_setting/experiments/musl-llvm-pc)。不把未完成的配置拼成可直接覆盖的新机安装包。
+
+{% endcollapse %}
 
 ## Stage 2：建立可信启动链并安装内核
 
@@ -572,6 +647,8 @@ ls -la /etc/kernel/secureboot /root/secureboot-script-backup
 
 ### 安装内核、固件和 NVIDIA
 
+{% collapse glibc/LLVM：内核与NVIDIA open %}
+
 Gentoo Handbook 建议第一次启动优先使用 distribution kernel，以减少“系统配置错误”和“自定义内核漏选驱动”混在一起的概率。我的机器选择 Gentoo-Zh 的 XanMod distribution kernel，并通过 `cjk` USE 应用 CJKTTY 补丁。当前 overlay 的 ebuild 会继承 `cjktty` eclass；`cjk` 提供 16×16 CJK 字体，`cjk32` 再加入 32×32 字体，用于解决本机高分辨率控制台上中文过小的问题。字体资源进入内核后镜像增加数 MiB 属预期结果；低分辨率 framebuffer 通常不必照抄 `cjk32`。
 
 distribution kernel 通常依赖 initramfs 才能覆盖模块化的存储与文件系统驱动。当前 `package.use/secureboot` 已为 `sys-kernel/installkernel` 启用 `dracut` 和 `refind`；安装前仍要从 Portage 计划中确认这些 flag 生效：
@@ -626,7 +703,19 @@ dmesg | grep -Ei 'secure boot|integrity|verification|lockdown'
 
 `mokutil --sb-state`、MOK 测试、EFI 签名和模块 signer 应相互印证。某一项失败时保留原固件启动项和 LiveCD，回到对应层排查，不要先删除已知可启动的 EFI 文件。
 
+{% endcollapse %}
+
+{% collapse musl/LLVM：内核与NVIDIA %}
+
+内核、签名、initramfs、NVIDIA 用户态和模块的完整整合尚未完成。现有 `x11-drivers/nvidia-drivers` 依赖 glibc/GCC，本轮不将它直接装入 musl 根。
+
+目前只有开源模块编译、原生 CUDA 最小 kernel、私有兼容前缀图形测试及官方 Flatpak NVIDIA 扩展测试通过；这些不能替代真机显示、PRIME、外接显示与冷启动验收。先停在[迁移记录](/posts/gentoo-musl-llvm-pc-migration/gentoo-musl-llvm-pc-migration/)明确的验收边界，保留原系统和启动项。
+
+{% endcollapse %}
+
 ### 安装 mold 与基础维护工具
+
+{% collapse glibc/LLVM：linker选择 open %}
 
 启动链和内核完成后，先用临时非 mold LDFLAGS 安装 linker 本身及后续维护工具：
 
@@ -646,6 +735,14 @@ LDFLAGS="-fuse-ld=mold -Wl,-O1 -Wl,--as-needed -Wl,-z,pack-relative-relocs"
 
 这一步之后才执行完整 world 更新，能保证后续包看到的 linker 与公开配置一致。
 
+{% endcollapse %}
+
+{% collapse musl/LLVM：linker选择 %}
+
+官方 musl/LLVM stage3 已带 LLVM/LLD，本轮保留其默认 linker。不要复制 glibc PC 配置中的 mold LDFLAGS 后再尝试补装 linker。若以后选择 mold，另行核对目标版本及依赖图；当前实验不要求该替换。
+
+{% endcollapse %}
+
 ## Stage 3：构建可首次启动的完整系统
 
 可信启动链和内核就绪后，再把 stage3 更新为完整桌面系统。此阶段覆盖基础 world、机器清单、登录环境、安全工具和 OpenRC 服务；完成标志不是“所有 emerge 命令返回成功”，而是重启检查清单中的每个对象都能被实际验证。
@@ -663,6 +760,8 @@ emerge --ask @preserved-rebuild
 这里的顺序刻意放在 Secure Boot、引导、内核和 mold 之后。若 Portage 给出 slot conflict、USE change 或 mask，应先理解依赖含义，不要直接接受一大批未读的 autounmask 修改。
 
 ### 按角色安装当前软件
+
+{% collapse glibc/LLVM：角色清单与world open %}
 
 新系统先使用仓库中的角色清单，每次都先预览。基础、实体机引导和桌面可以依次检查：
 
@@ -704,6 +803,24 @@ emerge -ajvuDN @world
 
 完整清单适合复原这台机器，不等于所有 Gentoo 用户的推荐列表。特别是 CUDA、PostgreSQL 和专有应用，都应根据实际需求删减。
 
+{% endcollapse %}
+
+{% collapse musl/LLVM：原生组件与Flatpak主包 %}
+
+不复用旧 PC world 或 GNU Emacs/GCC fallback 清单。SonicDE、XLibre、Fcitx/Rime 与字体由目标 Portage 配置管理；闭源桌面主包按独立 Flatpak 清单安装，运行时不能满足宿主 Portage 依赖。
+
+在 Flatpak 本体、CA 证书与字体已安装的目标 root chroot 中：
+
+```bash
+cd /root/dotfiles/gentoo_setting/experiments/musl-llvm-pc
+bash scripts/install-flatpak-apps.sh --dry-run --system
+bash scripts/install-flatpak-apps.sh --system
+```
+
+脚本不启动 GUI，默认国内缓存并保留签名验证。当前主包是微信和 VSCodium；腾讯会议、中文 WPS 等替代路径仍待验证，不能据此宣称整套日常软件已验收。
+
+{% endcollapse %}
+
 #### 核对原博客中不在 world_packages.txt 的内容
 
 2026-10-13 核验时，实时 `/var/lib/portage/world` 与仓库的 `world_packages.txt` 逐行一致，共 92 项。可以在旧系统或恢复环境中自行核对：
@@ -741,7 +858,7 @@ zram 的 OpenRC local.d 启停脚本
 xlibre-server                 实际 X server
 xorg-server::xlibre          满足旧包名依赖的 dummy
 xwayland                      Wayland 应用兼容服务器，仍被 SonicDE 依赖
-sonic-desktop / sonic-win     替换对应 Plasma 桌面核心
+sonic-desktop-interface / sonic-win     替换对应 Plasma 桌面核心
 ```
 
 遇到 SonicDE 编译期 libinput target 问题时，可参考：[Gentoo SonicDE + XLibre 编译失败：追踪 kcm_mouse 缺失的 xorg-libinput 依赖](/posts/gentoo-sonicde-xlibre-libinput-build-fix/gentoo-sonicde-xlibre-libinput-build-fix/)。该修复已进入 overlay，不应在新版本中重复保留旧 user patch。
@@ -1206,6 +1323,8 @@ test -d ~/.zim/modules/powerlevel10k
 
 ### 恢复 Doom Emacs
 
+{% collapse glibc/LLVM：编辑器选择 open %}
+
 当前 PC world、仓库保留的 WSL world 快照与共享 core 清单都选择 `app-editors/emacs`；WSL 当前未安装，这一选择只用于未来重建。Windows 已完成 Scoop Emacs 部署并复用同一组 Doom 私人配置，Neovim 过渡文件也已从 dotfiles 删除。Doom 的私人配置位于 dotfiles 的 [`dot_config/doom/`](https://github.com/Cyberl-ty02/dotfiles/tree/main/dot_config/doom)，Gentoo 框架本体则由部署脚本检出到 `~/.config/emacs`。
 
 先在已经审核的 dotfiles checkout 中预览并应用普通用户配置：
@@ -1234,6 +1353,14 @@ doom doctor
 ```
 
 本机当前使用 `~/.config/emacs` 作为 Doom 主程序目录、`~/.config/doom` 作为私人配置目录；旧布局中的 `~/.emacs.d` 和 `~/.doom.d` 均不需要兼容符号链接。若确实需要 root 的独立配置，可在审阅脚本后使用 `deploy-doom.sh --root`；不要让普通用户与 root 共用可写的包、缓存或状态目录。详细的更新与卸载边界见：[Doom Emacs 安装、同步与清理](/posts/doom-emacs-windows/doom-emacs-windows/)。
+
+{% endcollapse %}
+
+{% collapse musl/LLVM：编辑器选择 %}
+
+新 musl 环境不默认安装 GNU Emacs，也不执行 Doom 框架部署脚本。Neomacs 仍是待验证候选；不可用时本轮不自动装回旧 Emacs。现有 glibc 系统与 Windows 的 Emacs 配置保留。
+
+{% endcollapse %}
 
 ### 从 LiveCD 查找、备份或移走旧用户配置
 
@@ -1322,6 +1449,8 @@ sync-uri = https://mirrors.ustc.edu.cn/gentoo.git
 GENTOO_MIRRORS="https://mirrors.ustc.edu.cn/gentoo https://repo.huaweicloud.com/gentoo https://mirrors.aliyun.com/gentoo https://distfiles.gentoo.org https://mirrors.tuna.tsinghua.edu.cn/gentoo"
 ```
 
+{% collapse glibc/LLVM：binhost open %}
+
 ```ini
 # /etc/portage/binrepos.conf/gentoo.conf
 [gentoo]
@@ -1329,6 +1458,23 @@ sync-uri = https://mirrors.cernet.edu.cn/gentoo/releases/amd64/binpackages/23.0/
 priority = 1
 verify-signature = true
 ```
+
+{% endcollapse %}
+
+{% collapse musl/LLVM：binhost %}
+
+```ini
+# /etc/portage/binrepos.conf/gentoo.conf
+[gentoo]
+sync-uri = https://mirrors.ustc.edu.cn/gentoo/releases/amd64/binpackages/23.0/x86-64_musl_llvm
+priority = 1
+verify-signature = true
+```
+
+镜像暂未同步时，可临时使用官方对应目录，保留相同 ABI 路径与签名验证。不要只更换域名而混用 `x86-64_llvm` 与 `x86-64_musl_llvm`。
+
+{% endcollapse %}
+
 
 复制这些片段时不能只改 URI：binhost 的 profile/ABI 必须与目标系统一致，Git 提交签名、Release Key 刷新与二进制包签名验证也应保留。WSL 使用 `x86-64` binhost、没有 PC 的华为 binhost，并保留兼容初始 stage3 的 wget 下载方式；因此两套 Portage 目录不能直接覆盖彼此。
 
