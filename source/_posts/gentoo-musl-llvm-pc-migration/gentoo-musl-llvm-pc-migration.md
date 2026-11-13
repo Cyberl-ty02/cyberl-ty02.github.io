@@ -39,7 +39,8 @@ default/linux/amd64/23.0/musl/llvm
 | Flatpak | 由 musl 原生编译，完成应用部署和安装后触发器复核 | 真机桌面 Portal 和设备交互 |
 | 微信 | 独立显示中出现中文登录界面 | 未登录；聊天、中文输入、音视频 |
 | VSCodium | 八个选定扩展实际激活，中文 notebook 读取和 Jupyter 原生 ZeroMQ 中文消息往返通过 | notebook kernel 执行、调试、所有扩展与凭据 |
-| SonicDE/XLibre/Rime | 依赖预演通过，源码构建中 | 新桌面登录和实际硬件显示 |
+| SonicDE/XLibre/Rime | 依赖预演通过，源码构建中；原生 Qt/Fcitx/Rime 实际键入并提交“你好”通过 | 新桌面登录、GTK/Flatpak 输入法和实际硬件显示 |
+| 全新 stage3 安装基础 | 正确权限解压、基础包核验通过；默认 Portage 用户与沙箱源码安装官方 hello 通过 | 完整桌面与内核安装 |
 | 新根启动 | 尚未执行 | 内核/initramfs、Secure Boot、第一次启动和回退 |
 
 VSCodium 本轮验证的扩展包括 Python、debugpy、Jupyter、Jupyter Renderers、Ruff、rust-analyzer、Tinymist 和 Office。没有把原用户的凭据复制到实验环境，也没有把“扩展目录存在”当作“扩展加载成功”。
@@ -156,6 +157,10 @@ Flatpak 的 glibc locale 需要单独检查。本轮修复语言内容后，运�
 
 旧 Darts CLI 使用 `std::random_shuffle`，在当前 Clang 默认 C++17 下无法编译。本轮只对 `dev-libs/darts-0.32h_pre20181117064816` 指定 Clang C++14，随后通过，没有引入 GCC。对应的版本限定配置随实验目录保存，不覆盖整套 Portage 配置。
 
+输入法的联动测试还发现一个编译时看不到的问题：Fcitx 动态加载 Rime 时，经 LevelDB 带入的 tcmalloc 在默认 musl 下触发 initial-exec TLS 错误。本轮使用 Gentoo 已有的 `dev-libs/leveldb -tcmalloc` 配置重建，随后在私有 X11 显示、独立 D-Bus 会话和测试用户配置中，经 Qt 6 → Fcitx 5 → Rime 输入 `nihao<space>`，实际提交了“你好”。不需要给整个桌面设置 `LD_PRELOAD`。
+
+Fcitx 5.1.21 另有旧 Wayland CMake finder 与当前 SonicDE ECM 不匹配的问题。本轮目标是 XLibre/X11，因此只关闭这个版本 Fcitx 自身的 Wayland 后端，其他 Qt/Wayland 客户端库保留。两项配置随实验目录记录；GTK 和 Flatpak 应用的中文输入仍待独立验证。
+
 CUDA 的宿主数学调用和 gcompat amd64 加载器路径也有小型实验补丁。最小验证通过不等于完整 ebuild、CUDA SDK 或原生 NVIDIA 图形兼容已经验收；补丁状态在仓库说明中单列。
 
 新环境不默认安装 GNU Emacs。Neomacs 已有 Gentoo overlay，但仍是实验软件；musl、现有 Doom 配置及中文输入等尚待验证。若它不满足需要，本轮不会自动退回安装旧 Emacs，原系统与 Windows 配置继续保留。
@@ -163,6 +168,10 @@ CUDA 的宿主数学调用和 gcompat amd64 加载器路径也有小型实验补
 ## 新根、子卷和回退
 
 当前实验根曾非特权解压，并为嵌套隔离调整过 Portage 用户与沙箱，只用于实验。正式新根要从已验签 stage3 以正确权限重新建立，恢复正常用户、文件归属和沙箱，再复用审核过的配置与受控构建包。
+
+现在已经另行建立正确权限的全新 stage3 根：核对 63,870 个归档条目的属主、权限与符号链接，并确认 282 个基础包与官方归档一致。没有把旧实验根的文件归属或用户配置直接带过去。
+
+随后在新根中保留默认 `sandbox`、`userpriv`、`usersandbox`、`ipc-sandbox`、`network-sandbox` 和 `pid-sandbox`，从源码安装官方 hello。编译阶段的实际身份是 Portage UID/GID 250:250，安装后运行输出正确，未引入 GCC 或 glibc。这一步证明了全新 stage3 的安装基础；完整桌面、新内核和启动流程仍须继续验收，不能据此把教程标为迁移完成。
 
 候选 Btrfs 布局是在现有文件系统内新增 `@musl`，保留原 `@`、`@home` 和启动项。`/dev/nvme1n1p2` 是分区设备，不是要赋给子卷的名字，也不需要仅为此次迁移重新格式化分区。
 
