@@ -22,6 +22,9 @@ sticky: 1
 > **危险操作提醒**
 > 分区、格式化、生成 fstab 和安装 EFI 启动项都可能造成数据损失或启动失败。命令中的设备名全部是占位示例。执行前必须用 `lsblk -f`、`findmnt` 和固件启动模式确认自己的目标，双系统环境尤其不能格式化已有 Windows ESP。
 
+> **musl/LLVM 实验路线**
+> 2026-11-13 另行开展了[从官方 musl/LLVM stage3 安装的实验](/posts/gentoo-musl-llvm-pc-migration/gentoo-musl-llvm-pc-migration/)，尚未完成新根真机启动。本篇继续按 glibc 主线维护；不要在已有系统上仅切换 profile，也不要把本文的 GCC fallback、NVIDIA 依赖和 `locale-gen` 流程整套复制到 musl 根。
+
 ## 这套安装最后会得到什么
 
 当前配置的目标不是最小 Gentoo，而是一台日常使用的 amd64 笔记本：
@@ -306,21 +309,20 @@ default/linux/amd64/23.0/llvm
 
 如果不是，先确认下载的 stage3 是否正确，而不是在一个刚解压的系统里贸然跨 init、ABI 或工具链切换 profile。
 
-配置时区和 locale。博客本身采用 Asia/Shanghai，而当前交互环境所在时区不影响 Gentoo 目标系统的选择：
+配置时区和 locale。以下命令针对本文的 glibc profile；musl 不执行 `locale-gen`，改按[实验文章的 libc 分支说明](/posts/gentoo-musl-llvm-pc-migration/gentoo-musl-llvm-pc-migration/)配置。博客本身采用 Asia/Shanghai，当前交互环境所在时区不影响目标系统的选择：
 
 ```bash
 echo 'Asia/Shanghai' > /etc/timezone
 emerge --config sys-libs/timezone-data
 
 printf '%s\n' \
-  'C.UTF8 UTF-8' \
   'en_US.UTF-8 UTF-8' \
   'zh_CN.UTF-8 UTF-8' >> /etc/locale.gen
 locale-gen
 eselect locale list
 ```
 
-选择 locale 后更新环境：
+`/etc/locale.gen` 已有相同声明时不必反复追加。选择 locale 后更新环境：
 
 ```bash
 env-update
