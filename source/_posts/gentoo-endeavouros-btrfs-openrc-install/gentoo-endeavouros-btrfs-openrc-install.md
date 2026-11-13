@@ -14,6 +14,8 @@ sticky: 1
 
 这篇文章整理我现在使用的 Gentoo 实体机安装路线：以 EndeavourOS LiveCD 作为安装环境，把 Gentoo 安装到 Btrfs 的 `@`、`@home` 子卷，使用 `genfstab` 生成挂载表，再通过 `arch-chroot` 进入新系统。目标系统采用 OpenRC、LLVM profile、Gentoo-Zh XanMod distribution kernel（启用 CJKTTY）、XLibre、SonicDE、NVIDIA，以及 shim + rEFInd Secure Boot 启动链。
 
+全新安装的 glibc／musl 两条路线都可直接使用 `@`、`@home`。现有系统迁移时可先用 `@musl` 隔离验证；验收后再将旧根改名为 `@glibc-backup`、新根改名为 `@`，同步修正挂载与启动参数并验证回退。临时子卷名不代表需要新增磁盘分区，具体阶段见[迁移记录](/posts/gentoo-musl-llvm-pc-migration/gentoo-musl-llvm-pc-migration/)。
+
 它不是 Gentoo Handbook 的替代品。Handbook 负责解释 Gentoo 安装中长期稳定的规则；本文则把这些规则落实到我的磁盘布局和公开配置仓库。涉及版本、overlay 和 USE flag 的内容会随时间变化，实际安装时应同时打开 [Gentoo AMD64 Handbook](https://wiki.gentoo.org/wiki/Handbook:AMD64) 核对。
 
 > **记录基线**

@@ -175,6 +175,12 @@ CUDA 的宿主数学调用和 gcompat amd64 加载器路径也有小型实验补
 
 新环境不默认安装 GNU Emacs。Neomacs 已有 Gentoo overlay，但仍是实验软件；musl、现有 Doom 配置及中文输入等尚待验证。若它不满足需要，本轮不会自动退回安装旧 Emacs，原系统与 Windows 配置继续保留。
 
+## 旧 world 的覆盖范围
+
+桌面批次安装通过不代表旧系统软件全部迁移。按旧 `world` 的 91 项直接选择逐项核对时，新根原生已装 25 项，微信与 VSCodium 两项由 Flatpak 提供；其余包括待原生预演的软件、闭源兼容与 NVIDIA/CUDA 拆分项，以及按方案排除的 GNU Emacs、mold。配置仓库的 [`world-migration.tsv`](https://github.com/Cyberl-ty02/dotfiles/blob/experiment/musl-llvm-migration/gentoo_setting/experiments/musl-llvm-pc/world-migration.tsv) 保存逐项状态，“待预演”不等于不支持 musl。
+
+PostgreSQL、ClamAV、ClamTk 尚未安装，正在补做依赖预演。数据库软件安装与旧数据转储恢复分开处理，ClamAV 的签名更新和实际扫描也另行验收。此前 `--oneshot` 桌面安装没有登记新根 `world`，已把软件选择登记列为启动前必做步骤；完成前不运行 `depclean`，避免把保留的软件当作未选中的依赖移除。
+
 ## 新根、子卷和回退
 
 当前实验根曾非特权解压，并为嵌套隔离调整过 Portage 用户与沙箱，只用于实验。正式新根要从已验签 stage3 以正确权限重新建立，恢复正常用户、文件归属和沙箱，再复用审核过的配置与受控构建包。
@@ -189,7 +195,11 @@ CUDA 的宿主数学调用和 gcompat amd64 加载器路径也有小型实验补
 
 另一个要保留的 profile 细节是：Gentoo musl 已屏蔽 `kde-plasma/powerdevil[filecaps]`。SonicDE 的实现包与兼容包要同时采用 `-filecaps`，否则会出现 USE 依赖冲突；这不是因为 stage3 解压权限不足，也不应靠关闭整个 Portage 沙箱解决。
 
+启动准备中还补齐了新根自己的五个仓库副本，固定在已验证版本，profile 不再依赖临时挂载；国内镜像优先与 Gentoo 同步签名检查保留，验收期间暂不自动同步。XanMod/CJKTTY 的内核依赖预演已通过，完整内核和签名仍待实际构建。签名工具会需要 GNU binutils，LLVM 也提供 libgcc ABI 库，这不等于安装 GNU GCC 编译器套件。NVIDIA 的开源 `nvidia-modprobe` 620.70.06 已按固定 Gentoo Manifest 校验官方源码，并在新根用 Clang/musl 构建、运行版本与帮助检查通过；它尚未安装或用于加载模块，不代表完整驱动集成已完成。
+
 候选 Btrfs 布局是在现有文件系统内新增 `@musl`，保留原 `@`、`@home` 和启动项。`/dev/nvme1n1p2` 是分区设备，不是要赋给子卷的名字，也不需要仅为此次迁移重新格式化分区。
+
+迁移验收后，最终根子卷名仍统一为原教程的 `@`。从救援环境挂载 Btrfs 顶层，将旧 `@` 改名为 `@glibc-backup`，再将新 `@musl` 改名为 `@`；同步修正两套系统的 `fstab`、rEFInd 根参数和按名称引用子卷的备份任务，检查 initramfs 是否固化了旧路径。分别验证新系统启动与旧系统回退后，再决定旧根的删除时间。这样不会留下额外的 `@musl`，也没有单独的 musl 分区需要删除，分区 UUID 不变。新机全新安装则直接建立 `@`、`@home`，不必经历临时命名。[Btrfs 官方文档](https://btrfs.readthedocs.io/en/latest/btrfs-subvolume.html)说明子卷可以改名，子卷 ID 保持不变。
 
 第一次启动成功后，仍要做多次启动、桌面使用、更新与回退验证。用户配置先隔离，数据按应用清单恢复；旧 glibc 根的删除另行决定，不能把“迁移能启动”当作“旧根可以立即删除”。当前还没有进行这一步切换。
 
