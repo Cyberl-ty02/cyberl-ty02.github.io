@@ -161,7 +161,7 @@ Flatpak 的 glibc locale 需要单独检查。本轮修复语言内容后，运�
 
 输入法的联动测试还发现一个编译时看不到的问题：Fcitx 动态加载 Rime 时，经 LevelDB 带入的 tcmalloc 在默认 musl 下触发 initial-exec TLS 错误。本轮使用 Gentoo 已有的 `dev-libs/leveldb -tcmalloc` 配置重建，随后在私有 X11 显示、独立 D-Bus 会话和测试用户配置中，经 Qt 6 → Fcitx 5 → Rime 输入 `nihao<space>`，实际提交了“你好”。不需要给整个桌面设置 `LD_PRELOAD`。
 
-Fcitx 5.1.21 另有旧 Wayland CMake finder 与当前 SonicDE ECM 不匹配的问题。本轮目标是 XLibre/X11，因此只关闭这个版本 Fcitx 自身的 Wayland 后端，其他 Qt/Wayland 客户端库保留。两项配置随实验目录记录。后续原生 GTK 3 和 Flatpak VSCodium 编辑区也通过了实际中文输入，后者由扩展 API 确认文档收到“你好”，没有添加持久 Flatpak 权限覆盖。微信等其他应用的输入仍需逐项验证。
+Fcitx 5.1.21 另有旧 Wayland CMake finder 与当前 SonicDE ECM 不匹配的问题。本轮目标是 XLibre/X11，因此只关闭这个版本 Fcitx 自身的 Wayland 后端，其他 Qt/Wayland 客户端库保留。两项配置随实验目录记录。后续软件补齐中，Yakuake 26.04.3 的可选 Wayland 后端也拉入了与 SonicDE ECM 不兼容的 KWayland；关闭这个应用的可选后端后，新计划通过，安装仍在队列中。Gwenview 26.04.3 则使用上游已有的 `GWENVIEW_NO_WAYLAND_GESTURES=ON`，保留 X11 功能；在只读挂载真实 musl 根的独立 CMake 检查中，默认配置因 WaylandProtocols 缺失失败，X11 配置成功，完整 Portage 构建与运行仍待验证。相关开关按应用版本限定，没有替换全局 ECM 模块。后续原生 GTK 3 和 Flatpak VSCodium 编辑区也通过了实际中文输入，后者由扩展 API 确认文档收到“你好”，没有添加持久 Flatpak 权限覆盖。微信等其他应用的输入仍需逐项验证。
 
 补丁现在按软件整理在仓库的 [patchsets 目录](https://github.com/Cyberl-ty02/dotfiles/tree/experiment/musl-llvm-migration/gentoo_setting/experiments/musl-llvm-pc/patchsets)，每组写明适用版本、验证状态和移除条件，避免长期维护整份本地 ebuild 副本。配方依赖变更放 `repository/`，源码变更放 `source/`；Portage 用户源码补丁不能补齐缺失的 `DEPEND`。
 
