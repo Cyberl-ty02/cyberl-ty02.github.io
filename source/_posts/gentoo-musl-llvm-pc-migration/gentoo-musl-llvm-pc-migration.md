@@ -185,7 +185,7 @@ CUDA 的宿主数学调用和 gcompat amd64 加载器路径也有小型实验补
 
 从这个全新根再做完整桌面预演，会遇到旧实验根已不再暴露的 GLib → docutils → Pillow → HarfBuzz → GLib 引导循环。候选方案是先临时设置 `dev-python/pillow -truetype`，安装 GLib/HarfBuzz 后移除临时设置，再按最终 USE 重建 Pillow。关闭后完整依赖预演通过，没有计划引入 GCC、glibc、GNU Emacs 或 QtWebEngine；随后已在这个新根实际完成两阶段引导：GLib/HarfBuzz 安装通过，Pillow 已恢复 `truetype`，临时开关删除，默认 Portage 用户和沙箱保留，未引入 GCC。随后完整桌面安装通过，共 926 个包，保留默认 Portage 用户与沙箱，未引入 GCC；图像编辑组件使用上游 SonicDE 配方加补丁组。新内核和真机启动仍待验收，临时配置不能直接作为最终配置发布。
 
-全新根随后也在独立 Xvfb、私有 D-Bus 和隔离用户配置中通过桌面运行检查：窗口管理器、shell 进程及总线接口持续可用，中文欢迎界面与面板正常绘制，PipeWire 进程和兼容套接字检查通过。该测试仍使用软件 QML、关闭合成，没有真实设备与系统总线，不能作为登录管理器、硬件显示、音频播放或 Portal 的验收。新根音量界面补齐、系统 locale 和系统级 Flatpak 的安装后检查另行推进，不借用原实验根的结果。
+全新根随后也在独立 Xvfb、私有 D-Bus 和隔离用户配置中通过桌面运行检查：窗口管理器、shell 进程及总线接口持续可用，中文欢迎界面与面板正常绘制，PipeWire 进程和兼容套接字检查通过。该测试仍使用软件 QML、关闭合成，没有真实设备与系统总线，不能作为登录管理器、硬件显示、音频播放或 Portal 的验收。新根随后已补齐音量界面，仍由 PipeWire 提供服务端，没有安装独立 PulseAudio daemon；中文 locale、上海时区和系统级微信／VSCodium 主包检查通过。系统级 VSCodium 也在这个新根实际接收到原生 Fcitx/Rime 提交的“你好”并正常退出。Flatpak 此次先复用已校验缓存，再运行安装脚本，不能当作空缓存下载流程已通过；Portal、音视频、所有扩展仍需真实会话验收。针对构建日志提示的 libc++ 面板右键问题，还在私有显示中实际打开右键菜单，窗口管理器与 shell 保持运行，未复现这个操作导致的崩溃；因此本轮没有追加全局 libc++ 重建开关，这不代替其他菜单与长期会话稳定性测试。
 
 另一个要保留的 profile 细节是：Gentoo musl 已屏蔽 `kde-plasma/powerdevil[filecaps]`。SonicDE 的实现包与兼容包要同时采用 `-filecaps`，否则会出现 USE 依赖冲突；这不是因为 stage3 解压权限不足，也不应靠关闭整个 Portage 沙箱解决。
 
