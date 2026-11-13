@@ -181,7 +181,9 @@ CUDA 的宿主数学调用和 gcompat amd64 加载器路径也有小型实验补
 
 PostgreSQL 18.6、ClamAV 1.5.3、ClamTk 6.18-r2 随后已在默认 Portage 用户和沙箱下安装完成。PostgreSQL 工具能正常执行，没有初始化或迁移旧数据库；ClamAV 对自定义无害签名的正、负样本扫描结果正确，正式病毒库更新仍待验收。ClamTk 在私有显示中正常打开，但最初界面仍是英文：musl 下需明确绑定 gettext 目录，已整理为一行、按版本限定的补丁，实际重建和私有显示的中文界面通过。此前 `--oneshot` 留下的空 `world` 已在该批次通过 Portage 登记 32 项软件选择；迁移验收期间仍不运行 `depclean`。
 
-其余软件已完成逐项预演；关键词、USE 等必要配置调整后，43 项原生软件的合并预演已通过，正在构建。Node.js 的依赖允许选择 Gentoo 官方 `llvm-runtimes/libatomic-stub`，明确加入该包后，Firefox／Thunderbird 的合并预演不再选择 GCC；大型应用仍需单独构建。KTorrent 关闭可选内嵌 WebEngine，避免额外网页引擎构建。QQ、LocalSend、FlClash 的 glibc 预编译界面另行验证，不把关键词通过当作 ABI 兼容通过。
+其余软件已完成逐项预演；关键词、USE 等必要配置调整后，连同 PostgreSQL LLVM/JIT、NetworkManager iwd、Btrfs udev 和 XLibre Xvfb 功能恢复，共 48 个直接选择项的合并预演通过，正在构建，最终状态仍需逐项核对。Node.js 的依赖允许选择 Gentoo 官方 `llvm-runtimes/libatomic-stub`，明确加入该包后，Firefox／Thunderbird 的合并预演不再选择 GCC；大型应用仍需单独构建。KTorrent 关闭可选内嵌 WebEngine，避免额外网页引擎构建。QQ、LocalSend、FlClash 的 glibc 预编译界面另行验证，不把关键词通过当作 ABI 兼容通过。
+
+补齐过程中还遇到 lowdown 3.1.1 的 BSD 配置宏与 musl 头文件冲突，以及 ipset 7.24 的过期导出表被 LLD 拒绝。前者直接回补上游修复，后者保存为版本限定的本地源码补丁；两者均通过全新根正常沙箱编译安装，中文转换／帮助命令通过。补丁集中保存在仓库补丁组中，不修改系统头文件或全局放宽链接校验。本轮国内镜像使用临时 `no_proxy` 直连，其余地址保留本地代理；校验策略保持启用。
 
 Bun 官方 musl baseline 归档也已按发布资产 SHA256 校验。它需要 musl 版 C++ 运行库，复用已验签的 Alpine 约 2.7MiB `libstdc++` 后，在私有目录通过 JavaScript、中文文本与人民币格式化测试，没有安装 GCC 编译器或 glibc。这条路线尚未完成 Portage 打包，不全局修改库路径，也不能把私有测试结果写成新根已经安装 Bun。
 
