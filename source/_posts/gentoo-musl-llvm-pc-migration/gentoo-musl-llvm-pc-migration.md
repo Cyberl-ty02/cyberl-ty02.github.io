@@ -35,6 +35,7 @@ default/linux/amd64/23.0/musl/llvm
 | 原生 UTF-8 | 中文文件名、文件内容和字符解码通过 | 旧编码文件、全部应用输入法 |
 | ICU 中文处理 | 日期、人民币、排序和 GB18030 转换通过 | 每个应用是否实际走 ICU |
 | NVIDIA/CUDA | musl/Clang 编译并运行最小 CUDA kernel；五个内核模块编译通过 | 新模块签名/加载、PRIME、外接显示、完整 SDK/PyTorch |
+| NVIDIA 原生图形 | 私有补丁加载器下 EGL 1.5 / OpenGL 4.6 离屏渲染与像素回读通过 | XLibre 显示、PRIME、外接显示、休眠恢复、Vulkan |
 | Flatpak | 由 musl 原生编译，完成应用部署和安装后触发器复核 | 真机桌面 Portal 和设备交互 |
 | 微信 | 独立显示中出现中文登录界面 | 未登录；聊天、中文输入、音视频 |
 | VSCodium | 八个选定扩展实际激活，中文 notebook 读取和 Jupyter 原生 ZeroMQ 中文消息往返通过 | notebook kernel 执行、调试、所有扩展与凭据 |
@@ -46,6 +47,10 @@ VSCodium 本轮验证的扩展包括 Python、debugpy、Jupyter、Jupyter Render
 ## glibc 兼容环境怎么选
 
 gcompat 可以处理一部分 glibc ABI，但不是完整 glibc。本轮最小 CUDA 计算验证通过，并不代表 NVIDIA 整个显示栈已经可用；旧扩展附带的 Ruff、rust-analyzer、Tinymist 在当前 gcompat 环境下甚至会在版本查询时崩溃。
+
+图形部分后来有了单独的进展：参考 Chimera 的 [NVIDIA 草案 PR](https://github.com/chimera-linux/cports/pull/6531)，固定到 `c26532983c3b811c2d6b310058761bba39491bbe`，在私有目录构建带 IFUNC/TLS 补丁的 musl 加载器、gcompat 和兼容 shim，只调整驱动库的实验副本。原系统及实验根的默认 libc 均未替换。
+
+在本机 RTX 4060、620.70.06 驱动上，这条路径已经完成 EGL 1.5 / OpenGL 4.6 上下文创建、离屏清屏与像素回读。使用默认 musl 的对照组仍报重定位类型 37 不受支持。这证明了一个有限的原生图形兼容路径；上游仍是草案，本地尚未完成安装包，也没有验证 XLibre 显示、PRIME、外接显示、休眠恢复或 Vulkan。
 
 因此目前把两条路线分开验证：
 
@@ -117,6 +122,19 @@ LC_ALL=C.UTF-8 emerge --sync
 ```
 
 同步、编译日志中的临时 `LC_ALL` 不应成为整个桌面的永久语言设置。已有 SonicDE 用户的 `~/.config/plasma-localerc` 也可能覆盖系统默认值；应在新系统的目标用户下检查区域与语言，不直接覆盖旧家目录。
+
+如果 `~/.config/plasma-localerc` 已存在，先保留一份用户配置：
+
+```bash
+# 新系统的目标普通用户下执行；文件不存在时无需备份
+if [ -f ~/.config/plasma-localerc ]; then
+    cp -a ~/.config/plasma-localerc ~/.config/plasma-localerc.before-musl
+fi
+kwriteconfig6 --file plasma-localerc --group Formats --key LANG zh_CN.UTF-8
+kwriteconfig6 --file plasma-localerc --group Translations --key LANGUAGE zh_CN:en_US
+```
+
+想用英文桌面时，分别改为 `en_US.UTF-8` 和 `en_US`，然后退出桌面重新登录。系统脚本的备份不包括用户配置；需要撤回用户改动时，从刚保留的文件恢复。若仍有语言混杂，检查 `locale` 中的 `LC_*`、shell 启动文件里的 `LANG` / `LANGUAGE`，以及系统设置中各项格式覆盖。
 
 本轮发现 `LANG=zh_CN.UTF-8` 被接受，只证明了一部分条件：原生 UTF-8 文件处理正常，但 libc 的日期、货币、排序和 iconv 数据与 glibc 不等价。独立 ICU 程序可以完成中文日期、人民币格式、中文排序及 GB18030 转换；应用有没有使用这条路径，要继续实测。
 
