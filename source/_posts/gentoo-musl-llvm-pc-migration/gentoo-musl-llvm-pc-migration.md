@@ -39,7 +39,7 @@ default/linux/amd64/23.0/musl/llvm
 | Flatpak | 由 musl 原生编译，完成应用部署和安装后触发器复核 | 真机桌面 Portal 和设备交互 |
 | 微信 | 独立显示中出现中文登录界面 | 未登录；聊天、中文输入、音视频 |
 | VSCodium | 八个选定扩展实际激活，中文 notebook 读取和 Jupyter 原生 ZeroMQ 中文消息往返通过 | notebook kernel 执行、调试、所有扩展与凭据 |
-| SonicDE/XLibre/Rime | 依赖预演通过，源码构建中；原生 Qt/Fcitx/Rime 实际键入并提交“你好”通过 | 新桌面登录、GTK/Flatpak 输入法和实际硬件显示 |
+| SonicDE/XLibre/Rime | 依赖预演通过，源码构建中；原生 Qt、GTK 及 Flatpak VSCodium 通过 Fcitx/Rime 实际提交“你好” | 新桌面登录、其他应用输入法和实际硬件显示 |
 | 全新 stage3 安装基础 | 正确权限解压、基础包核验通过；默认 Portage 用户与沙箱源码安装官方 hello 通过 | 完整桌面与内核安装 |
 | 新根启动 | 尚未执行 | 内核/initramfs、Secure Boot、第一次启动和回退 |
 
@@ -161,7 +161,11 @@ Flatpak 的 glibc locale 需要单独检查。本轮修复语言内容后，运�
 
 输入法的联动测试还发现一个编译时看不到的问题：Fcitx 动态加载 Rime 时，经 LevelDB 带入的 tcmalloc 在默认 musl 下触发 initial-exec TLS 错误。本轮使用 Gentoo 已有的 `dev-libs/leveldb -tcmalloc` 配置重建，随后在私有 X11 显示、独立 D-Bus 会话和测试用户配置中，经 Qt 6 → Fcitx 5 → Rime 输入 `nihao<space>`，实际提交了“你好”。不需要给整个桌面设置 `LD_PRELOAD`。
 
-Fcitx 5.1.21 另有旧 Wayland CMake finder 与当前 SonicDE ECM 不匹配的问题。本轮目标是 XLibre/X11，因此只关闭这个版本 Fcitx 自身的 Wayland 后端，其他 Qt/Wayland 客户端库保留。两项配置随实验目录记录；GTK 和 Flatpak 应用的中文输入仍待独立验证。
+Fcitx 5.1.21 另有旧 Wayland CMake finder 与当前 SonicDE ECM 不匹配的问题。本轮目标是 XLibre/X11，因此只关闭这个版本 Fcitx 自身的 Wayland 后端，其他 Qt/Wayland 客户端库保留。两项配置随实验目录记录。后续原生 GTK 3 和 Flatpak VSCodium 编辑区也通过了实际中文输入，后者由扩展 API 确认文档收到“你好”，没有添加持久 Flatpak 权限覆盖。微信等其他应用的输入仍需逐项验证。
+
+补丁现在按软件整理在仓库的 [patchsets 目录](https://github.com/Cyberl-ty02/dotfiles/tree/experiment/musl-llvm-migration/gentoo_setting/experiments/musl-llvm-pc/patchsets)，每组写明适用版本、验证状态和移除条件，避免长期维护整份本地 ebuild 副本。配方依赖变更放 `repository/`，源码变更放 `source/`；Portage 用户源码补丁不能补齐缺失的 `DEPEND`。
+
+本轮 Sonic 图像编辑 0.7.0.1 就需要这两层：配方声明 Highway 依赖，源码使用其标准 `hwy` CMake Config。等效修正在 musl/Clang/Highway 1.4.0 下编译安装通过，补丁组也在独立工作副本完成应用与反向撤回检查。正在运行的实验构建暂保留旧配方快照，后续新根另行验证补丁组路径，避免重复应用。上游修复后分别核对两层，不反向撤销已经进入上游提交的修正。
 
 CUDA 的宿主数学调用和 gcompat amd64 加载器路径也有小型实验补丁。最小验证通过不等于完整 ebuild、CUDA SDK 或原生 NVIDIA 图形兼容已经验收；补丁状态在仓库说明中单列。
 
