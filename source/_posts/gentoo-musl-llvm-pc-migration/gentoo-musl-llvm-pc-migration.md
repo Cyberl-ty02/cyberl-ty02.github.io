@@ -41,7 +41,7 @@ default/linux/amd64/23.0/musl/llvm
 | VSCodium | 八个选定扩展实际激活，中文 notebook 读取和 Jupyter 原生 ZeroMQ 中文消息往返通过 | notebook kernel 执行、调试、所有扩展与凭据 |
 | SonicDE/XLibre/Rime | 全新根完整桌面安装通过；原生 Qt、GTK 及 Flatpak VSCodium 通过 Fcitx/Rime 实际提交“你好” | 新桌面登录、其他应用输入法和实际硬件显示 |
 | 全新 stage3 安装基础 | 正确权限解压、默认用户与沙箱完整桌面安装通过，Pillow truetype 已恢复 | 新内核安装及真机验收 |
-| 新根启动 | 尚未执行 | 内核/initramfs、Secure Boot、第一次启动和回退 |
+| 新根启动 | 内核、UEFI 载荷签名与重建 initramfs 的内容检查通过；尚未启动 | 真实 EFI 部署、固件信任链、根布局、第一次启动和回退 |
 
 VSCodium 本轮验证的扩展包括 Python、debugpy、Jupyter、Jupyter Renderers、Ruff、rust-analyzer、Tinymist 和 Office。没有把原用户的凭据复制到实验环境，也没有把“扩展目录存在”当作“扩展加载成功”。
 
@@ -277,6 +277,17 @@ cuda-sdk ./math
 NVIDIA 620.70.06 现有配方增加了版本限定的 modules-only 分支，沿用 Gentoo 原有模块编译与签名流程，不增加 overlay。真实预演发现 Gentoo-Zh 已有 virtual/linux-sources provider，因此撤回了冗余 provider 补丁。五个开源模块用普通 UID 250 编译、安装阶段签名，匹配 7.2.14-musl-x64v3，并以预期公开证书逐个验证 PKCS#7 签名。另将同版本四个 GSP／ucode 文件作为独立数据包，从官方归档经 Gentoo Manifest 校验后提取，不执行厂商安装器；载荷哈希通过。包含随后核心 SDK 包的最终复核为 1,202 个包、88 个 world 选择，无 GCC/glibc，完整 world 预演零项；尚未加载新模块或验证 PRIME／显示输出。
 
 候选内核已启用动态抢占和 CJK16／32 控制台字库。按本轮选择，候选 `/etc/kernel/cmdline` 已登记 `preempt=full`，仅此一项还不是可启动命令行；须在确定根 UUID／子卷后合并必要参数到新启动入口。当前宿主内核未改变，新根也尚未启动，因此还不能声称 full 已运行生效。XanMod 提供独立 RT 分支，但 RT 主要降低实时调度延迟，不能保证更高编译／CUDA 吞吐或更低能耗；本机这版 NVIDIA 源码还有 RT 拒绝检查。普通动态抢占的 full 不等于 PREEMPT_RT。后续首次启动核对实际模式，再比较帧时间、音频和放电功率，保留原启动入口。[XanMod 官方说明](https://xanmod.org/)、[内核实时机制](https://docs.kernel.org/core-api/real-time/theory.html)、[动态抢占参数](https://docs.kernel.org/admin-guide/kernel-parameters.html)。
+
+启动载荷随后也已补齐：使用官方现有配方安装 linux-firmware 20261019、Intel 微码、rEFInd 0.14.2-r4 和 shim 16.1_p7。rEFInd 的 musl／Clang 修复已在 Gentoo 配方中，无需再维护本地补丁；为了匹配其依赖，gnu-efi 由 4.0.4 调整为 3.0.19。仍使用 Clang 和已有 binutils，没有安装 GCC／glibc。完整 world 预演零项，最终共 1,208 个包、92 项 world 选择。
+
+固件以 zstd 压缩安装，目标内核已启用对应解压支持。Intel 微码保留 split-ucode；关闭固件包各自的 initramfs 安装动作，统一由 dracut 组装。新的通用镜像不捕获当前宿主根参数，显式包含 NVMe、i915、Wi-Fi／蓝牙、有线网及五个 NVIDIA 模块，省略 nouveau。约 173MiB 镜像已解包检查匹配 GSP、Wi-Fi／核显固件；早期归档含当前 CPU `0x000b0671` 的 `0x0137` 微码，当前宿主未在线更新微码。
+
+镜像中两项 NVMe 与五项 NVIDIA 模块实际通过 CMS 验签，10 个 UEFI 载荷（含 Btrfs 驱动、MokManager）通过本机公开证书验证，签名私钥目录未进入镜像。受限实验进程内保留了 dracut 创建五个设备节点时的权限警告；已确认 init 挂载 devtmpfs，内核也启用 DEVTMPFS，尚不能代替实际启动。未放宽宿主权限来隐藏这些警告。
+
+配置与 chroot 重建命令集中在 [实验仓库的新根与回退说明](https://github.com/Cyberl-ty02/dotfiles/tree/experiment/musl-llvm-migration/gentoo_setting/experiments/musl-llvm-pc#新根与回退)。新机使用自己的签名材料及目标内核版本，不能取安装介质的 `uname -r`。musl 根的 rEFInd 实际位于 `/usr/lib/refind`，不要照搬旧 glibc 脚本的 `/usr/lib64/refind` 路径。
+
+这些操作只写候选根，未运行 `refind-install`，也未修改真实 EFI 或原启动入口。主板／shim 信任链、目标子卷与 fstab、首次启动、显示／PRIME 和回退仍待验收，当前不安排重启切换。
+
 
 ## 新根、子卷和回退
 
