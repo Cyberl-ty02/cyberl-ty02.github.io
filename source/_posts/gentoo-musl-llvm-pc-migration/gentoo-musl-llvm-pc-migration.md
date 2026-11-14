@@ -242,11 +242,13 @@ PostgreSQL 18.6 的合成预验证使用 UTF8＋ICU `zh-Hans-CN`，中文排序�
 
 ## 长批次后的安装与启动边界
 
-Firefox 153.7 配方直接回补官方 Gentoo 提交及语言包 Manifest；固定基线的 Rust eclass 仍使用 `llvm-r1`，因此配方两处 helper 调用单独做版本限定适配，不改全局 eclass，实际编译器仍选 LLVM 22。新版无 GCC/glibc 预演通过，Zip、cbindgen、图标虚拟包、simdutf、simdjson 已安装；Node 和中文语言包已安装，浏览器本体仍未完成。首轮编译中，静态 musl Rust 构建脚本无法动态加载 libclang；仅对 Firefox 配方增加 rustc wrapper，使宿主脚本与目标都使用动态 musl 链接，普通 UID 250 的对照及离线 Cargo 宿主脚本测试通过，完整重建正在进行。本体的 9700M 检查是工作空间，另需保留根分区 20GiB 底线及下载／安装余量；本轮把构建临时目录放到独立 Linux 文件系统，仍保留空间保护。
+Firefox 153.7 配方直接回补官方 Gentoo 提交及语言包 Manifest；固定基线的 Rust eclass 仍使用 `llvm-r1`，因此配方两处 helper 调用单独做版本限定适配，不改全局 eclass，实际编译器仍选 LLVM 22。新版无 GCC/glibc 预演通过，Zip、cbindgen、图标虚拟包、simdutf、simdjson 已安装；Node、中文语言包和浏览器本体均已完成正常沙箱安装。首轮编译中，静态 musl Rust 构建脚本无法动态加载 libclang；仅对 Firefox 配方增加 rustc wrapper，使宿主脚本与目标都使用动态 musl 链接，普通 UID 250 的对照、离线 Cargo 宿主脚本测试及完整重建均通过。普通用户、空白 profile、隔离网络的离线中文页面渲染和截图目检通过；安装后 1,194 个包、82 个 world 选择，完整 world 预演无待合并项。GPU、输入法、旧 profile 和 Widevine DRM 尚未验收。本体的 9700M 检查是工作空间，另需保留根分区 20GiB 底线及下载／安装余量；本轮把构建临时目录放到独立 Linux 文件系统，仍保留空间保护。
 
-OpenRC 服务只做了静态登记：`elogind → boot`，`dbus`、`NetworkManager`、`soniclogin`、`firewalld`、`sysklogd`、`chronyd → default`，没有实际启动服务。Sonic 登录器自身提供 display-manager；iwd 通过 D-Bus 激活，PipeWire 保持普通用户会话启动。内核、固件、rEFInd、shim 和 virtual/dist-kernel 预演都通过，但未安装，fstab、真实用户和启动项仍待布局阶段处理。
+OpenRC 服务只做了静态登记：`elogind → boot`，`dbus`、`NetworkManager`、`soniclogin`、`firewalld`、`sysklogd`、`chronyd → default`，没有实际启动服务。Sonic 登录器自身提供 display-manager；iwd 通过 D-Bus 激活，PipeWire 保持普通用户会话启动。五项内核／引导选择的预演均通过；XanMod 与 virtual/dist-kernel 正在独立实验根构建，固件、rEFInd 和 shim 尚未安装，fstab、真实用户和启动项仍待布局阶段处理。
 
-后续签名内核脚本已补同一 Portage 写锁、候选根身份、完整 world 接受记录及锁内即时预演；旧阶段标记不能代替本轮验收。这里只完成脚本准备和语法检查，没有运行 launcher、读取签名私钥或绑定真实 ESP。先结束当前软件 writer，再按新的操作范围进入后续阶段。
+签名内核批次沿用同一 Portage 写锁、候选根身份与锁内即时 world 预演。停止路径经过普通用户合成测试，子进程组确认清空后才接受下一任务；旧进程及挂载干净退出后复用构建镜像，没有重新格式化。先使用公开证书验证旧内核，再限于受限批次读取现有签名材料，目标私钥副本保存在新根 root 私有目录，不进入配置仓库。真实 ESP 未写入，内核尚未完成，后续还须核对最终配置、initramfs 的 NVMe／Btrfs 模块、固件、真实启动和回退。
+
+CUDA 先拆出 Clang device-only 头文件、CCCL 和 libdevice 数据包，配方补丁放入已有 Gentoo-Zh，不新建 overlay。普通用户、无网络／GPU 的变量 `sinf` sm_89 PTX 测试通过，正常 Portage 安装与安装后验证排在内核之后；没有把数据包等同于完整 SDK。旧 musl CUDA 程序仍结合静态 cudart 和 gcompat，NVCC、ptxas、宿主运行库、用户态驱动及新内核模块需要继续分层打包验收。
 
 ## 新根、子卷和回退
 
