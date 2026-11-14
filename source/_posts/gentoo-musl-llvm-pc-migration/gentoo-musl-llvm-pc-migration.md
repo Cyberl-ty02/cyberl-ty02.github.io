@@ -82,9 +82,11 @@ bash scripts/install-flatpak-apps.sh --system
 com.tencent.WeChat
 com.vscodium.codium
 org.localsend.localsend_app
+org.mozilla.thunderbird_esr
+com.qq.QQ
 ```
 
-LocalSend 采用[官网列出的 Flatpak 路线](https://localsend.org/download)，1.18.2 已在新根系统级安装，私有 X11 显示中的中文界面通过。局域网发现和文件传输仍待真机会话验收。
+LocalSend 采用[官网列出的 Flatpak 路线](https://localsend.org/download)，1.18.2 已在新根系统级安装，私有 X11 显示中的中文界面通过。局域网发现和文件传输仍待真机会话验收。Thunderbird 使用[官方 ESR Flatpak](https://support.mozilla.org/en-US/kb/channel-choices-thunderbird-snap-and-flatpak)，153.7.0esr 中文界面启动通过；QQ 社区 Flatpak 3.2.35-54395 的腾讯 extra-data 已核对固定哈希并完成安装，隔离离线中文窗口通过，未登录。QQ 首次代理下载中断，经腾讯国内地址直连下载校验后，复用 Flatpak 自带的本地 extra-data 缓存安装，签名与哈希检查保持启用。两项均未访问原邮件或账户配置。
 
 运行时、语言内容、Mesa 和匹配当前驱动的 NVIDIA 图形扩展由 Flatpak 自动解析，不把实验机器的显卡版本写成所有机器的固定依赖。VSCodium 当前使用 Freedesktop SDK 26.08，体积比普通运行时大；其中的 glibc 开发工具与 musl 主系统分开维护，不等于向主系统安装 GCC。
 
@@ -186,15 +188,27 @@ CUDA 的宿主数学调用和 gcompat amd64 加载器路径也有小型实验补
 
 PostgreSQL 18.6、ClamAV 1.5.3、ClamTk 6.18-r2 随后已在默认 Portage 用户和沙箱下安装完成。PostgreSQL 工具能正常执行，没有初始化或迁移旧数据库；ClamAV 对自定义无害签名的正、负样本扫描结果正确，正式病毒库更新仍待验收。ClamTk 在私有显示中正常打开，但最初界面仍是英文：musl 下需明确绑定 gettext 目录，已整理为一行、按版本限定的补丁，实际重建和私有显示的中文界面通过。软件选择已通过 Portage 登记；迁移验收期间仍不运行 `depclean`。
 
-截至 2026-11-14，旧系统 91 项 world 选择中，71 项已有同名原生安装，Telegram 改为原生源码包，GNU Emacs 由原生 Neomacs 替代，微信、VSCodium 和 LocalSend 由 Flatpak 提供，mold 按方案排除。剩余五项普通应用、五项内核／引导选择，以及 WPS、腾讯会议、NVIDIA、CUDA 四项专项集成。这是安装清单核对，不代表旧数据、全部界面或硬件已经验收。
+截至 2026-11-14，旧系统 91 项 world 选择中，71 项已有同名原生安装，Telegram 改为原生源码包，GNU Emacs 由原生 Neomacs 替代，JDK 换为原生 Dragonwell Standard 21 LTS；微信、VSCodium、LocalSend、Thunderbird ESR 和 QQ 由 Flatpak 提供，mold 按方案排除。剩余 Firefox、FlClash 两项普通应用、五项内核／引导选择，以及 WPS、腾讯会议、NVIDIA、CUDA 四项专项集成。这是安装清单核对，不代表旧数据、全部界面或硬件已经验收。
 
-本次统一授权的软件／配置批次已到复核点。Portage 六类配置按原顺序归并，整理前后比较了 1,158 个已安装包的有效设置，差异为零；替换前快照保留，不复制 GPG 私有目录。复核后的配置、环境片段及固定仓库提交清单同步到配置仓库的 `portage/`，源码补丁继续在 `patchsets/` 维护。新机仍须核对 profile、仓库版本、硬件和补丁，不整目录覆盖已有配置。随后 Neomacs 已安装，当前新根共 1,159 个包、79 个 world 选择；安装通过仍不代表迁移完成，真实引导、数据库和旧根均未改变。
+本次统一授权的软件／配置批次已到复核点。Portage 六类配置按原顺序归并，整理前后比较了 1,158 个已安装包的有效设置，差异为零；替换前快照保留，不复制 GPG 私有目录。复核后的配置、环境片段及固定仓库提交清单同步到配置仓库的 `portage/`，源码补丁继续在 `patchsets/` 维护。新机仍须核对 profile、仓库版本、硬件和补丁，不整目录覆盖已有配置。Neomacs 与 Java 补齐后，新根共 1,165 个包、81 个 world 选择；安装通过仍不代表迁移完成，真实引导、数据库和旧根均未改变。新增软件后的整体 `@world --update --deep --newuse` 只读预演通过，未选择 GCC/glibc；仍有 34 项待对齐（21 个新依赖、13 项 USE 重建），尚未执行。官方 stage3 已带的 platformdirs 4.12.4 在当前仓库仍是测试关键词，已精确保留该版本以避免非必要降版。基础 stage3 与桌面 USE 的差异需要在后续批次收敛，空间先复核，不能把依赖可解等同于整体更新已完成。
 
-其余软件已完成逐项预演；关键词、USE 等必要配置调整后，连同 PostgreSQL LLVM/JIT、NetworkManager iwd、Btrfs udev 和 XLibre Xvfb 功能恢复，共 48 个直接选择项已完成安装，四项恢复功能的 USE 已核对。Node.js 的依赖允许选择 Gentoo 官方 `llvm-runtimes/libatomic-stub`，明确加入该包后，Firefox／Thunderbird 的合并预演不再选择 GCC；大型应用仍需单独构建。KTorrent 关闭可选内嵌 WebEngine，避免额外网页引擎构建。QQ、LocalSend、FlClash 的 glibc 预编译界面另行验证，不把关键词通过当作 ABI 兼容通过。
+其余软件已完成逐项预演；关键词、USE 等必要配置调整后，连同 PostgreSQL LLVM/JIT、NetworkManager iwd、Btrfs udev 和 XLibre Xvfb 功能恢复，共 48 个直接选择项已完成安装，四项恢复功能的 USE 已核对。Node.js 的依赖允许选择 Gentoo 官方 `llvm-runtimes/libatomic-stub`，明确加入该包后，Firefox／Thunderbird 的合并预演不再选择 GCC；Firefox 原生 ESR 仍需单独构建，Thunderbird 已改用 ESR Flatpak。KTorrent 关闭可选内嵌 WebEngine，避免额外网页引擎构建。QQ 和 LocalSend 已通过 Flatpak 界面检查；FlClash 的 glibc 界面、Helper/TUN 与 OpenRC 集成仍待验证。
 
 补齐过程中还遇到 lowdown 3.1.1 的 BSD 配置宏与 musl 头文件冲突，以及 ipset 7.24 的过期导出表被 LLD 拒绝。前者直接回补上游修复，后者保存为版本限定的本地源码补丁；两者均通过全新根正常沙箱编译安装，中文转换／帮助命令通过。nftables 1.1.7 的 xtables 兼容还需让 libc 的 Ethernet 头文件先于 Linux UAPI 包含，这项版本限定补丁也已通过正常沙箱编译安装，未操作真实防火墙规则。补丁集中保存在仓库补丁组中，不修改系统头文件或全局放宽链接校验。国内镜像顺序保持优先，下载沿用当前调用环境的代理；本批使用已恢复的本地代理，只有核验国内直连可用且更快时才临时加入 `no_proxy`。Manifest 和签名校验保持启用，代理地址不写死到新机配置。
 
 Bun 官方 musl baseline 归档也已按发布资产 SHA256 校验。它需要 musl 版 C++ 运行库，复用已验签的 Alpine 约 2.7MiB `libstdc++`，在独立官方 stage3 中完成正常 Portage 沙箱安装，JavaScript、中文与人民币格式化通过，没有安装 GCC 编译器或 glibc。Alpine 与 Gentoo 的 libc／LLVM ABI 库名差异由配方内的 patchelf 修正，最终 SONAME 检查没有未解析依赖；运行库仅用于私有 wrapper，不全局修改库路径。配方已整理成新增小型运行库包及修改既有 Bun 配方的两组补丁，主桌面实验根的集成安装、CLI 和 SONAME 检查也已通过；完整博客依赖安装与构建仍待在原生 musl 中验证。
+
+## Dragonwell Standard 与软件包管理
+
+JDK 按用户选择改为 Alibaba Dragonwell **Standard 21 LTS**，使用官方 21.0.13.0.13+9 GA 的 amd64 Alpine/musl 归档，不使用 Extended。归档按官方发布资产 SHA256 核对，Manifest 另记录 BLAKE2B 与 SHA512。69 个 ELF 的检查未发现外部 libstdc++／libgcc 依赖；66 个文件需要把 Alpine 的 musl NEEDED 名调整为 Gentoo `libc.so`。调整只作用于包内文件，不创建全局 libc 别名，也不引入 glibc 或 GCC。
+
+配方使用 Gentoo 的 `java-vm-2` eclass，程序位于版本化 `/opt`，证书连接系统 Java 信任库。正常沙箱安装六个包及 `virtual/jdk:21` 后，以普通用户重新运行安装产物：javac、中文 UTF-8 文件读写、人民币格式、上海时区、CJK 字体及 PNG 输出通过，系统证书库可读取；这不等于真机 AWT、远端 TLS 或所有 JNI 项目通过。`eselect java-vm set system dragonwell-bin-21` 已在实验根完成，当前真实系统默认 Java 不变。
+
+维护形式仍是补丁组：一份向现有 Gentoo-Zh 添加固定 Standard 配方和 Manifest，另一份调整 Gentoo Java 21 虚拟包的 provider，不新建 overlay。具体应用顺序和 chroot 命令见配置仓库现有 `patchsets/dragonwell-21.0.13/`。跟进安全更新时重新核验官方归档和运行测试；上游有等价方案后再移除对应补丁。
+
+其他没有配方的软件也可以用 Portage 二进制 ebuild 管理版本、依赖、文件与卸载，AppImage 可解包后按同样方式安装。专用兼容库放在程序私有目录，使用该程序的 RPATH 或 wrapper；不把兼容环境加入全局库搜索路径。Flatpak 应用和运行时由 Flatpak 管理，配置仓库只保留主包清单及一键脚本。
+
+FlClash 上游[不计划提供 Flathub 包](https://github.com/chen08209/FlClash/issues/1190)，涉及 Helper、TUN 和系统代理的系统权限；仅能运行 GUI 或本地代理的封装不能算完整等价替代。目前仍保留该项。后续线程可从配置仓库根的 `AGENTS.md` 进入现有实验 README、world 清单和补丁组；本机检查点另记录活动进程、实验根身份与私有日志，避免公开文档变成过时的运行状态记录。
 
 ## 新根、子卷和回退
 
