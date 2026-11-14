@@ -58,7 +58,7 @@ gcompat 可以处理一部分 glibc ABI，但不是完整 glibc。本轮最小 C
 - SonicDE、XLibre、输入法和主系统工具使用原生 musl/LLVM。
 - 闭源桌面应用与 VSCodium 的现有 glibc 扩展优先测试 Flatpak 运行时。
 
-另外建立的独立 glibc stage3 仍保留作对照。它需要单独创建根环境、维护软件、配置 locale 和用户会话接口；安装一个 chroot 工具不会自动完成这些工作。如果最后仍采用这条回退路线，正式教程会明确写出额外空间和维护责任。
+另外建立的独立 glibc stage3 已完成对照实验，其目录已归档回收；归档与受限文件保留。它需要单独创建根环境、维护软件、配置 locale 和用户会话接口；安装一个 chroot 工具不会自动完成这些工作。如果最后仍采用这条回退路线，正式教程会明确写出额外空间和维护责任。
 
 Flatpak 的 GPU 路径也做了单独验证：在 musl 宿主隔离根中，只挂入必要 GPU 节点和只读 sysfs，使用 VSCodium 所在的官方 glibc 运行时及 NVIDIA 扩展，CUDA 初始化、显存写入与回读通过；EGL 1.5 / OpenGL 4.6 离屏渲染和像素回读也通过。这条路径没有加载实验 musl 补丁。它仍只是运行时级别的测试，不等于 VSCodium 的全部 GPU 功能、CUDA 开发环境或其他应用已经验收。
 
@@ -173,7 +173,7 @@ Sonic Login Manager 6.8.0.3 还暴露了一个头文件问题：`SelfProvisioner
 
 CUDA 的宿主数学调用和 gcompat amd64 加载器路径也有小型实验补丁。最小验证通过不等于完整 ebuild、CUDA SDK 或原生 NVIDIA 图形兼容已经验收；补丁状态在仓库说明中单列。
 
-新环境不默认安装 GNU Emacs。Neomacs 已有 Gentoo overlay，但仍是实验软件；固定上游提交后，真正 musl 根的依赖预演通过，共四个新包，不引入 GCC 或 glibc，已排在当前软件补齐批次之后。源码编译、现有 Doom 配置及中文输入等尚待验证。安装并验收后，可用 `eselect editor set neomacs` 选择它，再执行 `source /etc/profile`；eselect editor 已支持自定义程序名，无需修改模块。若它不满足需要，本轮不会自动退回安装旧 Emacs，原系统与 Windows 配置继续保留。
+新环境不默认安装 GNU Emacs。Neomacs 已有 Gentoo overlay，但仍是实验软件；固定上游提交后，真正 musl 根的依赖预演通过，共四个新包，不引入 GCC 或 glibc，三个依赖已安装。主体首轮编译遇到七处 musl 错误，涉及 glibc 专有回溯接口及 termios／ioctl 类型差异；固定源码补丁已通过精确应用与撤回检查，重建正在验证。Neomacs 尚未安装成功，现有 Doom 配置及中文输入等也待验证。安装并验收后，可用 `eselect editor set neomacs` 选择它，再执行 `source /etc/profile`；eselect editor 已支持自定义程序名，无需修改模块。若它不满足需要，本轮不会自动退回安装旧 Emacs，原系统与 Windows 配置继续保留。
 
 ## 旧 world 的覆盖范围
 
@@ -181,11 +181,15 @@ CUDA 的宿主数学调用和 gcompat amd64 加载器路径也有小型实验补
 
 PostgreSQL 18.6、ClamAV 1.5.3、ClamTk 6.18-r2 随后已在默认 Portage 用户和沙箱下安装完成。PostgreSQL 工具能正常执行，没有初始化或迁移旧数据库；ClamAV 对自定义无害签名的正、负样本扫描结果正确，正式病毒库更新仍待验收。ClamTk 在私有显示中正常打开，但最初界面仍是英文：musl 下需明确绑定 gettext 目录，已整理为一行、按版本限定的补丁，实际重建和私有显示的中文界面通过。此前 `--oneshot` 留下的空 `world` 已在该批次通过 Portage 登记 32 项软件选择；迁移验收期间仍不运行 `depclean`。
 
-其余软件已完成逐项预演；关键词、USE 等必要配置调整后，连同 PostgreSQL LLVM/JIT、NetworkManager iwd、Btrfs udev 和 XLibre Xvfb 功能恢复，共 48 个直接选择项的合并预演通过，正在构建，最终状态仍需逐项核对。Node.js 的依赖允许选择 Gentoo 官方 `llvm-runtimes/libatomic-stub`，明确加入该包后，Firefox／Thunderbird 的合并预演不再选择 GCC；大型应用仍需单独构建。KTorrent 关闭可选内嵌 WebEngine，避免额外网页引擎构建。QQ、LocalSend、FlClash 的 glibc 预编译界面另行验证，不把关键词通过当作 ABI 兼容通过。
+截至 2026-11-14，旧系统 91 项 world 选择中，71 项已有同名原生安装，Telegram 改为原生源码包，微信与 VSCodium 由 Flatpak 提供，GNU Emacs 和 mold 按方案排除。剩余六项普通应用、五项内核／引导选择，以及 WPS、腾讯会议、NVIDIA、CUDA 四项专项集成。这是安装清单核对，不代表旧数据、全部界面或硬件已经验收。
+
+后续以统一软件／配置批次串行安装，未知错误保留日志等待处理；整理 Portage 前保存快照，核对已安装包的有效设置，发生差异则停止或回退。该批次在引导切换前停下，不能从“配置整理完成”推导“迁移完成”。
+
+其余软件已完成逐项预演；关键词、USE 等必要配置调整后，连同 PostgreSQL LLVM/JIT、NetworkManager iwd、Btrfs udev 和 XLibre Xvfb 功能恢复，共 48 个直接选择项已完成安装，四项恢复功能的 USE 已核对。Node.js 的依赖允许选择 Gentoo 官方 `llvm-runtimes/libatomic-stub`，明确加入该包后，Firefox／Thunderbird 的合并预演不再选择 GCC；大型应用仍需单独构建。KTorrent 关闭可选内嵌 WebEngine，避免额外网页引擎构建。QQ、LocalSend、FlClash 的 glibc 预编译界面另行验证，不把关键词通过当作 ABI 兼容通过。
 
 补齐过程中还遇到 lowdown 3.1.1 的 BSD 配置宏与 musl 头文件冲突，以及 ipset 7.24 的过期导出表被 LLD 拒绝。前者直接回补上游修复，后者保存为版本限定的本地源码补丁；两者均通过全新根正常沙箱编译安装，中文转换／帮助命令通过。nftables 1.1.7 的 xtables 兼容还需让 libc 的 Ethernet 头文件先于 Linux UAPI 包含，这项版本限定补丁也已通过正常沙箱编译安装，未操作真实防火墙规则。补丁集中保存在仓库补丁组中，不修改系统头文件或全局放宽链接校验。本轮国内镜像使用临时 `no_proxy` 直连，其余地址保留本地代理；校验策略保持启用。
 
-Bun 官方 musl baseline 归档也已按发布资产 SHA256 校验。它需要 musl 版 C++ 运行库，复用已验签的 Alpine 约 2.7MiB `libstdc++`，在独立官方 stage3 中完成正常 Portage 沙箱安装，JavaScript、中文与人民币格式化通过，没有安装 GCC 编译器或 glibc。Alpine 与 Gentoo 的 libc／LLVM ABI 库名差异由配方内的 patchelf 修正，最终 SONAME 检查没有未解析依赖；运行库仅用于私有 wrapper，不全局修改库路径。配方已整理成新增小型运行库包及修改既有 Bun 配方的两组补丁，主桌面实验根集成排队，完整博客依赖安装与构建仍待验证。
+Bun 官方 musl baseline 归档也已按发布资产 SHA256 校验。它需要 musl 版 C++ 运行库，复用已验签的 Alpine 约 2.7MiB `libstdc++`，在独立官方 stage3 中完成正常 Portage 沙箱安装，JavaScript、中文与人民币格式化通过，没有安装 GCC 编译器或 glibc。Alpine 与 Gentoo 的 libc／LLVM ABI 库名差异由配方内的 patchelf 修正，最终 SONAME 检查没有未解析依赖；运行库仅用于私有 wrapper，不全局修改库路径。配方已整理成新增小型运行库包及修改既有 Bun 配方的两组补丁，主桌面实验根的集成安装、CLI 和 SONAME 检查也已通过；完整博客依赖安装与构建仍待在原生 musl 中验证。
 
 ## 新根、子卷和回退
 
