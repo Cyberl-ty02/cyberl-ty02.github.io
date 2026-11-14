@@ -56,13 +56,13 @@ profile：default/linux/amd64/23.0/llvm
 
 工具链采用 Clang/LLVM、LLD 和 libc++，profile 为 `default/linux/amd64/23.0/musl/llvm`。主系统、SonicDE/XLibre 与输入法使用原生 musl；闭源桌面应用优先采用独立的 Flatpak glibc 运行时。本轮不默认安装 GCC 或 GNU Emacs。
 
-全新根的默认 Portage 用户与沙箱安装、中文输入和部分 GPU 最小测试已经通过，完整桌面安装仍在推进。内核、NVIDIA 整合、首次启动及回退尚未完成，当前整机配置和 world 清单不能原样作为 musl 配置。
+全新根的默认 Portage 用户与沙箱安装、桌面和常规软件安装、world 对齐、中文输入及部分 GPU 最小测试已经通过。内核、NVIDIA 整合、首次启动及回退尚未完成，当前整机配置和 world 清单不能原样作为 musl 配置。
 
 {% endcollapse %}
 
 完整的当前说明见 dotfiles 的 [`gentoo_setting/README.md`](https://github.com/Cyberl-ty02/dotfiles/blob/main/gentoo_setting/README.md)。按角色恢复的软件见 [`manifests/`](https://github.com/Cyberl-ty02/dotfiles/tree/main/gentoo_setting/manifests)，完整真机目标仍保存在 [`world_packages.txt`](https://github.com/Cyberl-ty02/dotfiles/blob/main/gentoo_setting/pc/world_packages.txt)。这里不会把所有软件都解释一遍，而是着重保证第一次重启前已经具备能启动、联网和进入桌面的条件。
 
-本文采用的实际执行顺序是：进入 chroot 后初始化 Portage、repository 和公开配置，生成 Secure Boot 密钥并安装 shim+rEFInd，引导链就绪后安装内核和 NVIDIA 模块，再安装 mold；随后执行 `emerge -ajvuDN @world`，按 core、pc-host、desktop、nvidia、development 等角色分批预览和安装，只有需要完整复原当前机器时才使用整个 `world_packages.txt`。启用必要服务后才第一次重启；Fcitx、Zsh/Powerlevel10k、Doom Emacs 等用户态配置统一留到成功启动的新系统中完成。
+本文 glibc 主线采用的实际执行顺序是：进入 chroot 后初始化 Portage、repository 和公开配置，生成 Secure Boot 密钥并安装 shim+rEFInd，引导链就绪后安装内核和 NVIDIA 模块，再安装 mold；随后执行 `emerge -ajvuDN @world`，按 core、pc-host、desktop、nvidia、development 等角色分批预览和安装，只有需要完整复原当前机器时才使用整个 `world_packages.txt`。启用必要服务后才第一次重启；Fcitx、Zsh/Powerlevel10k、Doom Emacs 等用户态配置统一留到成功启动的新系统中完成。
 
 ## Stage 0：在 LiveCD 中准备目标系统
 
@@ -1007,6 +1007,8 @@ clamscan --recursive --infected ~/Downloads
 
 我的习惯是先把必要软件、配置和服务都准备好，再进行第一次 Gentoo 启动。`rc-update add` 在 chroot 中只创建启动级别关联，不要求服务此刻真的运行。
 
+{% collapse glibc/LLVM：原桌面服务组合 open %}
+
 基础桌面需要：
 
 ```bash
@@ -1028,6 +1030,26 @@ rc-update add firewalld default
 rc-update add power-profiles-daemon default
 rc-update add netmount default
 ```
+
+{% endcollapse %}
+
+{% collapse musl/LLVM：已登记的最小组合 %}
+
+在目标 chroot 内静态登记，不启动真实服务：
+
+```bash
+rc-update add elogind boot
+rc-update add dbus default
+rc-update add NetworkManager default
+rc-update add soniclogin default
+rc-update add firewalld default
+rc-update add sysklogd default
+rc-update add chronyd default
+```
+
+这组登记已在实验根完成，真实启动顺序尚待验收。Sonic 登录器提供 display-manager，不另启 xdm；iwd 由 D-Bus 激活，PipeWire 由普通用户会话启动。蓝牙、打印、定时任务及电源服务按目标需求另行启用，不因软件已经安装就自动启动数据库或扫描服务。
+
+{% endcollapse %}
 
 PostgreSQL 不是启动桌面的必要条件。只有已经初始化对应版本的数据目录并确实需要开机启动时，才添加类似：
 
@@ -1077,7 +1099,7 @@ fstab 中 @、@home 与 ESP 没有重复或指错，也没有遗留实体 swap �
 内核、initramfs、/lib/modules 的 release 一致
 rEFInd 能看到正确的版本化内核文件
 目标内核和 NVIDIA 模块已经签名
-NetworkManager、日志、时间同步、dbus、elogind、soniclogin 已加入 default
+NetworkManager、日志、时间同步、dbus、elogind、soniclogin 位于所选路线的正确 runlevel（musl 的 elogind 在 boot）
 普通用户、密码与提权规则已经准备
 world 更新没有未处理的 blocker
 ```
@@ -1360,11 +1382,30 @@ doom doctor
 
 {% collapse musl/LLVM：编辑器选择 %}
 
-新 musl 环境不默认安装 GNU Emacs，也不执行 Doom 框架部署脚本。Neomacs 仍是待验证候选；不可用时本轮不自动装回旧 Emacs。现有 glibc 系统与 Windows 的 Emacs 配置保留。
+实验根的 Neomacs 0.0.20 已安装，SQLite、私有 GUI 和 Fcitx/Rime 中文输入通过。目标根可以选择：
+
+```bash
+eselect editor set neomacs
+source /etc/profile
+```
+
+共享 Bash/Zsh 配置已改为尊重系统编辑器选择。Doom core 与 early-init 的最小非交互测试通过，但旧模块、插件和完整 UI 尚未验收；不直接运行旧的 GNU Emacs 部署脚本，也不复制旧 `.eln`。现有 glibc 与 Windows 配置保留，实际迁移边界见[迁移记录](/posts/gentoo-musl-llvm-pc-migration/gentoo-musl-llvm-pc-migration/)。
+
+{% endcollapse %}
+
+### musl 路线的 Java 与 IDE
+
+{% collapse musl/LLVM：统一 Dragonwell Standard 21 %}
+
+宿主采用现有仓库补丁组提供的 Dragonwell **Standard 21 LTS**，通过 Portage 与 `eselect java-vm` 管理。Flatpak 内的 Java 工具使用同版本的私有 glibc 构建，不把 musl JVM 与 glibc JNI 混用；不启用要求 JDK 25 的扩展。
+
+Oracle Java 扩展与 Standard 21 的补全、编译及断点调试已在独立 profile 通过，但真实用户的微软 Java 配置、Maven/Gradle/JUnit 仍需迁移验收。实验脚本和固定资产目前在 dotfiles 的 `experiment/musl-llvm-migration` 分支；具体补丁顺序、SHA256 与边界集中于[迁移记录](/posts/gentoo-musl-llvm-pc-migration/gentoo-musl-llvm-pc-migration/)，不在主安装步骤重复维护一套配方。
 
 {% endcollapse %}
 
 ### 从 LiveCD 查找、备份或移走旧用户配置
+
+musl 迁移先保留旧 `@home` 的回退基线，使用独立写入的测试 home；用户身份、对话 SQLite/WAL、VSCodium 混合状态和服务数据需先分类，最终停写后再迁移。以下配置检查只针对已选定的目标树。
 
 如果 `/home` 沿用旧 `@home` 子卷，首次登录前可能已经存在旧配置。不要用未经核对的递归删除命令。先从 LiveCD 挂载目标根和 home，设定实际用户名目录，再列出对象：
 

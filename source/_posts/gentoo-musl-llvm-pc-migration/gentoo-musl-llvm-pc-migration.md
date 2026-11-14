@@ -66,10 +66,12 @@ Flatpak 提供的 glibc 库不用于满足宿主 Portage 依赖。已经在同�
 
 ## 在 chroot 内一键安装 Flatpak 主包
 
-先按原安装指南准备目标根的 `/proc`、`/sys`、`/dev`、`/dev/pts`、DNS、CA 证书、系统时间和代理，并通过 Portage 安装 Flatpak 本体。以仓库克隆在 `/root/dotfiles` 为例，在目标 chroot 的 root shell 内执行：
+先按原安装指南准备目标根的 `/proc`、`/sys`、`/dev`、`/dev/pts`、DNS、CA 证书、系统时间和代理，并通过 Portage 安装 Flatpak 本体。这些实验脚本目前位于 `experiment/musl-llvm-migration` 分支。使用独立 checkout 并核对接受基线，不覆盖已有工作区；例如在目标 chroot 的 root shell 内执行：
 
 ```bash
-cd /root/dotfiles/gentoo_setting/experiments/musl-llvm-pc
+git clone --branch experiment/musl-llvm-migration --single-branch \
+  https://github.com/Cyberl-ty02/dotfiles.git /root/dotfiles-musl
+cd /root/dotfiles-musl/gentoo_setting/experiments/musl-llvm-pc
 bash scripts/install-flatpak-apps.sh --dry-run --system
 bash scripts/install-flatpak-apps.sh --system
 ```
@@ -190,9 +192,9 @@ PostgreSQL 18.6、ClamAV 1.5.3、ClamTk 6.18-r2 随后已在默认 Portage 用�
 
 截至 2026-11-14，旧系统 91 项 world 选择中，71 项已有同名原生安装，Telegram 改为原生源码包，GNU Emacs 由原生 Neomacs 替代，JDK 换为原生 Dragonwell Standard 21 LTS；微信、VSCodium、LocalSend、Thunderbird ESR 和 QQ 由 Flatpak 提供，mold 按方案排除。剩余 Firefox、FlClash 两项普通应用、五项内核／引导选择，以及 WPS、腾讯会议、NVIDIA、CUDA 四项专项集成。这是安装清单核对，不代表旧数据、全部界面或硬件已经验收。
 
-本次统一授权的软件／配置批次已到复核点。Portage 六类配置按原顺序归并，整理前后比较了 1,158 个已安装包的有效设置，差异为零；替换前快照保留，不复制 GPG 私有目录。复核后的配置、环境片段及固定仓库提交清单同步到配置仓库的 `portage/`，源码补丁继续在 `patchsets/` 维护。新机仍须核对 profile、仓库版本、硬件和补丁，不整目录覆盖已有配置。Neomacs 与 Java 补齐后，新根共 1,165 个包、81 个 world 选择；安装通过仍不代表迁移完成，真实引导、数据库和旧根均未改变。新增软件后的整体 `@world --update --deep --newuse` 只读预演通过，未选择 GCC/glibc；仍有 34 项待对齐（21 个新依赖、13 项 USE 重建），尚未执行。官方 stage3 已带的 platformdirs 4.12.4 在当前仓库仍是测试关键词，已精确保留该版本以避免非必要降版。基础 stage3 与桌面 USE 的差异需要在后续批次收敛，空间先复核，不能把依赖可解等同于整体更新已完成。
+本次统一授权的软件／配置批次已到复核点。Portage 六类配置按原顺序归并，整理前后比较了 1,158 个已安装包的有效设置，差异为零；替换前快照保留，不复制 GPG 私有目录。复核后的配置、环境片段及固定仓库提交清单同步到配置仓库的 `portage/`，源码补丁继续在 `patchsets/` 维护。新机仍须核对 profile、仓库版本、硬件和补丁，不整目录覆盖已有配置。Neomacs 与 Java 补齐后，新根共 1,191 个包、81 个 world 选择；安装通过仍不代表迁移完成，真实引导、数据库和旧根均未改变。本轮长批次已完成全部 34 项对齐（21 个新依赖、13 项 USE 重建），包括 SPIR-V translator、libclc、Mesa CLC 和 cargo-c；另装 Firefox 五项较小前置。最终 `@world --update --deep --newuse` 没有待合并项，仍无 GCC/glibc。官方 stage3 的 platformdirs 4.12.4 以精确关键词保留，避免非必要降版。
 
-其余软件已完成逐项预演；关键词、USE 等必要配置调整后，连同 PostgreSQL LLVM/JIT、NetworkManager iwd、Btrfs udev 和 XLibre Xvfb 功能恢复，共 48 个直接选择项已完成安装，四项恢复功能的 USE 已核对。Node.js 的依赖允许选择 Gentoo 官方 `llvm-runtimes/libatomic-stub`，明确加入该包后，Firefox／Thunderbird 的合并预演不再选择 GCC；Firefox 原生 ESR 仍需单独构建，Thunderbird 已改用 ESR Flatpak。KTorrent 关闭可选内嵌 WebEngine，避免额外网页引擎构建。QQ 和 LocalSend 已通过 Flatpak 界面检查；FlClash 的 glibc 界面、Helper/TUN 与 OpenRC 集成仍待验证。
+其余软件已完成逐项预演；关键词、USE 等必要配置调整后，连同 PostgreSQL LLVM/JIT、NetworkManager iwd、Btrfs udev 和 XLibre Xvfb 功能恢复，共 48 个直接选择项已完成安装，四项恢复功能的 USE 已核对。Node.js 的依赖允许选择 Gentoo 官方 `llvm-runtimes/libatomic-stub`，明确加入该包后，Firefox／Thunderbird 的合并预演不再选择 GCC；Firefox 已回补含安全修复的 153.7 ESR 官方配方，新版预演通过，Thunderbird 已改用 ESR Flatpak。KTorrent 关闭可选内嵌 WebEngine，避免额外网页引擎构建。QQ 和 LocalSend 已通过 Flatpak 界面检查；FlClash 的 glibc 界面、Helper/TUN 与 OpenRC 集成仍待验证。
 
 补齐过程中还遇到 lowdown 3.1.1 的 BSD 配置宏与 musl 头文件冲突，以及 ipset 7.24 的过期导出表被 LLD 拒绝。前者直接回补上游修复，后者保存为版本限定的本地源码补丁；两者均通过全新根正常沙箱编译安装，中文转换／帮助命令通过。nftables 1.1.7 的 xtables 兼容还需让 libc 的 Ethernet 头文件先于 Linux UAPI 包含，这项版本限定补丁也已通过正常沙箱编译安装，未操作真实防火墙规则。补丁集中保存在仓库补丁组中，不修改系统头文件或全局放宽链接校验。国内镜像顺序保持优先，下载沿用当前调用环境的代理；本批使用已恢复的本地代理，只有核验国内直连可用且更快时才临时加入 `no_proxy`。Manifest 和签名校验保持启用，代理地址不写死到新机配置。
 
@@ -209,6 +211,42 @@ JDK 按用户选择改为 Alibaba Dragonwell **Standard 21 LTS**，使用官方 
 其他没有配方的软件也可以用 Portage 二进制 ebuild 管理版本、依赖、文件与卸载，AppImage 可解包后按同样方式安装。专用兼容库放在程序私有目录，使用该程序的 RPATH 或 wrapper；不把兼容环境加入全局库搜索路径。Flatpak 应用和运行时由 Flatpak 管理，配置仓库只保留主包清单及一键脚本。
 
 FlClash 上游[不计划提供 Flathub 包](https://github.com/chen08209/FlClash/issues/1190)，涉及 Helper、TUN 和系统代理的系统权限；仅能运行 GUI 或本地代理的封装不能算完整等价替代。目前仍保留该项。后续线程可从配置仓库根的 `AGENTS.md` 进入现有实验 README、world 清单和补丁组；本机检查点另记录活动进程、实验根身份与私有日志，避免公开文档变成过时的运行状态记录。
+
+## Java IDE 也统一 Dragonwell Standard 21
+
+新环境不采用 JDK 25 路线。Portage 已显式屏蔽其他 OpenJDK provider 与 Dragonwell 22+，防止后续依赖自动引入不同家族／主版本。宿主仍只有 `dragonwell-bin-21` 一个默认 VM；VSCodium 的 glibc 运行时内，使用同一补丁版本的私有 **Dragonwell Standard 21 glibc 构建**。两种 libc 需要各自二进制，不能把宿主 musl JVM 直接交给 glibc JNI。
+
+当前 Red Hat Java 1.58 要求 JDK 25，设置路径为 21 不能解决其最低要求。本轮改在独立 profile 验证当前维护的 [Oracle Java 扩展](https://github.com/oracle/javavscode/releases/tag/v27.0.0)：扩展版本为 27，不代表 JDK 27，也不捆绑 JDK。它配合 Standard 21 已通过激活、Java 符号与补全、`javac --release 21` 中文编译运行，以及实际 DAP 断点、栈与表达式求值；调试目标明确返回 Alibaba／21。官方两项资产、版本和 SHA256 归入配置仓库现有 `scripts/java21-ide-assets.json`。
+
+这是一条已验证的 Java 21 路线，尚未把真实用户的微软 Java Debug/Test/Project Manager 配置转为新方案，Maven/Gradle/JUnit 和真实项目也未全部验收。旧扩展目录保留；新目标 profile 不启用要求 25 的扩展。后续按扩展支持范围和安全更新复核升级，不把固定版本视为永久 LTS。
+
+## 用户、对话和应用数据先定性
+
+本机用户 UID/GID、附加组、home 路径与服务账户已经只读盘点。目标需保留数字身份与权限、避免 UID 冲突；当前还没有创建真实用户或迁入真实用户数据。隔离环境中看到的 nobody 可能只是 UID 映射，不是复制属主的依据。
+
+| 数据 | 本轮结论 |
+| --- | --- |
+| 本地助手 sessions、索引与 SQLite | 数据库正在使用 WAL；在线 SQLite backup 只能取得单库事务快照，不能把多个数据库与追加中的 JSONL 当作同一时点。最终需应用停写后的快照／增量核对 |
+| VSCodium User、工作区、WebStorage／Local Storage | 后两者可能混合扩展对话、界面状态及登录数据，先私有保留后验收，不当普通缓存删除 |
+| 项目、个人资料和配置 | 保持 home 路径与符号链接；原生 ELF、`.node`、venv、`.eln` 分开做 ABI 检查，生成缓存按需重建 |
+| 网络、蓝牙、钱包及其他凭据 | 不进入当前无认证测试 profile；在对应迁移阶段保留权限并进行实际会话验收 |
+| PostgreSQL 等服务数据 | 独立于 home 快照，按版本、locale/provider、扩展及权限做逻辑迁移；不直接搬旧物理 PGDATA |
+
+当前源扩展实际为 **56 项**。以 reflink 冻结后，源前／冻结副本／源后哈希与版本一致；隔离验收为 33 active、6 声明式注册、17 因 Java 政策、在线、远端或硬件等延期，11 项最小功能探针通过。Makefile Tools 和 debugpy 首次因只读执行目录失败，改用两个独立可写执行副本后通过，原冻结证据不变；Xmake 的 Flatpak 内工具缺失通过候选根私有 `flatpak-spawn --host --clear-env` 桥接解决，实际调用已有 Clang/libc++ 配置、编译并运行中文 C++。桥的身份核对指向候选根和外层隔离 namespace，未接入真实宿主 home、总线或密钥。Oracle Java 是另一份独立 profile 验收，不混入 56 项统计。
+
+Neomacs 另已通过 Doom 2.2.4 core 源码加载和 early-init 最小非交互初始化。只冻结公开源及配置，未复制旧 `.local`、插件状态、`.eln` 或个人笔记，也未运行 `doom sync`。这仍不代表全套旧 Doom 模块、交互界面和用户资料已经迁移。
+
+PostgreSQL 18.6 的合成预验证使用 UTF8＋ICU `zh-Hans-CN`，中文排序、约束、索引与 dump/restore 通过。宿主 glibc pg_dump 在清空环境、空凭据文件和显式私有 socket 下，对隔离 musl 测试服务器导出，再由 musl pg_restore 恢复；数据、排序、索引和约束一致，LLVM JIT 也实际执行通过。原数据库及服务没有读取或迁移；真实库的角色、扩展、大对象、locale/provider 和回退仍待逐项验收。
+
+正式迁移先保留原 `@home` 回退基线，测试系统使用独立写入的 home 树，避免与旧系统共用可变配置。最终应用停写后再固定快照，核对权限、哈希、数据库与实际工作流。本轮没有创建或改名子卷，也没有把测试副本当作最终用户迁移。
+
+## 长批次后的安装与启动边界
+
+Firefox 153.7 配方直接回补官方 Gentoo 提交及语言包 Manifest；固定基线的 Rust eclass 仍使用 `llvm-r1`，因此配方两处 helper 调用单独做版本限定适配，不改全局 eclass，实际编译器仍选 LLVM 22。新版无 GCC/glibc 预演通过，Zip、cbindgen、图标虚拟包、simdutf、simdjson 已安装；剩余 Node、语言包和浏览器的源码已预取并通过 Portage Manifest 校验，但未构建或安装。本体的 9700M 检查是工作空间，另需保留实验 20GiB 底线及下载／安装余量，24GiB 并不足以开始这项长编译。
+
+OpenRC 服务只做了静态登记：`elogind → boot`，`dbus`、`NetworkManager`、`soniclogin`、`firewalld`、`sysklogd`、`chronyd → default`，没有实际启动服务。Sonic 登录器自身提供 display-manager；iwd 通过 D-Bus 激活，PipeWire 保持普通用户会话启动。内核、固件、rEFInd、shim 和 virtual/dist-kernel 预演都通过，但未安装，fstab、真实用户和启动项仍待布局阶段处理。
+
+后续签名内核脚本已补同一 Portage 写锁、候选根身份、完整 world 接受记录及锁内即时预演；旧阶段标记不能代替本轮验收。这里只完成脚本准备和语法检查，没有运行 launcher、读取签名私钥或绑定真实 ESP。先结束当前软件 writer，再按新的操作范围进入后续阶段。
 
 ## 新根、子卷和回退
 
