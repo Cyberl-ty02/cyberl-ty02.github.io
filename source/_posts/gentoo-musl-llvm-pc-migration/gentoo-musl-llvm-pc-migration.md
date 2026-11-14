@@ -173,17 +173,17 @@ Sonic Login Manager 6.8.0.3 还暴露了一个头文件问题：`SelfProvisioner
 
 CUDA 的宿主数学调用和 gcompat amd64 加载器路径也有小型实验补丁。最小验证通过不等于完整 ebuild、CUDA SDK 或原生 NVIDIA 图形兼容已经验收；补丁状态在仓库说明中单列。
 
-新环境不默认安装 GNU Emacs。Neomacs 已有 Gentoo overlay，但仍是实验软件；固定上游提交后，真正 musl 根的依赖预演通过，共四个新包，不引入 GCC 或 glibc，三个依赖已安装。主体首轮编译遇到七处 musl 错误，涉及 glibc 专有回溯接口及 termios／ioctl 类型差异；固定源码补丁已通过精确应用与撤回检查，重建正在验证。Neomacs 尚未安装成功，现有 Doom 配置及中文输入等也待验证。安装并验收后，可用 `eselect editor set neomacs` 选择它，再执行 `source /etc/profile`；eselect editor 已支持自定义程序名，无需修改模块。若它不满足需要，本轮不会自动退回安装旧 Emacs，原系统与 Windows 配置继续保留。
+新环境不默认安装 GNU Emacs。Neomacs 已有 Gentoo overlay，但仍是实验软件；固定上游提交后，真正 musl 根的依赖预演通过，共四个新包，不引入 GCC 或 glibc，三个依赖已安装。主体首轮编译遇到七处 musl 错误，涉及 glibc 专有回溯接口及 termios／ioctl 类型差异；固定源码补丁已通过精确应用／撤回与正常沙箱下的 Rust release 构建。未安装的构建产物能显示版本并输出中文，Unicode 数据生成也通过；后续 Lisp 字节编译遇到 `stacker` 的 `mprotect/mmap: ENOMEM`，普通 UID250 的单文件复现同样失败。此时可用内存约 23GiB，地址空间与数据段限制为 unlimited，根因仍待验证。Neomacs 尚未安装成功，保留产物和日志，不通过关闭沙箱或反复整轮重编译绕过问题；SQLite、Doom 配置及 GUI 中文输入也待验证。安装并验收后，可用 `eselect editor set neomacs` 选择它，再执行 `source /etc/profile`；eselect editor 已支持自定义程序名，无需修改模块。若它不满足需要，本轮不会自动退回安装旧 Emacs，原系统与 Windows 配置继续保留。
 
 ## 旧 world 的覆盖范围
 
-桌面批次安装通过不代表旧系统软件全部迁移。按旧 `world` 的 91 项直接选择核对，三项服务软件批次结束时原生覆盖 28 项，微信与 VSCodium 两项由 Flatpak 提供；其余包括待原生预演的软件、闭源兼容与 NVIDIA/CUDA 拆分项，以及按方案排除的 GNU Emacs、mold。配置仓库的 [`world-migration.tsv`](https://github.com/Cyberl-ty02/dotfiles/blob/experiment/musl-llvm-migration/gentoo_setting/experiments/musl-llvm-pc/world-migration.tsv) 保存逐项状态，“待预演”不等于不支持 musl。
+桌面批次安装通过不代表旧系统软件全部迁移，仍需按旧 `world` 的 91 项直接选择逐项核对。配置仓库的 [`world-migration.tsv`](https://github.com/Cyberl-ty02/dotfiles/blob/experiment/musl-llvm-migration/gentoo_setting/experiments/musl-llvm-pc/world-migration.tsv) 保存逐项状态，“待预演”不等于不支持 musl。
 
-PostgreSQL 18.6、ClamAV 1.5.3、ClamTk 6.18-r2 随后已在默认 Portage 用户和沙箱下安装完成。PostgreSQL 工具能正常执行，没有初始化或迁移旧数据库；ClamAV 对自定义无害签名的正、负样本扫描结果正确，正式病毒库更新仍待验收。ClamTk 在私有显示中正常打开，但最初界面仍是英文：musl 下需明确绑定 gettext 目录，已整理为一行、按版本限定的补丁，实际重建和私有显示的中文界面通过。此前 `--oneshot` 留下的空 `world` 已在该批次通过 Portage 登记 32 项软件选择；迁移验收期间仍不运行 `depclean`。
+PostgreSQL 18.6、ClamAV 1.5.3、ClamTk 6.18-r2 随后已在默认 Portage 用户和沙箱下安装完成。PostgreSQL 工具能正常执行，没有初始化或迁移旧数据库；ClamAV 对自定义无害签名的正、负样本扫描结果正确，正式病毒库更新仍待验收。ClamTk 在私有显示中正常打开，但最初界面仍是英文：musl 下需明确绑定 gettext 目录，已整理为一行、按版本限定的补丁，实际重建和私有显示的中文界面通过。软件选择已通过 Portage 登记；迁移验收期间仍不运行 `depclean`。
 
 截至 2026-11-14，旧系统 91 项 world 选择中，71 项已有同名原生安装，Telegram 改为原生源码包，微信与 VSCodium 由 Flatpak 提供，GNU Emacs 和 mold 按方案排除。剩余六项普通应用、五项内核／引导选择，以及 WPS、腾讯会议、NVIDIA、CUDA 四项专项集成。这是安装清单核对，不代表旧数据、全部界面或硬件已经验收。
 
-后续以统一软件／配置批次串行安装，未知错误保留日志等待处理；整理 Portage 前保存快照，核对已安装包的有效设置，发生差异则停止或回退。该批次在引导切换前停下，不能从“配置整理完成”推导“迁移完成”。
+本次统一授权的软件／配置批次已到复核点。Portage 六类配置按原顺序归并，整理前后比较了 1,158 个已安装包的有效设置，差异为零；替换前快照保留，不复制 GPG 私有目录。复核后的配置、环境片段及固定仓库提交清单同步到配置仓库的 `portage/`，源码补丁继续在 `patchsets/` 维护。新机仍须核对 profile、仓库版本、硬件和补丁，不整目录覆盖已有配置。Neomacs 的引导错误明确保留为待解决项，不能从“配置整理完成”推导“迁移完成”；真实引导、数据库和旧根均未改变。
 
 其余软件已完成逐项预演；关键词、USE 等必要配置调整后，连同 PostgreSQL LLVM/JIT、NetworkManager iwd、Btrfs udev 和 XLibre Xvfb 功能恢复，共 48 个直接选择项已完成安装，四项恢复功能的 USE 已核对。Node.js 的依赖允许选择 Gentoo 官方 `llvm-runtimes/libatomic-stub`，明确加入该包后，Firefox／Thunderbird 的合并预演不再选择 GCC；大型应用仍需单独构建。KTorrent 关闭可选内嵌 WebEngine，避免额外网页引擎构建。QQ、LocalSend、FlClash 的 glibc 预编译界面另行验证，不把关键词通过当作 ABI 兼容通过。
 
