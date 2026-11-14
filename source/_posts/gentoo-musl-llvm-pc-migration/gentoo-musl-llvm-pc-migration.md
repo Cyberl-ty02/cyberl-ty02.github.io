@@ -198,7 +198,7 @@ PostgreSQL 18.6、ClamAV 1.5.3、ClamTk 6.18-r2 随后已在默认 Portage 用�
 
 补齐过程中还遇到 lowdown 3.1.1 的 BSD 配置宏与 musl 头文件冲突，以及 ipset 7.24 的过期导出表被 LLD 拒绝。前者直接回补上游修复，后者保存为版本限定的本地源码补丁；两者均通过全新根正常沙箱编译安装，中文转换／帮助命令通过。nftables 1.1.7 的 xtables 兼容还需让 libc 的 Ethernet 头文件先于 Linux UAPI 包含，这项版本限定补丁也已通过正常沙箱编译安装，未操作真实防火墙规则。补丁集中保存在仓库补丁组中，不修改系统头文件或全局放宽链接校验。国内镜像顺序保持优先，下载沿用当前调用环境的代理；本批使用已恢复的本地代理，只有核验国内直连可用且更快时才临时加入 `no_proxy`。Manifest 和签名校验保持启用，代理地址不写死到新机配置。
 
-Bun 官方 musl baseline 归档也已按发布资产 SHA256 校验。它需要 musl 版 C++ 运行库，复用已验签的 Alpine 约 2.7MiB `libstdc++`，在独立官方 stage3 中完成正常 Portage 沙箱安装，JavaScript、中文与人民币格式化通过，没有安装 GCC 编译器或 glibc。Alpine 与 Gentoo 的 libc／LLVM ABI 库名差异由配方内的 patchelf 修正，最终 SONAME 检查没有未解析依赖；运行库仅用于私有 wrapper，不全局修改库路径。配方已整理成新增小型运行库包及修改既有 Bun 配方的两组补丁，主桌面实验根的集成安装、CLI 和 SONAME 检查也已通过；完整博客依赖安装与构建仍待在原生 musl 中验证。
+Bun 官方 musl baseline 归档也已按发布资产 SHA256 校验。它需要 musl 版 C++ 运行库，复用已验签的 Alpine 约 2.7MiB `libstdc++`，在独立官方 stage3 中完成正常 Portage 沙箱安装，JavaScript、中文与人民币格式化通过，没有安装 GCC 编译器或 glibc。Alpine 与 Gentoo 的 libc／LLVM ABI 库名差异由配方内的 patchelf 修正，最终 SONAME 检查没有未解析依赖；运行库仅用于私有 wrapper，不全局修改库路径。配方已整理成新增小型运行库包及修改既有 Bun 配方的两组补丁，主桌面实验根的集成安装、CLI 和 SONAME 检查也已通过；随后在普通用户、隔离网络和独立源码副本中，使用原生 musl Bun 完整执行了现有博客构建，类型、测试、内容、runtime、Hexo 和生成物检查均通过。原源码与依赖哈希保持不变；这次只读复用已有 node_modules，空缓存依赖安装仍待验证。
 
 ## Dragonwell Standard 与软件包管理
 
@@ -242,7 +242,7 @@ PostgreSQL 18.6 的合成预验证使用 UTF8＋ICU `zh-Hans-CN`，中文排序�
 
 ## 长批次后的安装与启动边界
 
-Firefox 153.7 配方直接回补官方 Gentoo 提交及语言包 Manifest；固定基线的 Rust eclass 仍使用 `llvm-r1`，因此配方两处 helper 调用单独做版本限定适配，不改全局 eclass，实际编译器仍选 LLVM 22。新版无 GCC/glibc 预演通过，Zip、cbindgen、图标虚拟包、simdutf、simdjson 已安装；剩余 Node、语言包和浏览器的源码已预取并通过 Portage Manifest 校验，但未构建或安装。本体的 9700M 检查是工作空间，另需保留实验 20GiB 底线及下载／安装余量，24GiB 并不足以开始这项长编译。
+Firefox 153.7 配方直接回补官方 Gentoo 提交及语言包 Manifest；固定基线的 Rust eclass 仍使用 `llvm-r1`，因此配方两处 helper 调用单独做版本限定适配，不改全局 eclass，实际编译器仍选 LLVM 22。新版无 GCC/glibc 预演通过，Zip、cbindgen、图标虚拟包、simdutf、simdjson 已安装；Node 和中文语言包已安装，浏览器本体仍未完成。首轮编译中，静态 musl Rust 构建脚本无法动态加载 libclang；仅对 Firefox 配方增加 rustc wrapper，使宿主脚本与目标都使用动态 musl 链接，普通 UID 250 的对照及离线 Cargo 宿主脚本测试通过，完整重建正在进行。本体的 9700M 检查是工作空间，另需保留根分区 20GiB 底线及下载／安装余量；本轮把构建临时目录放到独立 Linux 文件系统，仍保留空间保护。
 
 OpenRC 服务只做了静态登记：`elogind → boot`，`dbus`、`NetworkManager`、`soniclogin`、`firewalld`、`sysklogd`、`chronyd → default`，没有实际启动服务。Sonic 登录器自身提供 display-manager；iwd 通过 D-Bus 激活，PipeWire 保持普通用户会话启动。内核、固件、rEFInd、shim 和 virtual/dist-kernel 预演都通过，但未安装，fstab、真实用户和启动项仍待布局阶段处理。
 
