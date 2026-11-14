@@ -34,7 +34,7 @@ default/linux/amd64/23.0/musl/llvm
 | --- | --- | --- |
 | 原生 UTF-8 | 中文文件名、文件内容和字符解码通过 | 旧编码文件、全部应用输入法 |
 | ICU 中文处理 | 日期、人民币、排序和 GB18030 转换通过 | 每个应用是否实际走 ICU |
-| NVIDIA/CUDA | musl/Clang 编译并运行最小 CUDA kernel；五个内核模块编译通过 | 新模块签名/加载、PRIME、外接显示、完整 SDK/PyTorch |
+| NVIDIA/CUDA | 原生最小 kernel、托管 NVCC/CMake/GPU 数学验证通过；五个新模块已签名验签 | 新内核模块加载、PRIME、外接显示、完整数学库/PyTorch |
 | NVIDIA 原生图形 | 私有补丁加载器下 EGL 1.5 / OpenGL 4.6 离屏渲染与像素回读通过 | XLibre 显示、PRIME、外接显示、休眠恢复、Vulkan |
 | Flatpak | 由 musl 原生编译，完成应用部署和安装后触发器复核 | 真机桌面 Portal 和设备交互 |
 | 微信 | 独立显示中出现中文登录界面 | 未登录；聊天、中文输入、音视频 |
@@ -248,11 +248,35 @@ OpenRC 服务只做了静态登记：`elogind → boot`，`dbus`、`NetworkManag
 
 签名内核批次沿用同一 Portage 写锁、候选根身份与锁内即时 world 预演。停止路径经过普通用户合成测试，子进程组确认清空后才接受下一任务；旧进程及挂载干净退出后复用构建镜像，没有重新格式化。先使用公开证书验证旧内核，再限于受限批次读取现有签名材料，目标私钥副本保存在新根 root 私有目录，不进入配置仓库。真实 ESP 未写入。新内核配置与 initramfs 的 NVMe／Btrfs 模块检查通过，新增驱动及固件的 initramfs 更新、通用设备固件、真实启动和回退仍需后续完成。
 
-CUDA 先拆出 Clang device-only 头文件、CCCL 和 libdevice 数据包，配方补丁放入已有 Gentoo-Zh，不新建 overlay。普通用户、无网络／GPU 的变量 `sinf` sm_89 PTX 测试通过，随后正常 Portage 安装及安装后验证也通过；没有把数据包等同于完整 SDK。旧 musl CUDA 程序仍结合静态 cudart 和 gcompat，NVCC、ptxas、宿主运行库和用户态驱动需要继续分层打包验收。
+CUDA 先拆出 Clang device-only 头文件、CCCL 和 libdevice 数据包，配方补丁放入已有 Gentoo-Zh，不新建 overlay。普通用户、无网络／GPU 的变量 `sinf` sm_89 PTX 测试通过，随后正常 Portage 安装及安装后验证也通过；没有把数据包等同于完整 SDK。旧 musl CUDA 程序仍结合静态 cudart 和 gcompat，原生用户态驱动继续单独验收。
 
-NVIDIA 620.70.06 现有配方增加了版本限定的 modules-only 分支，沿用 Gentoo 原有模块编译与签名流程，不增加 overlay。真实预演发现 Gentoo-Zh 已有 virtual/linux-sources provider，因此撤回了冗余 provider 补丁。五个开源模块用普通 UID 250 编译、安装阶段签名，匹配 7.2.14-musl-x64v3，并以预期公开证书逐个验证 PKCS#7 签名。另将同版本四个 GSP／ucode 文件作为独立数据包，从官方归档经 Gentoo Manifest 校验后提取，不执行厂商安装器；载荷哈希通过。这一批复核为 1,201 个包、87 个 world 选择，无 GCC/glibc，完整 world 预演零项；尚未加载新模块或验证 PRIME／显示输出。
+随后增加了 Portage 管理的 `dev-util/cuda-sdk-flatpak-13.4.1`：只安装六份官方压缩归档和 `cuda-sdk` 入口，普通用户首次执行时校验并解包到自己的缓存，复用现有 Freedesktop SDK 26.08，不必手工创建 glibc chroot，也不向 musl 主系统安装 GCC。它实际使用 SDK 内已有 GCC 16.2 和原厂 NVCC 13.4，输出为 glibc ELF；编译、链接和运行须全部留在该 SDK 中，不与原生 musl C++ 对象混用。
 
-当前内核保留动态抢占和 lazy 默认值，已启用 CJK16／32 控制台字库。XanMod 提供独立 RT 分支，但 RT 主要降低实时调度延迟，不能保证更高编译／CUDA 吞吐或更低能耗；本机这版 NVIDIA 源码还有 RT 拒绝检查。先完成普通内核与驱动验收，再在独立启动入口比较 preempt=full 的帧时间、音频和放电功率，不直接把迁移目标改成 RT。[XanMod 官方说明](https://xanmod.org/)、[内核实时机制](https://docs.kernel.org/core-api/real-time/theory.html)、[动态抢占参数](https://docs.kernel.org/admin-guide/kernel-parameters.html)。
+新机在已准备挂载、网络、Flatpak 和版本补丁的目标 root chroot 中可执行：
+
+```bash
+# 位于 dotfiles/gentoo_setting/experiments/musl-llvm-pc
+bash scripts/install-flatpak-apps.sh --system --cuda-sdk
+emerge --ask =dev-util/cuda-sdk-flatpak-13.4.1::gentoo-zh
+```
+
+主应用清单仍是原来五项；可选开关额外固定 SDK 26.08 和本候选 NVIDIA 620-70-06 扩展，避免 chroot 误用安装介质驱动版本。新机器或驱动升级必须调整该精确版本；不能将它照搬为所有硬件的配置。本轮无桌面 D-Bus 的 chroot 重复安装已通过，使用已有缓存，尚非空缓存下载证明。
+
+登录后，以普通用户在项目目录运行：
+
+```bash
+cuda-sdk nvcc --version
+cuda-sdk nvcc -std=c++17 -arch=sm_89 --cudart=shared math.cu -o math
+cuda-sdk ./math
+```
+
+`math.cu` 需自行提供真实测试源文件；CMake 项目同样在 `cuda-sdk cmake`、`cuda-sdk ctest` 中配置、构建和测试。首次准备至少预留 1GiB，缓存默认位于 `~/.cache/cuda-sdk-flatpak/13.4.1`；卸载包不会删除用户缓存。入口默认只开放项目目录和工具缓存、关闭网络，确实需要联网时单次设置 `CUDA_SDK_NETWORK=1`。
+
+已安装入口的 NVCC 编译、CMake／CTest 和 RTX 4060 上 32 个 `sinf` GPU 结果回读通过，最大绝对误差小于 3.73e-8；中文 locale、人民币和上海时区也通过。GPU 仍使用当前宿主已加载的 620.70.06 驱动，不能据此认定新 musl 内核已经启动成功。这只覆盖核心 NVCC／cudart，不涵盖 cuBLAS、cuDNN、RDC、PyTorch 或实际项目。配方、撤回条件和命令集中在仓库的 [CUDA 补丁组](https://github.com/Cyberl-ty02/dotfiles/tree/experiment/musl-llvm-migration/gentoo_setting/experiments/musl-llvm-pc/patchsets/cuda-13.4)。
+
+NVIDIA 620.70.06 现有配方增加了版本限定的 modules-only 分支，沿用 Gentoo 原有模块编译与签名流程，不增加 overlay。真实预演发现 Gentoo-Zh 已有 virtual/linux-sources provider，因此撤回了冗余 provider 补丁。五个开源模块用普通 UID 250 编译、安装阶段签名，匹配 7.2.14-musl-x64v3，并以预期公开证书逐个验证 PKCS#7 签名。另将同版本四个 GSP／ucode 文件作为独立数据包，从官方归档经 Gentoo Manifest 校验后提取，不执行厂商安装器；载荷哈希通过。包含随后核心 SDK 包的最终复核为 1,202 个包、88 个 world 选择，无 GCC/glibc，完整 world 预演零项；尚未加载新模块或验证 PRIME／显示输出。
+
+候选内核已启用动态抢占和 CJK16／32 控制台字库。按本轮选择，候选 `/etc/kernel/cmdline` 已登记 `preempt=full`，仅此一项还不是可启动命令行；须在确定根 UUID／子卷后合并必要参数到新启动入口。当前宿主内核未改变，新根也尚未启动，因此还不能声称 full 已运行生效。XanMod 提供独立 RT 分支，但 RT 主要降低实时调度延迟，不能保证更高编译／CUDA 吞吐或更低能耗；本机这版 NVIDIA 源码还有 RT 拒绝检查。普通动态抢占的 full 不等于 PREEMPT_RT。后续首次启动核对实际模式，再比较帧时间、音频和放电功率，保留原启动入口。[XanMod 官方说明](https://xanmod.org/)、[内核实时机制](https://docs.kernel.org/core-api/real-time/theory.html)、[动态抢占参数](https://docs.kernel.org/admin-guide/kernel-parameters.html)。
 
 ## 新根、子卷和回退
 
