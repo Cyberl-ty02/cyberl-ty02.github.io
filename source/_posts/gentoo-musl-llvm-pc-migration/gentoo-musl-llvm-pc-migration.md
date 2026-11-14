@@ -244,11 +244,15 @@ PostgreSQL 18.6 的合成预验证使用 UTF8＋ICU `zh-Hans-CN`，中文排序�
 
 Firefox 153.7 配方直接回补官方 Gentoo 提交及语言包 Manifest；固定基线的 Rust eclass 仍使用 `llvm-r1`，因此配方两处 helper 调用单独做版本限定适配，不改全局 eclass，实际编译器仍选 LLVM 22。新版无 GCC/glibc 预演通过，Zip、cbindgen、图标虚拟包、simdutf、simdjson 已安装；Node、中文语言包和浏览器本体均已完成正常沙箱安装。首轮编译中，静态 musl Rust 构建脚本无法动态加载 libclang；仅对 Firefox 配方增加 rustc wrapper，使宿主脚本与目标都使用动态 musl 链接，普通 UID 250 的对照、离线 Cargo 宿主脚本测试及完整重建均通过。普通用户、空白 profile、隔离网络的离线中文页面渲染和截图目检通过；安装后 1,194 个包、82 个 world 选择，完整 world 预演无待合并项。GPU、输入法、旧 profile 和 Widevine DRM 尚未验收。本体的 9700M 检查是工作空间，另需保留根分区 20GiB 底线及下载／安装余量；本轮把构建临时目录放到独立 Linux 文件系统，仍保留空间保护。
 
-OpenRC 服务只做了静态登记：`elogind → boot`，`dbus`、`NetworkManager`、`soniclogin`、`firewalld`、`sysklogd`、`chronyd → default`，没有实际启动服务。Sonic 登录器自身提供 display-manager；iwd 通过 D-Bus 激活，PipeWire 保持普通用户会话启动。五项内核／引导选择的预演均通过；XanMod 与 virtual/dist-kernel 正在独立实验根构建，固件、rEFInd 和 shim 尚未安装，fstab、真实用户和启动项仍待布局阶段处理。
+OpenRC 服务只做了静态登记：`elogind → boot`，`dbus`、`NetworkManager`、`soniclogin`、`firewalld`、`sysklogd`、`chronyd → default`，没有实际启动服务。Sonic 登录器自身提供 display-manager；iwd 通过 D-Bus 激活，PipeWire 保持普通用户会话启动。五项内核／引导选择的预演均通过；XanMod 与 virtual/dist-kernel 已在独立实验根安装，签名、CJK 和 initramfs 存储驱动检查通过；通用设备固件、rEFInd 和 shim 尚未安装，fstab、真实用户和启动项仍待布局阶段处理。
 
-签名内核批次沿用同一 Portage 写锁、候选根身份与锁内即时 world 预演。停止路径经过普通用户合成测试，子进程组确认清空后才接受下一任务；旧进程及挂载干净退出后复用构建镜像，没有重新格式化。先使用公开证书验证旧内核，再限于受限批次读取现有签名材料，目标私钥副本保存在新根 root 私有目录，不进入配置仓库。真实 ESP 未写入，内核尚未完成，后续还须核对最终配置、initramfs 的 NVMe／Btrfs 模块、固件、真实启动和回退。
+签名内核批次沿用同一 Portage 写锁、候选根身份与锁内即时 world 预演。停止路径经过普通用户合成测试，子进程组确认清空后才接受下一任务；旧进程及挂载干净退出后复用构建镜像，没有重新格式化。先使用公开证书验证旧内核，再限于受限批次读取现有签名材料，目标私钥副本保存在新根 root 私有目录，不进入配置仓库。真实 ESP 未写入。新内核配置与 initramfs 的 NVMe／Btrfs 模块检查通过，新增驱动及固件的 initramfs 更新、通用设备固件、真实启动和回退仍需后续完成。
 
-CUDA 先拆出 Clang device-only 头文件、CCCL 和 libdevice 数据包，配方补丁放入已有 Gentoo-Zh，不新建 overlay。普通用户、无网络／GPU 的变量 `sinf` sm_89 PTX 测试通过，正常 Portage 安装与安装后验证排在内核之后；没有把数据包等同于完整 SDK。旧 musl CUDA 程序仍结合静态 cudart 和 gcompat，NVCC、ptxas、宿主运行库、用户态驱动及新内核模块需要继续分层打包验收。
+CUDA 先拆出 Clang device-only 头文件、CCCL 和 libdevice 数据包，配方补丁放入已有 Gentoo-Zh，不新建 overlay。普通用户、无网络／GPU 的变量 `sinf` sm_89 PTX 测试通过，随后正常 Portage 安装及安装后验证也通过；没有把数据包等同于完整 SDK。旧 musl CUDA 程序仍结合静态 cudart 和 gcompat，NVCC、ptxas、宿主运行库和用户态驱动需要继续分层打包验收。
+
+NVIDIA 620.70.06 现有配方增加了版本限定的 modules-only 分支，沿用 Gentoo 原有模块编译与签名流程，不增加 overlay。真实预演发现 Gentoo-Zh 已有 virtual/linux-sources provider，因此撤回了冗余 provider 补丁。五个开源模块用普通 UID 250 编译、安装阶段签名，匹配 7.2.14-musl-x64v3，并以预期公开证书逐个验证 PKCS#7 签名。另将同版本四个 GSP／ucode 文件作为独立数据包，从官方归档经 Gentoo Manifest 校验后提取，不执行厂商安装器；载荷哈希通过。这一批复核为 1,201 个包、87 个 world 选择，无 GCC/glibc，完整 world 预演零项；尚未加载新模块或验证 PRIME／显示输出。
+
+当前内核保留动态抢占和 lazy 默认值，已启用 CJK16／32 控制台字库。XanMod 提供独立 RT 分支，但 RT 主要降低实时调度延迟，不能保证更高编译／CUDA 吞吐或更低能耗；本机这版 NVIDIA 源码还有 RT 拒绝检查。先完成普通内核与驱动验收，再在独立启动入口比较 preempt=full 的帧时间、音频和放电功率，不直接把迁移目标改成 RT。[XanMod 官方说明](https://xanmod.org/)、[内核实时机制](https://docs.kernel.org/core-api/real-time/theory.html)、[动态抢占参数](https://docs.kernel.org/admin-guide/kernel-parameters.html)。
 
 ## 新根、子卷和回退
 
