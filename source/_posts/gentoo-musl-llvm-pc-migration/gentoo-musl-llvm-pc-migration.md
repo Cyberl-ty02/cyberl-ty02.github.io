@@ -51,7 +51,13 @@ gcompat 可以处理一部分 glibc ABI，但不是完整 glibc。本轮最小 C
 
 图形部分后来有了单独的进展：参考 Chimera 的 [NVIDIA 草案 PR](https://github.com/chimera-linux/cports/pull/6531)，固定到 `c26532983c3b811c2d6b310058761bba39491bbe`，在私有目录构建带 IFUNC/TLS 补丁的 musl 加载器、gcompat 和兼容 shim，只调整驱动库的实验副本。原系统及实验根的默认 libc 均未替换。
 
-在本机 RTX 4060、620.70.06 驱动上，这条路径已经完成 EGL 1.5 / OpenGL 4.6 上下文创建、离屏清屏与像素回读。使用默认 musl 的对照组仍报重定位类型 37 不受支持。这证明了一个有限的原生图形兼容路径；上游仍是草案，本地尚未完成安装包，也没有验证 XLibre 显示、PRIME、外接显示、休眠恢复或 Vulkan。
+在本机 RTX 4060、620.70.06 驱动上，这条路径已经完成 EGL 1.5 / OpenGL 4.6 上下文创建、离屏清屏与像素回读。使用默认 musl 的对照组仍报重定位类型 37 不受支持。这证明了一个有限的原生图形兼容路径；上游仍是草案；本地最初只有独立实验副本，随后完成了下面的私有前缀安装验收。XLibre 显示、PRIME、外接显示、休眠恢复和 Vulkan 仍未验收。
+
+重启后，将这层整理成已有 Gentoo-Zh 仓库的版本补丁，正常 Portage 安装 `sys-libs/nvidia-musl-compat-1.2.6_p20261115` 和 `x11-drivers/nvidia-userspace-musl-620.70.06`，仅引入 libucontext 依赖，没有新增 overlay 或原生 GCC/glibc。加载器、兼容 shim 和约 293MiB 核心驱动库放在 `/usr/libexec/nvidia-musl`，原始 musl 仍匹配 Portage 登记哈希；不替换系统 libc、不全局注册图形库，也不改当前桌面。
+
+安装后的专用 `nvidia-musl-run` 在普通 UID 1000、只读候选根、独立 HOME 和无网络环境中通过 GL 核心加载、EGL 1.5／OpenGL 4.6 离屏渲染、像素回读、CUDA 64 字节显存往返及 NVML 驱动查询。默认加载器对照仍报重定位 37。这次使用已安装文件与当前宿主 620.70.06 模块，尚未从新 musl 内核启动；启动器只接受单个动态 musl ELF，脚本、子进程和完整会话不会自动转换解释器。
+
+本轮复核上游草案 `7b121686e15cc1d06ee1ee16968665004519d8a4`，四份关键补丁／源码与此前实验逐字相同；两份小型 musl／gcompat 固定源码也已重新下载验 SHA256。应用顺序、许可证、安装命令及撤回条件集中在 [NVIDIA 补丁组](https://github.com/Cyberl-ty02/dotfiles/tree/experiment/musl-llvm-migration/gentoo_setting/experiments/musl-llvm-pc/patchsets/nvidia-620.70.06)。候选根最终复核为 1,211 个包、94 项 world 选择，更新预演零项。完整 XLibre 驱动、PRIME、休眠与真实桌面仍要继续集成。
 
 因此目前把两条路线分开验证：
 
