@@ -45,6 +45,144 @@ default/linux/amd64/23.0/musl/llvm
 
 VSCodium 本轮验证的扩展包括 Python、debugpy、Jupyter、Jupyter Renderers、Ruff、rust-analyzer、Tinymist 和 Office。没有把原用户的凭据复制到实验环境，也没有把“扩展目录存在”当作“扩展加载成功”。
 
+## 将 mold 设为全局默认
+
+后续按新选择恢复 mold。候选 musl 根用官方配方、原生 Clang/libc++ 安装 mold 2.42.1，
+只新增 blake3、TBB 和 mold 三个包，没有安装原生 GCC／glibc，也没有增加 overlay。
+Clang 的 `gentoo-linker.cfg` 改为 `-fuse-ld=mold`，Portage `make.conf` 设置
+`LD="ld.mold"`；它们是后续普通构建的全局默认，不会将已经安装的软件全部重新链接。
+
+已有内核配置实际是 `CONFIG_LD_IS_LLD=y`。旧 make.conf 中有 mold 编译器选项，
+不表示内核最终也用了 mold；这次通过既有 `package.env` 分开保留 XanMod 的 LLD 和
+GNU-EFI／rEFInd 的 BFD，模块配方按目标内核选择链接器。未改签名权限范围、真实 EFI
+或原系统默认。编译器选择方式可对照 [mold 官方用法](https://github.com/rui314/mold/blob/v2.42.1/README.md#how-to-use)。
+
+新机在已准备配置的目标 root chroot 中可执行：
+
+```bash
+# 位于 dotfiles/gentoo_setting/experiments/musl-llvm-pc
+emerge --ask sys-devel/mold
+bash scripts/configure-linker.sh --linker mold --dry-run
+bash scripts/configure-linker.sh --linker mold
+portageq envvar LD
+```
+
+脚本自动识别 Clang 主版本，支持显式 `--clang-major 22`，备份后修改，可重复运行；
+回退使用 `--linker lld`。LLVM 升级、处理 CONFIG_PROTECT 后检查对应主版本的设置。
+它不替换 `/usr/bin/ld`、全局预加载或用户 Cargo 配置，也不改 Flatpak SDK 内的工具链。
+
+普通 UID 250 的 C、libc++、共享库／dlopen／线程／TLS 测试通过，未剥离产物确认带有
+mold 标记。Rust 在明确使用 Clang 驱动、动态 musl 和关闭自带链接器的测试中通过，
+不等于所有 Rust 项目的自带链接策略已被覆盖。正常 Portage 重建 tree、私有 NVIDIA
+兼容层与 GNU-EFI 后，普通用户 NVIDIA EGL／CUDA／NVML 回归也通过。最新复核为
+mold 阶段当时为 1,214 个包、95 项 world，更新预演零项。
+
+随后按新选择重建 LLVM 22.1.8 并安装同槽 LLVMgold，开启 C/C++ 与 Cargo release
+ThinLTO。普通用户的 bitcode、静态归档、共享库、TLS／dlopen／线程、libc++ 和
+离线 Cargo proc-macro 验证通过。tree 实际重建通过；私有 NVIDIA musl 加载器在
+ThinLTO 重建中出现 `__dls2` 早期入口未解析，现已用补丁组 0005 让现有早期启动
+对象单独禁用 LTO，其余 1,343 个普通对象保留 ThinLTO。正常沙箱重建安装及普通用户
+加载器正负对照、EGL／CUDA／NVML 回归通过，系统原始 musl 哈希未变。已签名内核仍为 `CONFIG_LTO_NONE=y`，没有据此宣称新内核已经使用 LTO。
+
+### 按现有 PC 的 make.conf 分组复用
+
+musl 配置复用 PC 版本的字段顺序、USE 分类、国内优先镜像、下载和续传重试、
+FEATURES、构建调度、优先级与签名路径。保留 profile FEATURES 和正常编译沙箱。
+`-march=native` 与 `-j13 -l13` 是本机参数，新机需要按硬件和剩余空间调整。
+
+目标差异保留为 musl CHOST、64 位 ABI、Python 3.14、中文优先及独立 NVIDIA 用户态；
+不复制 glibc 的 32 位 ABI。C/C++ 使用命名的 ThinLTO 变量，Fortran 保留 `-flto`
+写法而不安装 GCC，链接器和 LTO 脚本支持该格式及原 stage3 平铺格式。
+内核／UEFI 通过 Portage 支持的环境片段保留 LLD／BFD 和各自的 LTO 边界。
+
+make.conf 已补充中文注释，不固定 `ACCEPT_KEYWORDS` 或缓存目录，继承 profile／
+Portage 默认值，默认链接器仍为 mold；测试版按包登记。删除与全局重复的签名环境后，
+`env` 从 8 个精简为 7 个，保留各包必要的独立约束；对全部 1,215 个已安装包比较
+编译、签名及权限等有效设置，差异为零。
+
+后续维护规则也已整理：包条目、独立 env 键和仓库节按 `0–9、a–z` 升序，
+make.conf 的变量依赖和镜像优先级保持原序。对全部 1,215 个已安装包比较，排序
+没有改变有效设置或仓库优先级。
+
+普通关键词／许可不锁发行版，部分 USE 按 slot 跟随升级；Dragonwell 仍使用 Standard
+21，Neomacs 不再锁定 Git 提交。仓库已允许 auto-sync，但本轮没有实际同步。
+放宽后预演为 291 项，新增 platformdirs 4.14.0 升级，没有原生 GCC／glibc；
+该次配置调整未实际升级软件。内核签名权限、NVIDIA 配套和实际兼容性保护继续单独核验。
+
+补丁索引提供 `scripts/apply-patch-if-needed.py`：默认仅检查，可应用时才写入，
+已包含相同修改时自动跳过，不兼容则停止并保留目标。它不强打补丁，也不是自动
+更新所有 ebuild 的服务；版本目录和固定提交仍保留为验收记录，不当作永久更新上限。
+
+预演修复了全局 udev 对 ALSA 的依赖，并按现有 rEFInd 约束保留 GNU-EFI <4。
+最初完整 world 更新预演通过，计划 290 项合并（133 新增、157 重建），多数新增是
+`verify-sig` 引入的公钥和验签依赖，没有原生 GCC／glibc。配置已应用候选根，
+链接器和 LTO 往返切换、幂等性及 C/C++／Cargo 小型编译检查通过；该预演阶段尚未
+开始合并；后续进度以上方本轮接续记录为准，先前 mold 阶段的 world 零项是历史里程碑。配置及细节统一维护在
+[实验目录](https://github.com/Cyberl-ty02/dotfiles/tree/experiment/musl-llvm-migration/gentoo_setting/experiments/musl-llvm-pc)。
+
+### 本轮接续：验签前置与私有 XLibre 模块
+
+原 291 项配置对齐已完成 101 个公钥／信任根包和 32 项验签工具依赖，正常沙箱安装
+通过。普通 UID 250 的 Ed25519 正负签名测试及 Sigstore CLI 通过，不等于已验证远程
+Sigstore 工件。该前置批次复核时，候选根有 1,349 个包、96 项 world 选择，剩余 158 项；
+未引入原生 GCC／glibc。LLVM libgcc 23 因配套 libunwind 关键词限制而被跳过，
+当前仍用已验收 LLVM 22，没有扩大测试关键词来追新版本。
+
+NVIDIA 补丁组增加可选 `xlibre` USE，将官方归档中的 DDX／GLX 模块安装到
+`/usr/libexec/nvidia-musl/xorg`，提供 `nvidia-musl-xorg` 私有入口。它从 Xorg 的
+stderr 查询默认模块路径，不锁定 XLibre 主版本目录；未改系统模块、全局 GLX
+链接或 Sonic 登录器。入口及已安装模块在普通用户、只读根、无 GPU／DRM／真实 VT
+的 dummy XLibre 会话中通过启动和 xdpyinfo；GLX 另用测试专属别名加载通过，核心
+EGL／CUDA／NVML 回归也通过。
+
+日志显示 XLibre 上游自身会对 NVIDIA 隐式忽略 ABI 差异；本次没有设置 IgnoreABI，
+仍不能宣称严格 ABI 或真实 NVIDIA 显示验收。硬件屏幕、PRIME／混合 GLX、休眠和
+完整 Sonic 登录仍要单独验证，真实桌面尚未切换。
+
+ThinLTO 片段先以独立 KCONFIG_CONFIG 通过 olddefconfig，随后实际重建并安装
+XanMod 7.2.14；已签名内核现为 `CONFIG_LTO_CLANG_THIN=y`，CJK 与强制模块签名
+检查通过。匹配的五个 NVIDIA 模块正常编译安装，逐个 CMS 验签通过；模块装好后
+重新生成通用 initramfs，验证存储、GPU、固件、早期微码及镜像内模块签名，确认没有
+签名材料和原宿主根参数，最终 world 零项。尚未真机启动，也未修改真实引导。
+
+第一次校验用 `nvidia*.ko` 计数，误包含内核自带的 WMI 背光模块；改为明确的五个
+驱动文件后接续验证通过，无需重编内核。安装内核时自动生成的中间 initramfs 可能
+尚无匹配 NVIDIA 模块，必须在模块安装后重新生成并验收最终镜像。
+验签解包目录和重复临时镜像已清理约 477MiB；旧内核及模块回退副本保留到真机启动
+与回退验证通过。全新 stage3 首次安装先用 LLD／无 LTO 准备
+mold 与匹配 LLVMgold，再切换最终默认，具体 chroot 命令统一维护在实验 README。
+
+### 串行对齐中修复 mold 的线程栈
+
+后续 158 项串行对齐在完成前 28 项后，停于 curl 的 ThinLTO 链接。保留现场后，以普通
+编译用户重放同一组目标文件：原 mold 崩溃、LLD 成功；回溯位于 LLVMgold 的 LLVM
+优化线程，存在深层 PHITransAddr 递归。只在独立 mold 副本中将 PT_GNU_STACK 设为
+8MiB 后，同一链接成功，支持线程栈不足的诊断。musl 对默认栈与 ELF 调整机制的说明见
+[官方差异文档](https://wiki.musl-libc.org/functional-differences-from-glibc.html#thread-stack-size)。
+
+修复整理为现有 Gentoo 仓库的 [mold 补丁组](https://github.com/Cyberl-ty02/dotfiles/tree/experiment/musl-llvm-migration/gentoo_setting/experiments/musl-llvm-pc/patchsets/mold-musl-stack)：
+仅在 musl 构建 mold 时追加 8MiB 默认栈，不新增 overlay／env 文件或永久版本上限。
+旧 mold 尚不能承载该重型链接时，仅此次重建用 LLD 引导，随后仍以 mold 为全局默认，
+不关闭 ThinLTO，也不调整系统 ulimit。正常沙箱重建后，实际产物的 GNU_STACK 为 RW
+非可执行、MemSiz 8MiB，原 curl 链接和库初始化通过，curl 正常安装成功。
+
+其余 130 项接续已全部完成，原 291 项对齐计划完成；此前成功的软件没有重复重建。
+最终 world 复查为零项，更新后的普通用户 C／C++／Cargo ThinLTO 检查通过，没有
+待合并配置，候选根 `/boot` 哈希未变。上游已有等效线程栈
+保证且撤回后原重现通过时删除补丁；不把旧版本目录当作永久锁定，也不强打不兼容
+补丁。本轮没有切换实际桌面、内核或引导。
+
+更新后的独立回归也通过：私有 GLcore、当前宿主驱动的 EGL／CUDA／NVML、XLibre
+私有模块和 dummy 会话、Xvfb 内的 SonicDE shell／窗口管理器／面板菜单／PipeWire，
+以及 Dragonwell Standard 21、Bun 中文格式、Neomacs SQLite、中文 locale 与字体。
+根目录只读，使用独立用户配置及隔离网络；真实显示、声卡和旧账户数据仍待验收。
+
+后续集中为几个串行批次：先完成桌面与剩余应用集成，再构建并核验签名 ThinLTO
+内核、匹配模块与 initramfs，随后准备候选子卷和回退入口，最后停写形成一致数据
+副本并进行真机启动、日常使用与回退验收。同一根只允许一个 Portage 写入进程，
+报错先定位修复，再从未完成项接续。内核回退包与合并依赖已预先检查，签名构建另用
+明确的密钥访问范围；不因为批次合并而扩大旧授权，也不提前清理原根。
+
 ## glibc 兼容环境怎么选
 
 gcompat 可以处理一部分 glibc ABI，但不是完整 glibc。本轮最小 CUDA 计算验证通过，并不代表 NVIDIA 整个显示栈已经可用；旧扩展附带的 Ruff、rust-analyzer、Tinymist 在当前 gcompat 环境下甚至会在版本查询时崩溃。
@@ -87,18 +225,43 @@ bash scripts/install-flatpak-apps.sh --system
 默认主包 ID 为：
 
 ```text
+cn.wps.wps_365
+com.qq.QQ
 com.tencent.WeChat
+com.tencent.wemeet
 com.vscodium.codium
 org.localsend.localsend_app
 org.mozilla.thunderbird_esr
-com.qq.QQ
 ```
 
 LocalSend 采用[官网列出的 Flatpak 路线](https://localsend.org/download)，1.18.2 已在新根系统级安装，私有 X11 显示中的中文界面通过。局域网发现和文件传输仍待真机会话验收。Thunderbird 使用[官方 ESR Flatpak](https://support.mozilla.org/en-US/kb/channel-choices-thunderbird-snap-and-flatpak)，153.7.0esr 中文界面启动通过；QQ 社区 Flatpak 3.2.35-54395 的腾讯 extra-data 已核对固定哈希并完成安装，隔离离线中文窗口通过，未登录。QQ 首次代理下载中断，经腾讯国内地址直连下载校验后，复用 Flatpak 自带的本地 extra-data 缓存安装，签名与哈希检查保持启用。两项均未访问原邮件或账户配置。
 
 运行时、语言内容、Mesa 和匹配当前驱动的 NVIDIA 图形扩展由 Flatpak 自动解析，不把实验机器的显卡版本写成所有机器的固定依赖。VSCodium 当前使用 Freedesktop SDK 26.08，体积比普通运行时大；其中的 glibc 开发工具与 musl 主系统分开维护，不等于向主系统安装 GCC。
 
-腾讯会议的候选 ID 是 `com.tencent.wemeet`，尚未加入默认安装清单。`com.wps.Office` 对应国际版 WPS，不能直接视为现有中文 WPS 12 的完整替代，也暂不默认安装。
+腾讯会议 `com.tencent.wemeet` 已从签名 Flathub 正常安装，复用现有 Freedesktop
+25.08 运行时；普通用户在只读候选根、独立 Xvfb／会话总线、空 HOME 与离线环境中
+实际 `flatpak run`，完整中文登录界面已目检。没有登录或勾选协议；真实会议、摄像头、
+音频和屏幕共享仍待验收。已加入默认主包，更新后的六主包脚本也在无系统 D-Bus 的
+目标 root chroot 重复执行通过。此前手工重建 Flatpak build 布局未出窗口，恢复
+官方原始载荷、启动脚本与空 xcast.conf 的对照也未通过；正常维护包的安装结果
+不能用这些局部测试代替，更不能据此认定 musl 必然无法使用腾讯会议。
+
+中文 WPS 后来找到单独维护的 [`cn.wps.wps_365`](https://github.com/flathub/cn.wps.wps_365)，
+本轮为 12.1.2.29183，官方载荷与签名元数据哈希一致，正常安装后复用 FDO 26.08。
+经用户明确同意，仅在离线测试配置接受许可／隐私条款，实际打开自建中文 DOCX，
+追加中文、保存，再于新会话只读重新打开并目检；ZIP CRC、XML 文本和文件哈希通过。
+这里用剪贴板输入中文，Fcitx/Rime 仍需单独验收。没有登录、打开旧文档或设置真实
+默认应用；表格、演示、PDF、插件与协作仍待检查。维护包不含暂不可用的 Xiezuo；
+国际版 `com.wps.Office` 仍不列入清单。默认主包因此增至七项。七主包脚本在无系统 D-Bus 的目标 root chroot 中重复执行通过，随后 world 复查零项，没有引入原生 GCC／glibc。
+
+脚本为 Flatpak 保留 `zh`／`en` 语言内容。若 WPS 界面语言需要切换，按上游说明在
+目标用户的 `~/.var/app/cn.wps.wps_365/config/Kingsoft/Office.conf` 中，于
+`[General]` 下设置 `languages=zh_CN`。不要为做试验改动原用户配置。
+
+重新打开测试还发现，应用退出后仍可能留下 Unix socket／FIFO。停止写入后复制
+测试配置时，排除缓存、IPC 与设备节点，再验证文档成功重开；这也说明后续真实
+用户迁移不能直接整棵复制运行中的目录。测试条款确认只作用于该隔离配置，不替
+新机器的使用者预先接受协议。
 
 默认使用中科大缓存，签名校验保持启用。需要临时回官方源时：
 
@@ -196,9 +359,9 @@ CUDA 的宿主数学调用和 gcompat amd64 加载器路径也有小型实验补
 
 PostgreSQL 18.6、ClamAV 1.5.3、ClamTk 6.18-r2 随后已在默认 Portage 用户和沙箱下安装完成。PostgreSQL 工具能正常执行，没有初始化或迁移旧数据库；ClamAV 对自定义无害签名的正、负样本扫描结果正确，正式病毒库更新仍待验收。ClamTk 在私有显示中正常打开，但最初界面仍是英文：musl 下需明确绑定 gettext 目录，已整理为一行、按版本限定的补丁，实际重建和私有显示的中文界面通过。软件选择已通过 Portage 登记；迁移验收期间仍不运行 `depclean`。
 
-截至 2026-11-14，旧系统 91 项 world 选择中，71 项已有同名原生安装，Telegram 改为原生源码包，GNU Emacs 由原生 Neomacs 替代，JDK 换为原生 Dragonwell Standard 21 LTS；微信、VSCodium、LocalSend、Thunderbird ESR 和 QQ 由 Flatpak 提供，mold 按方案排除。剩余 Firefox、FlClash 两项普通应用、五项内核／引导选择，以及 WPS、腾讯会议、NVIDIA、CUDA 四项专项集成。这是安装清单核对，不代表旧数据、全部界面或硬件已经验收。
+截至 2026-11-14，旧系统 91 项 world 选择中，71 项已有同名原生安装，Telegram 改为原生源码包，GNU Emacs 由原生 Neomacs 替代，JDK 换为原生 Dragonwell Standard 21 LTS；微信、VSCodium、LocalSend、Thunderbird ESR 和 QQ 由 Flatpak 提供，当时暂时排除 mold，后续已按新的选择安装并设置默认。剩余 Firefox、FlClash 两项普通应用、五项内核／引导选择，以及 WPS、腾讯会议、NVIDIA、CUDA 四项专项集成。这是安装清单核对，不代表旧数据、全部界面或硬件已经验收。
 
-本次统一授权的软件／配置批次已到复核点。Portage 六类配置按原顺序归并，整理前后比较了 1,158 个已安装包的有效设置，差异为零；替换前快照保留，不复制 GPG 私有目录。复核后的配置、环境片段及固定仓库提交清单同步到配置仓库的 `portage/`，源码补丁继续在 `patchsets/` 维护。新机仍须核对 profile、仓库版本、硬件和补丁，不整目录覆盖已有配置。Neomacs 与 Java 补齐后，新根共 1,191 个包、81 个 world 选择；安装通过仍不代表迁移完成，真实引导、数据库和旧根均未改变。本轮长批次已完成全部 34 项对齐（21 个新依赖、13 项 USE 重建），包括 SPIR-V translator、libclc、Mesa CLC 和 cargo-c；另装 Firefox 五项较小前置。最终 `@world --update --deep --newuse` 没有待合并项，仍无 GCC/glibc。官方 stage3 的 platformdirs 4.12.4 以精确关键词保留，避免非必要降版。
+本次统一授权的软件／配置批次已到复核点。Portage 六类配置按原顺序归并，整理前后比较了 1,158 个已安装包的有效设置，差异为零；替换前快照保留，不复制 GPG 私有目录。复核后的配置、环境片段及固定仓库提交清单同步到配置仓库的 `portage/`，源码补丁继续在 `patchsets/` 维护。新机仍须核对 profile、仓库版本、硬件和补丁，不整目录覆盖已有配置。Neomacs 与 Java 补齐后，新根共 1,191 个包、81 个 world 选择；安装通过仍不代表迁移完成，真实引导、数据库和旧根均未改变。本轮长批次已完成全部 34 项对齐（21 个新依赖、13 项 USE 重建），包括 SPIR-V translator、libclc、Mesa CLC 和 cargo-c；另装 Firefox 五项较小前置。最终 `@world --update --deep --newuse` 没有待合并项，仍无 GCC/glibc。当时官方 stage3 的 platformdirs 4.12.4 以精确关键词保留，避免非必要降版；后续已放宽规则允许上游升级。
 
 其余软件已完成逐项预演；关键词、USE 等必要配置调整后，连同 PostgreSQL LLVM/JIT、NetworkManager iwd、Btrfs udev 和 XLibre Xvfb 功能恢复，共 48 个直接选择项已完成安装，四项恢复功能的 USE 已核对。Node.js 的依赖允许选择 Gentoo 官方 `llvm-runtimes/libatomic-stub`，明确加入该包后，Firefox／Thunderbird 的合并预演不再选择 GCC；Firefox 已回补含安全修复的 153.7 ESR 官方配方，新版预演通过，Thunderbird 已改用 ESR Flatpak。KTorrent 关闭可选内嵌 WebEngine，避免额外网页引擎构建。QQ 和 LocalSend 已通过 Flatpak 界面检查；FlClash 的 glibc 界面、Helper/TUN 与 OpenRC 集成仍待验证。
 
@@ -216,7 +379,66 @@ JDK 按用户选择改为 Alibaba Dragonwell **Standard 21 LTS**，使用官方 
 
 其他没有配方的软件也可以用 Portage 二进制 ebuild 管理版本、依赖、文件与卸载，AppImage 可解包后按同样方式安装。专用兼容库放在程序私有目录，使用该程序的 RPATH 或 wrapper；不把兼容环境加入全局库搜索路径。Flatpak 应用和运行时由 Flatpak 管理，配置仓库只保留主包清单及一键脚本。
 
-FlClash 上游[不计划提供 Flathub 包](https://github.com/chen08209/FlClash/issues/1190)，涉及 Helper、TUN 和系统代理的系统权限；仅能运行 GUI 或本地代理的封装不能算完整等价替代。目前仍保留该项。后续线程可从配置仓库根的 `AGENTS.md` 进入现有实验 README、world 清单和补丁组；本机检查点另记录活动进程、实验根身份与私有日志，避免公开文档变成过时的运行状态记录。
+FlClash 上游[不计划提供 Flathub 包](https://github.com/chen08209/FlClash/issues/1190)，涉及
+Helper、TUN 和系统代理权限。此次复用已有 FDO 运行时、私有 glibc Dragonwell
+Standard 21 和测试用托盘库，已显示中文免责声明，JNI 确认只加载私有同版本 JVM。
+最初的托盘库暂取自已签名 LocalSend，仅供试验。后续已换成 Debian trixie 的
+五个 Ayatana／dbusmenu 小型库包：核验官方公钥、InRelease 三份签名、索引与逐包
+SHA256，国内镜像与官方源的元数据一致；只解包库和许可文本，不执行 Debian
+安装脚本。约 0.5 MiB 的库已在私有目录完成加载，中文仪表盘正常绘制，不再借用
+LocalSend 内部文件。
+
+私有 ELF 解释器／RPATH 路线的灰屏也完成了单文件对照：Flutter 的
+`lib/libapp.so` 是 AOT 数据 ELF，没有普通共享库的动态依赖；保持原始字节后
+中文界面恢复，改动过的副本仍灰屏。配置仓库的
+[`relocate-flclash-elf.py`](https://github.com/Cyberl-ty02/dotfiles/blob/experiment/musl-llvm-migration/gentoo_setting/experiments/musl-llvm-pc/scripts/relocate-flclash-elf.py)
+默认只预检，保护 AOT 与 manifest 校验的静态 Core，仅对需要重定位的动态 ELF
+设置私有路径。新副本已通过重复应用及中文界面检查；模拟上游 AOT 结构变化时，
+脚本在写入前停止。随后已整理为
+[现有仓库的补丁组](https://github.com/Cyberl-ty02/dotfiles/tree/experiment/musl-llvm-migration/gentoo_setting/experiments/musl-llvm-pc/patchsets/flclash-private-runtime)，
+完成正常 Portage 沙箱安装、19 个动态 ELF 的依赖检查，并核对安装后的 AOT 与
+原始来源 deb 摘要一致；没有新增 overlay、全局 glibc 或库路径。
+
+私有 glibc Standard 21 现在由同一个 Dragonwell 包的 `glibc-runtime` 开关管理，
+宿主仍只有一个 musl 默认 VM。新机无需手建第二个 glibc chroot，额外步骤是用
+`install-flatpak-apps.sh --system --flclash-runtime` 准备系统级 FDO 运行时；该脚本
+在无系统 DBus 的 chroot 中幂等执行通过。`@musl-private-apps` 用 USE 能力约束
+选择适配配方，不锁应用发布版本；当前允许关键词内的 world 预演为零项，未接受
+LLVM 23 的关键词扩展建议。
+
+已安装入口在普通用户、只读候选根、独立 HOME／Xvfb／网络中显示中文仪表盘，
+显式 JNI 使用已管理的 Standard 21。界面流程本身未加载 JVM，不能扩大为全部
+Java 功能验收。原生辅助命令包装已验证恢复调用者环境并加载 musl GIO，避免
+把前端的私有模块路径传给经 PATH 启动的桌面命令；真实浏览器和完整输入仍待验证。
+
+源码核对后，原生辅助命令进一步覆盖 `kwriteconfig`、`dbus-send` 和按原始 PATH
+查找后端的 `which`，并完成正常沙箱重建。实际 GUI 通过中文文件选择器导入自制
+YAML、启动 Core、回环 HTTP 200、写入私有 KIO 代理，以及停用后 ProxyType=0／
+监听端口关闭的往返。测试中应用全局混合端口覆盖了 YAML 端口，经实际 GUI 调整
+后验证通过；没有接触真实订阅或宿主代理。
+
+独立用户／网络命名空间内的 TUN TCP 报文也实测通过：客户端直接访问测试地址，
+TUN 收发计数增加；不可达路由负对照失败，恢复后再次 HTTP 200，宿主路由哈希
+不变。这仍是当前内核下的隔离测试，不能扩大为真机 TUN 自动路由或外网验收。
+
+OpenRC 路径按上游实现，不需要另造服务。没有 systemd 时，GUI 通过 Polkit
+授权直接 Core，设置 root／请求者组与 4750；只在一次性用户命名空间副本验证了
+路径引用及权限检查，实际候选 Core 仍为 0755。SonicDE 的授权代理保留 KDE
+兼容名称，与会话 DesktopNames=KDE 匹配；真实登录授权仍需切换后的本机验收。
+
+补丁工具也补上有序组预检：同一仓库用多个 `--patch`，可识别后续补丁已修改前一份
+文件的完整状态，重复执行会跳过；第二份不兼容时不会向真实目标写入半组。
+FlClash 与 Dragonwell 两组均验证了完整、部分、重复和失败状态，候选根原生
+Python 的完整组重复检查也通过。
+
+经用户同意，仅测试配置接受免责声明后，GUI 与静态 Core 的 IPC 连通。另按
+[v0.9.3 源码协议](https://github.com/chen08209/FlClash/blob/v0.9.3/core/server.go)，
+在只读 musl 根、普通用户、独立网络中验证 Core 初始化、配置、监听和回环 HTTP
+代理通过，退出干净，无需新增 GCC／glibc。再以普通宿主用户建立自己的用户／网络
+命名空间，仅在其中赋予 NET_ADMIN，TUN 设备创建／回收与回环代理通过，宿主路由
+哈希保持不变。后续已补齐上述隔离 TUN TCP 与 GUI 代理启停，仍不代表新内核已启动、
+真机自动路由、OpenRC 特权激活或完整桌面集成通过；原订阅、setuid、Polkit 和真实
+网络配置均未改动。因此 FlClash 安装已完成，OpenRC 特权链、系统代理和真实 TUN 转发仍在剩余清单中。后续线程可从配置仓库根的 `AGENTS.md` 进入现有实验 README、world 清单和补丁组；本机检查点另记录活动进程、实验根身份与私有日志，避免公开文档变成过时的运行状态记录。
 
 ## Java IDE 也统一 Dragonwell Standard 21
 
@@ -228,7 +450,7 @@ FlClash 上游[不计划提供 Flathub 包](https://github.com/chen08209/FlClash
 
 ## 用户、对话和应用数据先定性
 
-本机用户 UID/GID、附加组、home 路径与服务账户已经只读盘点。目标需保留数字身份与权限、避免 UID 冲突；当前还没有创建真实用户或迁入真实用户数据。隔离环境中看到的 nobody 可能只是 UID 映射，不是复制属主的依据。
+本机用户 UID/GID、附加组、home 路径与服务账户已经盘点；新子卷内已创建匹配数字身份的账户，保留密码散列与全部密码有效期字段，首次登录使用独立 HOME。`@home-musl` 是原 home 的在线预副本，VSCodium／Codex 等仍需停用应用后的最终一致性复制，PostgreSQL 也尚未迁移。隔离环境中看到的 nobody 可能只是 UID 映射，不能作为复制属主的依据。
 
 | 数据 | 本轮结论 |
 | --- | --- |
@@ -250,7 +472,7 @@ PostgreSQL 18.6 的合成预验证使用 UTF8＋ICU `zh-Hans-CN`，中文排序�
 
 Firefox 153.7 配方直接回补官方 Gentoo 提交及语言包 Manifest；固定基线的 Rust eclass 仍使用 `llvm-r1`，因此配方两处 helper 调用单独做版本限定适配，不改全局 eclass，实际编译器仍选 LLVM 22。新版无 GCC/glibc 预演通过，Zip、cbindgen、图标虚拟包、simdutf、simdjson 已安装；Node、中文语言包和浏览器本体均已完成正常沙箱安装。首轮编译中，静态 musl Rust 构建脚本无法动态加载 libclang；仅对 Firefox 配方增加 rustc wrapper，使宿主脚本与目标都使用动态 musl 链接，普通 UID 250 的对照、离线 Cargo 宿主脚本测试及完整重建均通过。普通用户、空白 profile、隔离网络的离线中文页面渲染和截图目检通过；安装后 1,194 个包、82 个 world 选择，完整 world 预演无待合并项。GPU、输入法、旧 profile 和 Widevine DRM 尚未验收。本体的 9700M 检查是工作空间，另需保留根分区 20GiB 底线及下载／安装余量；本轮把构建临时目录放到独立 Linux 文件系统，仍保留空间保护。
 
-OpenRC 服务只做了静态登记：`elogind → boot`，`dbus`、`NetworkManager`、`soniclogin`、`firewalld`、`sysklogd`、`chronyd → default`，没有实际启动服务。Sonic 登录器自身提供 display-manager；iwd 通过 D-Bus 激活，PipeWire 保持普通用户会话启动。五项内核／引导选择的预演均通过；XanMod 与 virtual/dist-kernel 已在独立实验根安装，签名、CJK 和 initramfs 存储驱动检查通过；通用设备固件、rEFInd 和 shim 尚未安装，fstab、真实用户和启动项仍待布局阶段处理。
+OpenRC 服务只做了静态登记：`elogind → boot`，`dbus`、`NetworkManager`、`soniclogin`、`firewalld`、`sysklogd`、`chronyd → default`，没有实际启动服务。Sonic 登录器自身提供 display-manager；iwd 通过 D-Bus 激活，PipeWire 保持普通用户会话启动。五项内核／引导选择的预演均通过；XanMod 与 virtual/dist-kernel 已在独立实验根安装，签名、CJK 和 initramfs 存储驱动检查通过；通用设备固件、rEFInd 和 shim 已安装；子卷、fstab 与隔离用户已准备，真实引导入口和首次启动尚未验收。
 
 签名内核批次沿用同一 Portage 写锁、候选根身份与锁内即时 world 预演。停止路径经过普通用户合成测试，子进程组确认清空后才接受下一任务；旧进程及挂载干净退出后复用构建镜像，没有重新格式化。先使用公开证书验证旧内核，再限于受限批次读取现有签名材料，目标私钥副本保存在新根 root 私有目录，不进入配置仓库。真实 ESP 未写入。新内核配置与 initramfs 的 NVMe／Btrfs 模块检查通过，新增驱动及固件的 initramfs 更新、通用设备固件、真实启动和回退仍需后续完成。
 
@@ -286,7 +508,7 @@ NVIDIA 620.70.06 现有配方增加了版本限定的 modules-only 分支，沿�
 
 启动载荷随后也已补齐：使用官方现有配方安装 linux-firmware 20261019、Intel 微码、rEFInd 0.14.2-r4 和 shim 16.1_p7。rEFInd 的 musl／Clang 修复已在 Gentoo 配方中，无需再维护本地补丁；为了匹配其依赖，gnu-efi 由 4.0.4 调整为 3.0.19。仍使用 Clang 和已有 binutils，没有安装 GCC／glibc。完整 world 预演零项，最终共 1,208 个包、92 项 world 选择。
 
-固件以 zstd 压缩安装，目标内核已启用对应解压支持。Intel 微码保留 split-ucode；关闭固件包各自的 initramfs 安装动作，统一由 dracut 组装。新的通用镜像不捕获当前宿主根参数，显式包含 NVMe、i915、Wi-Fi／蓝牙、有线网及五个 NVIDIA 模块，省略 nouveau。约 173MiB 镜像已解包检查匹配 GSP、Wi-Fi／核显固件；早期归档含当前 CPU `0x000b0671` 的 `0x0137` 微码，当前宿主未在线更新微码。
+固件以 zstd 压缩安装，目标内核已启用对应解压支持。Intel 微码保留 split-ucode；关闭固件包各自的 initramfs 安装动作，统一由 dracut 组装。最初的通用镜像不捕获当前宿主根参数，显式包含 NVMe、i915、Wi-Fi／蓝牙、有线网及五个 NVIDIA 模块，省略 nouveau。当时约 173MiB 镜像已解包检查匹配 GSP、Wi-Fi／核显固件；早期归档含当前 CPU `0x000b0671` 的 `0x0137` 微码，当前宿主未在线更新微码。
 
 镜像中两项 NVMe 与五项 NVIDIA 模块实际通过 CMS 验签，10 个 UEFI 载荷（含 Btrfs 驱动、MokManager）通过本机公开证书验证，签名私钥目录未进入镜像。受限实验进程内保留了 dracut 创建五个设备节点时的权限警告；已确认 init 挂载 devtmpfs，内核也启用 DEVTMPFS，尚不能代替实际启动。未放宽宿主权限来隐藏这些警告。
 
@@ -312,6 +534,40 @@ NVIDIA 620.70.06 现有配方增加了版本限定的 modules-only 分支，沿�
 启动准备中还补齐了新根自己的五个仓库副本，固定在已验证版本，profile 不再依赖临时挂载；国内镜像优先与 Gentoo 同步签名检查保留，验收期间暂不自动同步。XanMod/CJKTTY 的内核依赖预演已通过，完整内核和签名仍待实际构建。签名工具会需要 GNU binutils，LLVM 也提供 libgcc ABI 库，这不等于安装 GNU GCC 编译器套件。NVIDIA 的开源 `nvidia-modprobe` 620.70.06 已按固定 Gentoo Manifest 校验官方源码，并在新根用 Clang/musl 构建、运行版本与帮助检查通过；它尚未安装或用于加载模块，不代表完整驱动集成已完成。
 
 候选 Btrfs 布局是在现有文件系统内新增 `@musl`，保留原 `@`、`@home` 和启动项。`/dev/nvme1n1p2` 是分区设备，不是要赋给子卷的名字，也不需要仅为此次迁移重新格式化分区。
+
+实机已建立 `@musl` 与 `@home-musl`：前者从已验收的软件根写时复制，后者是原 home 的在线快照。匹配账户、根 UUID／子卷挂载与 `preempt=full` 参数已落实；1,350 个原生包、Portage 配置和 world 与验收源一致，无原生 GCC／glibc。普通用户离线 chroot 中 Dragonwell Standard 21 与 FlClash 19 个动态 ELF 依赖检查通过，内核／initramfs 哈希匹配，内核公钥验签通过。真实 ESP 已按原教程整理为根目录的 `vmlinuz-7.2.14-musl-x64v3` 与匹配 `initramfs-7.2.14-musl-x64v3.img`；`EFI/Gentoo/musl.conf` 保存独立 musl 菜单，主 rEFInd 配置只追加受管理的排除与 include 块。原内核、活动 EFI 程序、旧根参数、磁盘默认选择记录与固件 BootOrder 保留，Windows 入口保持原样。密钥仍在原 `/etc/kernel/secureboot`，未搬到 ESP；尚未重启，固件菜单及首次启动仍待真机验收。
+
+现有 rEFInd 使用磁盘 `vars/PreviousBoot` 保存默认项，已确认仍指向原内核。移动到共用 ESP 根目录后，不能让新内核直接读取旧的 `refind_linux.conf`。现在使用独立菜单显式指定新根及匹配镜像，并从自动扫描中逐个排除 musl 内核文件；其他旧配置保留。已验证 Gentoo installkernel 的 compat 布局与 postinst 调用接口，并安装版本化的菜单脚本及 hook；它自动发现新版本内核对，不锁死版本，缺失镜像时停止。脚本预演、幂等、新版本发现及原配置保留已通过临时夹具检查；完整真实内核更新仍需后续验收。Secure Boot 当前启用，内核公钥与运行时 MOK 列表中的证书逐字节匹配，实际 ESP 目的端验签通过。这些静态检查不能代替固件启动测试。
+
+首次手动启动时，选择内核名含 `7.2.14-musl-x64v3` 的入口，随后检查：
+
+```sh
+uname -r
+findmnt -n -o FSROOT /
+findmnt -n -o FSROOT /home
+printf '%s\n' "$HOME"
+portageq envvar ELIBC
+```
+
+预期内核为 `7.2.14-musl-x64v3`，根与 home 分别为 `@musl`、`@home-musl`，HOME 指向首次登录专用的隔离目录，ELIBC 为 `musl`。旧 VSCodium／Codex 数据不在这一步验收；出现问题时，从保留的原 Gentoo 入口回到 `@`／`@home`。首启采集器已装入候选根，普通用户离线运行通过；同时准备了隔离 HOME 内的说明与新根接续检查点。离线通过不代表新内核已启动，旧仓库和用户资料的在线预副本也不能直接作为同步来源。
+
+清理前已运行 `eclean-kernel --pretend`，未发现过期内核；`eclean-dist` 和 `eclean-pkg` 预演也报告已清洁。ESP 仅移除了经完整归档并逐项比对一致的 106 项重复备份，实际释放约 2.9MiB，清理当时剩余约 160MiB。随后在保留驱动选择和早期微码的前提下，将通用 initramfs 从约 173.8MiB 缩到约 118.3MiB；五个 NVIDIA 模块、两项 NVMe 模块及四份 GSP 固件与已验收文件哈希一致，Btrfs 为内建，本 CPU 微码保留。OpenRC locale／键盘／字体通过 dracut 的 i18n 映射读取，镜像内中文 locale 与 Unicode 配置已核对。原通用镜像仍有 root 私有备份。
+
+新内核约 13.95MiB，实际小于旧内核的 15.43MiB，原先膨胀主要来自 initramfs 的固件、模块及全量微码。当前 400MiB ESP 剩约 215MiB；保留原系统再放一套同等大小的 musl 镜像后仍约剩 83MiB，高于本轮 64MiB 余量，因此暂不扩容。以后按新内核实际大小重新检查，不能提前删除回退入口。ESP 后紧邻根分区，扩容需另外规划离线操作。新机从 chroot 生成 hostonly 镜像时须提供正确 `/proc`、`/sys`、`/dev` 和 `/run/udev/data`；无法保证硬件元数据正确时先生成通用镜像并复核空间，不直接复用另一台机器的 hostonly 成品。
+
+根复制曾触发保留 20GiB 的空间保护。核验回收未完成暂存，将闲置实验部署、旧内核树和缓存归档到既有独立工作镜像，经完整比对后移除展开副本，空间恢复后才继续。写时复制仍需要目录、inode 和小文件空间，不能按零额外占用估算；这里的 coreutils 要求 `cp --reflink=always` 配合 `--sparse=auto`。已分配元数据块组内部的回收量也不能直接当作 `df` 立即增加的可用量，整理应使用[明确的类型、usage 与 limit 过滤](https://btrfs.readthedocs.io/en/latest/btrfs-balance.html)，不直接执行无过滤的全盘 balance。
+
+本机 musl `chage --help` 没有 `--mindays`。账户脚本须核对实际支持参数，保留原有效期语义；本轮仅兼容已确认等价的零／空最短有效期表示，其他字段与密码散列严格核对，不记录散列内容。home 预副本与停用应用后的最终一致性迁移分开验收，首次登录使用独立 HOME。
+
+2026-11-17 的首启报告已确认：新内核、`@musl`／`@home-musl`、musl、UID 1000、X11 桌面和 i915／NVIDIA 图形模块匹配，随后已回到旧根继续整理。这是第一次实际桌面启动及返回旧系统的证据，合并用户环境后的桌面和完整硬件工作流仍须再次验证。
+
+本次为目标 root/home 另留只读回退快照，再将默认 HOME 恢复为普通的 `/home/<用户>`。root 和普通用户密码由用户在本机分别重设，后续导入不覆盖新密码；doas 从用户提供的策略恢复，并用目标原生 doas 检查语法。约 7.7 万个兼容文件已克隆导入，包括 shell、桌面、壁纸、字体偏好、个人文件及编辑器配置。宿主的旧 glibc 动态程序、编译缓存、虚拟环境和生成物延期重建，保留原始数据及私有延期清单。
+
+用户导出的 `.code-profile` 已解析并导入 Flatpak 的正常 profile：91 项设置、快捷键、任务和可移植 UI 状态保留。56 项扩展中，七项依赖 Java 25 的旧 Java 组合延期，改用此前验证的 Oracle Java 21 扩展，目标目录共 50 项；JVM 继续统一为 Dragonwell Standard 21。FlClash 用户备份也已恢复，备份内 SQLite 检查通过。原始 profile、代理配置、密码与其他凭据不进入公共仓库。
+
+普通 TTY 的 zsh、Neomacs 核心、字体匹配和普通用户离线检查通过，字体选择已恢复到旧用户的 Noto Sans。Codex 在目标软件环境读取当前线程，普通用户宿主控制试验的只读命令执行也通过，没有发送模型请求。嵌套容器的 `/proc` 挂载限制是另一条验收边界；本轮用 `musl-codex-resume` 原生终端作为接续入口，不把静态数据读取当成 Flatpak 中完整工具调用成功。完整 GUI、认证、插件与实际模型调用仍待真机复验。
+
+新根提供旧 home 的只读入口及桌面取文件快捷方式；原系统 fstab、根和数据库保留。当前源编辑器退出后还要同步最新对话与仓库，再核对写入完成、释放实验挂载后正常关机。迁移过滤器和 profile 导入器已放在[现有实验仓库](https://github.com/Cyberl-ty02/dotfiles/tree/experiment/musl-llvm-migration/gentoo_setting/experiments/musl-llvm-pc#用户对话与-ide-数据迁移准备)，默认预演、显式写入，不需要新增 overlay。
 
 迁移验收后，最终根子卷名仍统一为原教程的 `@`。从救援环境挂载 Btrfs 顶层，将旧 `@` 改名为 `@glibc-backup`，再将新 `@musl` 改名为 `@`；同步修正两套系统的 `fstab`、rEFInd 根参数和按名称引用子卷的备份任务，检查 initramfs 是否固化了旧路径。分别验证新系统启动与旧系统回退后，再决定旧根的删除时间。这样不会留下额外的 `@musl`，也没有单独的 musl 分区需要删除，分区 UUID 不变。新机全新安装则直接建立 `@`、`@home`，不必经历临时命名。[Btrfs 官方文档](https://btrfs.readthedocs.io/en/latest/btrfs-subvolume.html)说明子卷可以改名，子卷 ID 保持不变。
 
