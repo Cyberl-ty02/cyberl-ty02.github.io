@@ -101,9 +101,9 @@ async function datesFromGit(repoDir, filePath, options = {}) {
   if (layout.kind === "git-file") {
     return datesFromGitCli(repoDir, filePath, options.gitExecutable ?? "git");
   }
-  return datesFromIsomorphicGit(repoDir, filePath);
+  return datesFromIsomorphicGit(repoDir, filePath, options.gitExecutable ?? "git");
 }
-async function datesFromIsomorphicGit(repoDir, filePath) {
+async function datesFromIsomorphicGit(repoDir, filePath, executable) {
   let relativePath = import_node_path.default.relative(repoDir, filePath).split(import_node_path.default.sep).join("/");
   let commitOid = await import_isomorphic_git.default.resolveRef({ fs: import_node_fs.default, dir: repoDir, ref: "HEAD" });
   const commits = [];
@@ -120,6 +120,9 @@ async function datesFromIsomorphicGit(repoDir, filePath) {
     if (!await commitExists(repoDir, parentOid)) {
       commits.push(currentCommit);
       break;
+    }
+    if (currentCommit.commit.parent.length > 1) {
+      return datesFromGitCli(repoDir, filePath, executable, "merge");
     }
     const parentBlob = await blobOidAt(repoDir, parentOid, relativePath);
     if (parentBlob === currentBlob) {
@@ -141,7 +144,7 @@ async function datesFromIsomorphicGit(repoDir, filePath) {
     updated: commits.length > 0 ? import_moment.default(commits[0].commit.author.timestamp * 1000) : now.clone()
   };
 }
-async function datesFromGitCli(repoDir, filePath, executable) {
+async function datesFromGitCli(repoDir, filePath, executable, history = "linked worktree") {
   const relativePath = import_node_path.default.relative(repoDir, filePath).split(import_node_path.default.sep).join("/");
   const args = [
     "--no-pager",
@@ -150,7 +153,9 @@ async function datesFromGitCli(repoDir, filePath, executable) {
     repoDir,
     "log",
     "--follow",
-    "--format=%at",
+    "--diff-merges=combined",
+    "--name-only",
+    "--format=%x00%at%x00",
     "--",
     relativePath
   ];
@@ -160,11 +165,18 @@ async function datesFromGitCli(repoDir, filePath, executable) {
   } catch (error) {
     const code = error.code;
     if (code === "ENOENT") {
-      throw new Error(`Git CLI is required for linked worktree history, but "${executable}" was not found`, { cause: error });
+      throw new Error(`Git CLI is required for ${history} history, but "${executable}" was not found`, { cause: error });
     }
-    throw new Error(`Git CLI could not read linked worktree history`, { cause: error });
+    throw new Error(`Git CLI could not read ${history} history`, { cause: error });
   }
-  const timestamps = output.split(/\r?\n/gu).map((line) => Number(line.trim())).filter((timestamp) => Number.isSafeInteger(timestamp) && timestamp > 0);
+  const records = output.split("\x00");
+  const timestamps = [];
+  for (let index = 1;index + 1 < records.length; index += 2) {
+    const timestamp = Number(records[index].trim());
+    if (records[index + 1].trim() && Number.isSafeInteger(timestamp) && timestamp > 0) {
+      timestamps.push(timestamp);
+    }
+  }
   const now = import_moment.default();
   return {
     created: timestamps.length > 0 ? import_moment.default(timestamps.at(-1) * 1000) : now.clone(),
