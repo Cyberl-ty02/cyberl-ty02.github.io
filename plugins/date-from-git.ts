@@ -98,10 +98,14 @@ export async function datesFromGit(
     return datesFromGitCli(repoDir, filePath, options.gitExecutable ?? "git");
   }
 
-  return datesFromIsomorphicGit(repoDir, filePath);
+  return datesFromIsomorphicGit(repoDir, filePath, options.gitExecutable ?? "git");
 }
 
-async function datesFromIsomorphicGit(repoDir: string, filePath: string): Promise<{
+async function datesFromIsomorphicGit(
+  repoDir: string,
+  filePath: string,
+  executable: string,
+): Promise<{
   created: Moment;
   updated: Moment;
 }> {
@@ -126,6 +130,13 @@ async function datesFromIsomorphicGit(repoDir: string, filePath: string): Promis
     if (!(await commitExists(repoDir, parentOid))) {
       commits.push(currentCommit);
       break;
+    }
+
+    // First-parent traversal can mistake an article introduced on another branch
+    // for a merge-time edit. Let Git simplify the complete path history, just as
+    // in a linked worktree, rather than assigning dates from only one parent.
+    if (currentCommit.commit.parent.length > 1) {
+      return datesFromGitCli(repoDir, filePath, executable, "merge");
     }
 
     const parentBlob = await blobOidAt(repoDir, parentOid, relativePath);
@@ -162,6 +173,7 @@ async function datesFromGitCli(
   repoDir: string,
   filePath: string,
   executable: string,
+  history: "linked worktree" | "merge" = "linked worktree",
 ): Promise<{ created: Moment; updated: Moment }> {
   const relativePath = path.relative(repoDir, filePath).split(path.sep).join("/");
   const args = [
@@ -171,7 +183,9 @@ async function datesFromGitCli(
     repoDir,
     "log",
     "--follow",
-    "--format=%at",
+    "--diff-merges=combined",
+    "--name-only",
+    "--format=%x00%at%x00",
     "--",
     relativePath,
   ];
@@ -183,17 +197,25 @@ async function datesFromGitCli(
     const code = (error as NodeJS.ErrnoException).code;
     if (code === "ENOENT") {
       throw new Error(
-        `Git CLI is required for linked worktree history, but "${executable}" was not found`,
+        `Git CLI is required for ${history} history, but "${executable}" was not found`,
         { cause: error },
       );
     }
-    throw new Error(`Git CLI could not read linked worktree history`, { cause: error });
+    throw new Error(`Git CLI could not read ${history} history`, { cause: error });
   }
 
-  const timestamps = output
-    .split(/\r?\n/gu)
-    .map((line) => Number(line.trim()))
-    .filter((timestamp) => Number.isSafeInteger(timestamp) && timestamp > 0);
+  // Combined diffs name a merge's file only when it differs from every parent.
+  // A plain branch import therefore has no changed path, while a real merge
+  // resolution remains an update. NUL-delimited headers separate dates from
+  // path text, including quoted filenames and rename records.
+  const records = output.split("\0");
+  const timestamps: number[] = [];
+  for (let index = 1; index + 1 < records.length; index += 2) {
+    const timestamp = Number(records[index]!.trim());
+    if (records[index + 1]!.trim() && Number.isSafeInteger(timestamp) && timestamp > 0) {
+      timestamps.push(timestamp);
+    }
+  }
   const now = moment();
 
   return {
