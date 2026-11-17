@@ -174,6 +174,76 @@ describe("date-from-git compatibility layer", () => {
     }
   });
 
+  test("keeps branch article dates through a merge in normal and linked checkouts", async () => {
+    const root = temporaryDirectory("blog merge history ");
+    const mainDir = path.join(root, "main clone");
+    const linkedDir = path.join(root, "linked worktree");
+    const filepath = "source/_posts/new branch article.md";
+    const mergedAt = unrelatedAt + 1000;
+
+    fs.mkdirSync(mainDir, { recursive: true });
+    runGit(mainDir, ["init", "--initial-branch=main"]);
+    runGit(mainDir, ["config", "user.name", author.name]);
+    runGit(mainDir, ["config", "user.email", author.email]);
+    await createCommit(mainDir, "README.md", "base\n", "initialize", createdAt - 1000);
+    runGit(mainDir, ["switch", "-c", "article"]);
+    await createCommit(mainDir, filepath, "first\n", "create article", createdAt);
+    await createCommit(mainDir, filepath, "second\n", "update article", updatedAt);
+    runGit(mainDir, ["switch", "main"]);
+    await createCommit(mainDir, "README.md", "unrelated\n", "update main", unrelatedAt);
+    runGit(mainDir, ["merge", "--no-ff", "article", "-m", "merge article"], mergedAt);
+    runGit(mainDir, ["worktree", "add", "--detach", linkedDir, "HEAD"]);
+
+    try {
+      for (const checkout of [mainDir, linkedDir]) {
+        const dates = await datesFromGit(checkout, path.join(checkout, filepath));
+        expect(dates.created.valueOf()).toBe(createdAt * 1000);
+        expect(dates.updated.valueOf()).toBe(updatedAt * 1000);
+      }
+      await expect(datesFromGit(mainDir, path.join(mainDir, filepath), {
+        gitExecutable: "git-command-that-does-not-exist-merge-test",
+      })).rejects.toThrow("Git CLI is required for merge history");
+    } finally {
+      runGit(mainDir, ["worktree", "remove", "--force", linkedDir]);
+    }
+  });
+
+  test("counts a merge resolution that changes the article as an update", async () => {
+    const root = temporaryDirectory("blog merge resolution ");
+    const mainDir = path.join(root, "main clone");
+    const linkedDir = path.join(root, "linked worktree");
+    const filepath = "source/_posts/resolved.md";
+    const mergedAt = unrelatedAt + 1000;
+
+    fs.mkdirSync(mainDir, { recursive: true });
+    runGit(mainDir, ["init", "--initial-branch=main"]);
+    await createCommit(mainDir, filepath, "base\n", "create article", createdAt);
+    runGit(mainDir, ["switch", "-c", "article"]);
+    const topic = await createCommit(mainDir, filepath, "topic\n", "edit topic", updatedAt);
+    runGit(mainDir, ["switch", "main"]);
+    const main = await createCommit(mainDir, filepath, "main\n", "edit main", unrelatedAt);
+    fs.writeFileSync(path.join(mainDir, filepath), "resolved\n", "utf8");
+    await git.add({ fs, dir: mainDir, filepath });
+    await git.commit({
+      fs,
+      dir: mainDir,
+      message: "resolve article merge",
+      parent: [main, topic],
+      author: { ...author, timestamp: mergedAt },
+    });
+    runGit(mainDir, ["worktree", "add", "--detach", linkedDir, "HEAD"]);
+
+    try {
+      for (const checkout of [mainDir, linkedDir]) {
+        const dates = await datesFromGit(checkout, path.join(checkout, filepath));
+        expect(dates.created.valueOf()).toBe(createdAt * 1000);
+        expect(dates.updated.valueOf()).toBe(mergedAt * 1000);
+      }
+    } finally {
+      runGit(mainDir, ["worktree", "remove", "--force", linkedDir]);
+    }
+  });
+
   test("preserves explicit Front Matter dates without reading Git history", async () => {
     let handler:
       | ((data: {
