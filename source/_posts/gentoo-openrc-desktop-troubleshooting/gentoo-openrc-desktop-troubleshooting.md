@@ -198,3 +198,12 @@ locale -a | grep -E 'C\.utf8|zh_CN\.utf8|en_US\.utf8'
 关于同一台 Gentoo 的启动链修复，参见：[Gentoo 在 Btrfs 与 rEFInd 环境下的启动修复记录](/posts/gentoo-refind-btrfs-rescue/gentoo-refind-btrfs-rescue/)。
 
 如果遇到的不是运行期字体或音频问题，而是 SonicDE 在 XLibre 环境中编译 `kcm_mouse` 时找不到已经安装的 `libinput-properties.h`，参见：[Gentoo SonicDE + XLibre 编译失败：追踪 kcm_mouse 缺失的 xorg-libinput 依赖](/posts/gentoo-sonicde-xlibre-libinput-build-fix/gentoo-sonicde-xlibre-libinput-build-fix/)。
+
+
+## musl 实验与桌面语言的边界
+
+本文原有修复记录来自已运行的 glibc 系统。2026-11-13 开始的 [musl/LLVM PC 实验](/posts/gentoo-musl-llvm-pc-migration/gentoo-musl-llvm-pc-migration/)仍在构建和验收中，不把其预演或编译结果等同于完整桌面通过。
+
+检查中文问题时，分别确认登录环境、SonicDE 用户区域设置、字体/Fcitx 和应用运行时。`locale` 显示 zh_CN 并不能证明 musl 具备完整中文日期、货币、排序或旧编码转换。Flatpak 内的 glibc locale 也应单独运行 `locale -a` 核验；安装脚本只负责安装，不在 chroot 内启动桌面或 Portal。
+
+软件源同步需要英文日志时，使用 `LC_ALL=C.UTF-8 emerge --sync` 等命令级设置，不把它写成所有桌面会话的全局 `LC_ALL`。修改系统 LANG 后还要重新登录；旧用户的 `~/.config/plasma-localerc` 可能继续覆盖系统默认值。

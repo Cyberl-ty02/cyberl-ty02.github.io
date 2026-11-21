@@ -126,9 +126,10 @@ contracts include `tests/comments.test.ts`,
 
 ## CI, releases, and upstream maintenance
 
-`.github/workflows/build.yml` builds pull requests, but Pages artifact upload and
-deployment are restricted to pushes to `main`. A pull-request validation must not
-be described as a production release.
+`.github/workflows/build.yml` validates pull requests and pushes to `main`. Pages
+artifact upload and deployment require an explicit manual dispatch on `main`
+with the `deploy` input enabled. Publishing commits does not authorize deployment.
+A validation build must not be described as a production release.
 
 Keep third-party Actions pinned to full commit SHAs. Do not push `main`, rewrite
 history, merge a pull request, or start a production deployment without explicit
