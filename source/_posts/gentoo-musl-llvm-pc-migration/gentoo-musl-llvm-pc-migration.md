@@ -799,3 +799,18 @@ Manifest 核对大小、BLAKE2B、SHA512，补丁严格应用／撤回及本机�
 验证正常最小化／恢复、最大化后最小化／恢复，窗口保持受管理、进程存活，最大化
 状态保留。未执行整套上游测试。补丁只部署到 26.08.3 的用户补丁目录，新版默认不再应用，等价上游修复
 和实机回归通过后即可清理。已有终端任务不强制关闭，验收使用独立新窗口。
+
+
+### 日常桌面验收与 Doom 配置统一
+
+本次日常试用中，用户确认 Codium 开发、Java Hello World、音视频、WPS／微信、PostgreSQL 和 FlClash TUN 暂无异常。会议共享、休眠、其他 CUDA 数学库及真实归档恢复仍按需要单独验收。Konsole 旧窗口标签栏下的白缝在新独立窗口中没有复现，未再追加渲染补丁。
+
+SonicDE 电源管理补齐官方 power-profiles-daemon 的 OpenRC 服务，验证 performance／balanced／power-saver 可读后加入 default，保持原 balanced 档位。新机先检查 TLP／tuned 等冲突服务，再启用 daemon；不需要重启桌面。NetworkManager 的 limited 则定位为 Fake-IP 与绑定物理网卡的探测不匹配：改用本机验证可达的标准 Microsoft Connect Test 端点并校验正文，重新探测为 full，没有关闭连通性检测、重启 Wi-Fi 或放宽防火墙。通用模板放在配置仓库 PC 服务目录，软件源的国内优先顺序不变。
+
+编辑器最终采用完整 Doom Emacs 框架，由原生 Neomacs 执行；与 Windows 共用 dot_config/doom 中的模块和自有偏好，保留 Evil／SPC、相对行号、缩进、字体与终端背景设置。发行版及插件各账户独立，root 的框架、私有配置与缓存均由 root 自己拥有，不执行普通用户可写的配置。当前 Doom core 将完整模块放在 sources/doom+ 子仓库，Linux 和 Windows 安装脚本都会先初始化 core 记录的模块提交，再同步插件，避免只安装 core 而漏掉模块。
+
+普通用户的完整 sync、正式目录 GUI／TTY 开始页、主题、SPC／Evil 编辑和 Corfu／Vertico／Magit／Org 加载通过；root 的独立 TTY 也通过。doctor 识别33个模块、106个包。Discount 提供 Markdown 编译，官方静态 ShellCheck 提供 Shell 检查，实际运行均通过，未安装 GHC 或 GCC。只保留可选 Symbola 字体提示，现有 Unicode／中文字体回退继续使用。这仍不是全部 Doom 语言模块、原生插件或未来 Neomacs 更新的兼容保证。
+
+测试过的 Spacemacs 按最终选择停用，可重新下载的发行版与可再生缓存已移除，少量可回退配置仅在本机私有目录保留。新机以配置仓库的 deploy-doom.sh 与共享 Doom README 为入口，不再维护另一套 PC 最小 init。VSCodium 的 Oracle Java21、Maven／Gradle／Spring 模板及 Python／Rust 组件另见[跨平台配置文章](/posts/vscodium-sync/vscodium-sync/)；Windows 清单与脚本已同步，实际应用在 Windows 执行验收。
+
+数据盘 上三份旧系统加密归档已重新完成全文件长度与 SHA256 校验，均与原记录一致，未发现需要删除的损坏临时件，因此保留作恢复来源。未解密、恢复数据库或把密码、代理配置、账号状态及原始截图加入公共记录；哈希一致不代替实际恢复演练。

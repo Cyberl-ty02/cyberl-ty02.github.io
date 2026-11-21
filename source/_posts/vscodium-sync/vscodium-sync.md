@@ -59,13 +59,30 @@ gentoo_setting/scripts/sync-vscodium.sh
 gentoo_setting/scripts/sync-vscodium.sh --apply
 ```
 
-脚本只补齐清单中缺少的扩展，不会清除所有未列出的扩展；它会专门移除已经冗余的旧 Sync Settings 与 Cron Tasks 扩展。这样既能迁移到新模型，也不会把本机临时安装的其他扩展当成垃圾处理。
+脚本补齐清单中缺少的扩展，并定向移除 extensions-excluded.txt 中已被替换的旧组合及本机不适用的平台项。卸载扩展包可能连带移除成员，因此会重新读取有效索引，再补回明确选择的功能；安装时不让大包自动带回冲突依赖。未列入排除清单的其他本机扩展不会一概清除。
 
 ## Windows：保留平台差异
 
 Windows 使用 `windows_setting/` 作为独立 chezmoi source，并由该目录的引导脚本部署设置。通用编辑器行为与 Gentoo 尽量一致，但终端 profile、Remote WSL 和 PowerShell 等平台项目留在 Windows 侧维护。
 
 不要为了让两个 `settings.json` 字节一致而删除合理差异。跨平台同步的目标是共享格式化、语言、Git、主题、安全和遥测策略，而不是假装两个系统具有相同路径和命令。
+
+扩展可以单独同步，无需执行完整 Windows bootstrap：
+
+```powershell
+.\vscodium\sync-extensions.ps1
+.\vscodium\sync-extensions.ps1 -Apply
+```
+
+默认预览，确认后显式应用。Windows 源文件已同步，Windows 实机执行仍需在该系统验收。
+
+## Java 21 与 IDE 组件
+
+当前 Java 路线使用 Oracle Java、Maven for Java、Gradle for Java 和 Spring Initializr，所有 JVM 保持 Dragonwell Standard 21。新 Java 大包带来的 Red Hat 语言服务器要求 JDK25，因此不继续混装其 JDT 后端。Maven archetype、Gradle 项目生成和 Spring Initializr 提供更多模板，Kotlin 暂缓；各模板的实际项目依赖仍由项目自己的 wrapper 和构建文件决定。
+
+Gentoo 的 Maven 由 Portage 安装，VSCodium Flatpak 通过包内 host-spawn 调用宿主 Maven，不混用宿主 musl 与 SDK 的库。已用合成项目验证模板生成、Java21 编译和 JUnit。Maven 的代理需要本机私有 ~/.m2/settings.xml，不能只依赖 shell 的 HTTP_PROXY；国内镜像优先配置与官方回退也留在本机，不上传代理、凭据或真实项目。
+
+Python 采用 Pyright、Ruff、Black、debugpy、环境管理和 Jupyter，保留 Django/Jinja、docstring 等独立功能；重复的 Flake8/isort 与旧大包移除。Rust 使用 rust-analyzer 的原生测试视图，保留 TOML，替代旧测试适配器组合。共享配置明确 Java formatter 和 Rust 测试视图，避免依赖安装顺序决定行为。
 
 ## 修改设置后的回收流程
 
