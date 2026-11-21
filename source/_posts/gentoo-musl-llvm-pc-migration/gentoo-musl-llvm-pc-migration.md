@@ -770,3 +770,18 @@ Bash，以及私有 CUDA SDK／Bun 兼容运行库中的 GNU ABI 组件分别保
 的用户关系、自定义函数、大对象计数均为零，保留 ICU 排序规则。查询没有修改
 数据库或启动／停止服务；不能据此替代其他数据库逐库审计、旧库完整恢复或
 业务数据验收。
+
+### Actions 固定提交存在但编辑器无法解析
+
+本机曾将有效的 `oven-sh/setup-bun` 固定提交标为“repository or version not found”。
+核验五种 Actions 的 `action.yml` 均可读取，GitHub CI 的完整构建也通过；扩展日志
+实际报告 `api.github.com` 连接超时。Chromium 的 `--proxy-server` 并不会自动配置
+扩展语言服务器的原生 Node fetch；仅在另一个终端启用代理，也不会改变已有
+VSCodium 实例的环境。
+
+启动器现会在调用 shell 配置 HTTP(S) 代理时，同时为该应用进程启用
+[`NODE_USE_ENV_PROXY`](https://nodejs.org/learn/http/enterprise-network-configuration)，
+并转发代理环境变量；不写全局代理、不关闭 TLS 校验、不改为浮动 Action tag。
+已用编辑器自带 Node 24.21.0 通过代理读取到同一提交的元数据，HTTP200。
+应用修复后需完整退出所有 VSCodium 窗口，再从启用代理的 shell 运行 `codium`；
+没有强制关闭现有对话，也不能把独立网络探针成功说成旧窗口的误报已经消失。
