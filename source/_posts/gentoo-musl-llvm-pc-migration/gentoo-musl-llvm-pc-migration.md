@@ -814,3 +814,18 @@ SonicDE 电源管理补齐官方 power-profiles-daemon 的 OpenRC 服务，验�
 测试过的 Spacemacs 按最终选择停用，可重新下载的发行版与可再生缓存已移除，少量可回退配置仅在本机私有目录保留。新机以配置仓库的 deploy-doom.sh 与共享 Doom README 为入口，不再维护另一套 PC 最小 init。VSCodium 的 Oracle Java21、Maven／Gradle／Spring 模板及 Python／Rust 组件另见[跨平台配置文章](/posts/vscodium-sync/vscodium-sync/)；Windows 清单与脚本已同步，实际应用在 Windows 执行验收。
 
 数据盘 上三份旧系统加密归档已重新完成全文件长度与 SHA256 校验，均与原记录一致，未发现需要删除的损坏临时件，因此保留作恢复来源。未解密、恢复数据库或把密码、代理配置、账号状态及原始截图加入公共记录；哈希一致不代替实际恢复演练。
+
+
+### 登录恢复、透明间隙与启动图标
+
+开机时出现多个终端窗口并非来自新添的自启动脚本：保存的桌面会话中有四个 Konsole 客户端和 FlClash 的 legacy 会话。以桌面用户执行以下命令，改为下次登录启动空会话；不整文件覆盖 ksmserverrc，不删除会话资料，也不关闭当前窗口：
+
+```sh
+kwriteconfig6 --file ksmserverrc --group General --key loginMode emptySession
+```
+
+终端标签栏下方的细缝实际会漏出壁纸。普通 RGB 截图把透明像素显示为黑色，仅凭“没有白线”不能排除问题。读取 X11 ARGB 后确认整行 alpha=0，原因是隐藏 QTabWidget 的样式间距没有被 QML 标签背景覆盖。最终补丁在窗口坐标中补齐可见窗格上下方的背景与顶部设备像素边缘，覆盖标签行和页眉／容器交界，不给整个终端铺不透明底色。显示／自动隐藏标签栏、顶部／底部与普通／65% 透明终端八组实机回归中，透明横行均消失，终端内部 alpha 保持255／166；另按真实 desktop 启动项打开交互式 Zsh，再新建标签，并验证右键新窗口的等效命令。不能以隔离 profile 或休眠命令正常代替这些实际入口。正常沙箱重建与原有最小化／恢复检查通过，补丁顺序、上游移除条件和验证边界集中在 Sonic Terminal 补丁组。已有进程仍需正常退出后重开；登录恢复策略仍需下一次登录观察。
+
+独立 ESP 无法通过根文件系统的 os-release 推断发行版，手动生成的 Gentoo 菜单原先也没有指定图标，因此使用通用企鹅。本次生成器显式引用 rEFInd 自带 os_gentoo.png，先检查资源，再写入菜单；已验证旧的未标记 include 只归并一次、重复执行不产生重复菜单，并保留根参数和内核／initramfs 字节不变。没有改动签名密钥、BootOrder、Windows 或分区。
+
+Ventoy 官方图标按 GPLv3 原样保存来源与许可，安装为 os_ventoy.png 和 os_vtoyefi.png，交给 rEFInd 原生的卷标匹配与外部介质扫描。其他发行版沿用已有图标；进入菜单后才插入介质可按 Esc 重扫。未知卷标或固件自身提供的启动项不能保证自动识别品牌，不为换图标改名载荷、改 USB 标签或写入介质。相关模板和 chroot 安装命令在配置仓库 kernel/refind-icons，真实启动画面仍待下次开机验收。
