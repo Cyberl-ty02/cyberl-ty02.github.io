@@ -832,3 +832,24 @@ Ventoy 官方图标按 GPLv3 原样保存来源与许可，安装为 os_ventoy.p
 
 
 2026-11-23 人工复查：用户确认开机体验正常、Windows 配置同步已完成，可选应用日常使用大致正常。相应项目不再列作待完成迁移步骤；反馈不等同于所有 USB 卷标、逐项会议／DRM／休眠场景或长期负载均已测试。旧归档实际恢复演练、完整 CUDA 生态验收仍保持单独记录，博客生产部署仍另行决定。
+
+
+### 隔离恢复演练与 Python GPU 环境
+
+2026-11-23，先重新核对三份密文归档的完整长度和 SHA256，再在数据盘的新建文件镜像上创建独立 Btrfs。解密凭据仅由本机受限进程使用，旧 root 和 home 实际接收为只读子卷，旧 boot 也实际解包；恢复文件系统的只读 scrub 通过。测试镜像随后正常卸载、解除 loop 并删除，原归档与私有凭据保留。这个结果补齐的是归档可恢复性；没有启动旧系统或恢复出的数据库，也不等于实际回退启动验收。隔离接收目录只向维护进程开放，不能把未知来源的 send 流直接接收到当前根文件系统。[Btrfs receive 文档](https://btrfs.readthedocs.io/en/latest/btrfs-receive.html)。
+
+Python GPU 应用复用已有 Freedesktop SDK 的 glibc Python，通过标准 venv／pip 管理二进制依赖，不往 musl 宿主安装 glibc、GCC 或 CUDA Python 库，也不新增 overlay。核心 NVCC 仍使用独立13.4工具包；PyTorch 使用其 wheel 声明的 CUDA13.0运行库。启动时只移除核心工具包的库目录前缀，保留 Flatpak 的 NVIDIA 驱动路径；直接清空整个库路径会让 libcuda.so.1 无法加载。此处是私有运行环境的兼容方案，不是 PyTorch 原生支持 musl。[PyTorch 安装说明](https://pytorch.org/get-started/locally/)。
+
+系统级 SDK 与 cuda-sdk 数据包在 chroot 安装阶段准备；以下操作在真实桌面登录后，以普通用户、从配置仓库根目录执行：
+
+```sh
+# 先审阅依赖图；联网时沿用调用 shell 的 HTTP(S) 代理。
+sh gentoo_setting/pc/scripts/cuda-python.sh --setup --dry-run
+sh gentoo_setting/pc/scripts/cuda-python.sh --setup
+sh gentoo_setting/pc/scripts/cuda-python.sh --check --seconds 600
+sh gentoo_setting/pc/scripts/cuda-python.sh --run -c 'import torch; print(torch.cuda.is_available())'
+```
+
+默认使用用户 XDG 数据目录中的 gentoo-gpu/.venv；项目可设置绝对路径 CUDA_PYTHON_HOME，以该目录作为受限工作区。安装只接受 wheel；SDK Python 次版本改变时重建环境。运行默认无网络，需要时显式设置 CUDA_SDK_NETWORK=1。不要在 musl shell 直接执行此环境的 Python 或激活它；这部分包由 pip 管理，不能把它们算成 Portage 已安装库。维护入口、兼容边界与补丁移除条件集中在配置仓库的 CUDA 补丁组 README。
+
+实测使用 SDK Python3.14.9、PyTorch2.14.1+cu130、NumPy2.5.4 和 cuDNN9.24。矩阵、FFT、线性求解、卷积、反向传播、稀疏运算、独立 cuRAND 设备输出与 NumPy 回读八项检查通过，pip check 正常；核心 NVCC 的跨翻译单元 RDC 设备链接及32项 GPU 输出也通过。另以1024阶矩阵、每轮50ms间隔执行600秒，共11,774轮，最高46°C、峰值张量分配23.3MiB，确认未混用核心工具包库。这里记录的是有限合成负载，不是满载性能或长期稳定性结论；多 GPU、NCCL／NVSHMEM、GPUDirect、完整数学边界与具体生产模型仍按实际用途验证。版本仅记录本次基线，脚本不锁死后续上游更新，未向 musl 宿主引入 GCC／glibc。
