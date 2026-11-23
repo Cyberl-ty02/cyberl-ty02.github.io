@@ -829,3 +829,6 @@ kwriteconfig6 --file ksmserverrc --group General --key loginMode emptySession
 独立 ESP 无法通过根文件系统的 os-release 推断发行版，手动生成的 Gentoo 菜单原先也没有指定图标，因此使用通用企鹅。本次生成器显式引用 rEFInd 自带 os_gentoo.png，先检查资源，再写入菜单；已验证旧的未标记 include 只归并一次、重复执行不产生重复菜单，并保留根参数和内核／initramfs 字节不变。没有改动签名密钥、BootOrder、Windows 或分区。
 
 Ventoy 官方图标按 GPLv3 原样保存来源与许可，安装为 os_ventoy.png 和 os_vtoyefi.png，交给 rEFInd 原生的卷标匹配与外部介质扫描。其他发行版沿用已有图标；进入菜单后才插入介质可按 Esc 重扫。未知卷标或固件自身提供的启动项不能保证自动识别品牌，不为换图标改名载荷、改 USB 标签或写入介质。相关模板和 chroot 安装命令在配置仓库 kernel/refind-icons，真实启动画面仍待下次开机验收。
+
+
+2026-11-23 人工复查：用户确认开机体验正常、Windows 配置同步已完成，可选应用日常使用大致正常。相应项目不再列作待完成迁移步骤；反馈不等同于所有 USB 卷标、逐项会议／DRM／休眠场景或长期负载均已测试。旧归档实际恢复演练、完整 CUDA 生态验收仍保持单独记录，博客生产部署仍另行决定。
