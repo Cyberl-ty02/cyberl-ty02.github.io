@@ -24,15 +24,15 @@ sticky: 1
 > **危险操作提醒**
 > 分区、格式化、生成 fstab 和安装 EFI 启动项都可能造成数据损失或启动失败。命令中的设备名全部是占位示例。执行前必须用 `lsblk -f`、`findmnt` 和固件启动模式确认自己的目标，双系统环境尤其不能格式化已有 Windows ESP。
 
-> **musl/LLVM 实验路线**
-> 本文以已验证的 glibc/LLVM 路线为主线，在有差异的小节内用独立环境面板列出 glibc/LLVM 与 musl/LLVM。每节只执行所选分支的内容，共用步骤保留在面板外。两条路线的 init 都是 OpenRC；LiveCD 自身的命令另有阶段标识。
-> 2026-11-13 开展的 [musl/LLVM 迁移实验](/posts/gentoo-musl-llvm-pc-migration/gentoo-musl-llvm-pc-migration/)仍未完成新根真机启动，面板会明确列出尚未验收的边界。不要在已有系统上仅切换 profile 来迁移 libc。
+> **当前默认：musl／LLVM；glibc 面板保留作历史参考**
+> 有差异的小节用独立面板列出 glibc/LLVM 与 musl/LLVM；每节只执行所选分支，共用步骤在面板外。配置仓库 main 的 PC 配置已经只维护 musl，不可导入 glibc 根。两条路线的 init 都是 OpenRC；LiveCD 命令另有阶段标识。
+> 2026-11-23 已完成 [musl 真机迁移与收口](/posts/gentoo-musl-llvm-pc-migration/gentoo-musl-llvm-pc-migration/)，日常使用与 Windows 配置同步已人工确认，归档实际恢复通过。新机器仍需核验自己的硬件、仓库与签名；不要仅切换 profile 来迁移 libc。
 
 ## 这套安装最后会得到什么
 
-{% collapse glibc/LLVM：当前整机配置 open %}
+{% collapse glibc/LLVM：历史配置参考 open %}
 
-当前配置的目标不是最小 Gentoo，而是一台日常使用的 amd64 笔记本：
+以下是原 glibc 安装的历史目标，不代表 main 中当前 PC 配置：
 
 ```text
 LiveCD：EndeavourOS
@@ -52,17 +52,17 @@ profile：default/linux/amd64/23.0/llvm
 
 {% endcollapse %}
 
-{% collapse musl/LLVM：实验目标 %}
+{% collapse musl/LLVM：当前默认 %}
 
 工具链采用 Clang/LLVM、LLD 和 libc++，profile 为 `default/linux/amd64/23.0/musl/llvm`。主系统、SonicDE/XLibre 与输入法使用原生 musl；闭源桌面应用优先采用独立的 Flatpak glibc 运行时。本轮不默认安装 GCC 或 GNU Emacs。
 
-全新根的默认 Portage 用户与沙箱安装、桌面和常规软件安装、world 对齐、中文输入及部分 GPU 最小测试已经通过。内核、NVIDIA 整合、首次启动及回退尚未完成，当前整机配置和 world 清单不能原样作为 musl 配置。
+全新 stage3 默认 Portage 用户／沙箱的完整桌面安装、普通软件更新、内核／NVIDIA 整合、真实登录与用户资料接续已通过。当前 gentoo_setting/pc 即 musl 参考；world 只作逐项审阅清单，不跨硬件照装。旧归档恢复也已通过，用户随后决定退役旧恢复来源；不再安排旧系统回退启动。
 
 {% endcollapse %}
 
 完整的当前说明见 dotfiles 的 [`gentoo_setting/README.md`](https://github.com/Cyberl-ty02/dotfiles/blob/main/gentoo_setting/README.md)。按角色恢复的软件见 [`manifests/`](https://github.com/Cyberl-ty02/dotfiles/tree/main/gentoo_setting/manifests)，完整真机目标仍保存在 [`world_packages.txt`](https://github.com/Cyberl-ty02/dotfiles/blob/main/gentoo_setting/pc/world_packages.txt)。这里不会把所有软件都解释一遍，而是着重保证第一次重启前已经具备能启动、联网和进入桌面的条件。
 
-本文 glibc 主线采用的实际执行顺序是：进入 chroot 后初始化 Portage、repository 和公开配置，生成 Secure Boot 密钥并安装 shim+rEFInd，引导链就绪后安装内核和 NVIDIA 模块，再安装 mold；随后执行 `emerge -ajvuDN @world`，按 core、pc-host、desktop、nvidia、development 等角色分批预览和安装，只有需要完整复原当前机器时才使用整个 `world_packages.txt`。启用必要服务后才第一次重启；Fcitx、Zsh/Powerlevel10k、Doom Emacs 等用户态配置统一留到成功启动的新系统中完成。
+原 glibc 安装的历史执行顺序是：进入 chroot 后初始化 Portage、repository 和公开配置，生成 Secure Boot 密钥并安装 shim+rEFInd，引导链就绪后安装内核和 NVIDIA 模块，再安装 mold；随后执行 `emerge -ajvuDN @world`，按 core、pc-host、desktop、nvidia、development 等角色分批预览和安装，只有需要完整复原当前机器时才使用整个 `world_packages.txt`。启用必要服务后才第一次重启；Fcitx、Zsh/Powerlevel10k、Doom Emacs 等用户态配置统一留到成功启动的新系统中完成。
 
 ## Stage 0：在 LiveCD 中准备目标系统
 
@@ -232,25 +232,25 @@ ls -ld /mnt/gentoo/{etc,usr,var}
 
 EndeavourOS LiveCD 有 Git，可以先把配置仓库带入目标根。两个面板使用同一落点，只执行所选分支：
 
-{% collapse glibc/LLVM：当前配置分支 open %}
+{% collapse glibc/LLVM：仅通用脚本参考 open %}
 
 ```bash
 sudo git clone https://github.com/Cyberl-ty02/dotfiles.git \
   /mnt/gentoo/root/dotfiles
 ```
 
-当前 `gentoo_setting/pc/` 面向原 glibc 机器；复制前要审阅 CPU、并行度、显卡、mold 和签名设置。
+main 中的 PC 配置已改为 musl。glibc 使用自己的 stage3 配置和 profile；此 checkout 仅供阅读通用脚本，不复制 pc/portage 或 pc/world。旧配置只从历史记录或既有本地归档标签参考。
 
 {% endcollapse %}
 
-{% collapse musl/LLVM：迁移实验分支 %}
+{% collapse musl/LLVM：main配置 %}
 
 ```bash
 sudo git clone --branch main \
   https://github.com/Cyberl-ty02/dotfiles.git /mnt/gentoo/root/dotfiles
 ```
 
-已验证脚本、必要配置和补丁索引在 `gentoo_setting/pc/`。这是进行中的实验分支，不能整棵导入旧 `pc/portage` 或 `world_packages.txt`。
+已验证脚本、必要配置和补丁索引在 `gentoo_setting/pc/`，main 为当前 musl 默认配置。先核对上游基线、CPU、设备与签名，再合并；不复制历史实验夹。
 
 {% endcollapse %}
 
@@ -405,82 +405,41 @@ passwd
 
 ### 分阶段应用当前 Portage 配置
 
-{% collapse glibc/LLVM：合并当前PC配置 open %}
+{% collapse glibc/LLVM：使用独立配置 %}
 
-当前公开配置位于：
-
-```text
-/root/dotfiles/gentoo_setting/pc/portage
-```
-
-先备份 stage3 原配置：
-
-```bash
-cp -a /etc/portage /root/portage-stage3-backup
-```
-
-然后合并配置，但不要删除 stage3 可能新增的文件：
-
-```bash
-rsync -a /root/dotfiles/gentoo_setting/pc/portage/ /etc/portage/
-```
-
-此时必须人工阅读至少这些文件：
-
-- [`make.conf`](https://github.com/Cyberl-ty02/dotfiles/blob/main/gentoo_setting/pc/portage/make.conf)：CPU、并行度、显卡、全局 USE 和 Secure Boot；
-- [`repos.conf/eselect-repo.conf`](https://github.com/Cyberl-ty02/dotfiles/blob/main/gentoo_setting/pc/portage/repos.conf/eselect-repo.conf)：gentoo-zh、GURU、SonicDE、XLibre；
-- [`package.accept_keywords/hardware`](https://github.com/Cyberl-ty02/dotfiles/blob/main/gentoo_setting/pc/portage/package.accept_keywords/hardware)：CJK 内核、NVIDIA 等逐包测试关键字；
-- [`package.mask/kernel`](https://github.com/Cyberl-ty02/dotfiles/blob/main/gentoo_setting/pc/portage/package.mask/kernel)：选择 CJK kernel，避免同时拉入其他内核；
-- [`package.use/secureboot`](https://github.com/Cyberl-ty02/dotfiles/blob/main/gentoo_setting/pc/portage/package.use/secureboot)：installkernel、dracut、rEFInd 与签名策略。
-
-当前配置刻意使用包级 `~amd64` 和 overlay 规则，而不是全局切换到 `ACCEPT_KEYWORDS="~amd64"`。这能把测试分支的影响限制在明确选择的软件上。
-
-当前 `make.conf` 的正式状态使用：
-
-```conf
-LDFLAGS="-fuse-ld=mold -Wl,-O1 -Wl,--as-needed -Wl,-z,pack-relative-relocs"
-```
-
-但新 stage3 此时还没有 `sys-devel/mold`。为了保持“先准备 Secure Boot/引导和内核，随后再安装 mold”的顺序，首次安装阶段应暂时启用文件中保留的非 mold 写法：
-
-```conf
-LDFLAGS="-Wl,-O1 -Wl,--as-needed -Wl,-z,pack-relative-relocs"
-#LDFLAGS="-fuse-ld=mold -Wl,-O1 -Wl,--as-needed -Wl,-z,pack-relative-relocs"
-```
-
-等后文确认 mold 已安装，再交换这两行。否则 rEFInd、shim 或内核依赖在 mold 命令尚不存在时就可能因 linker 选择失败。
-
-同步所有配置过的仓库：
-
-```bash
-emerge --sync
-emaint sync -a
-```
-
-检查仓库和重要包来自哪里：
-
-```bash
-eselect repository list -i
-emerge -pv sys-kernel/xanmod-kernel
-emerge -pv sonicde-base/sonicde-meta
-emerge -pv x11-base/xlibre-server
-```
-
-不要把 overlay 中暂时不存在、被 mask 或只有测试关键字的包统称为“包消失了”。先用 `emerge -pv`、`eix` 和 repository 配置区分来源、关键字与 mask。
+main 的 PC Portage 目录与 world 已是 musl，不能复制到 glibc。保留该 glibc stage3 的配置，按对应 profile 和 Handbook 单独设置；需要原 PC 配置时参考 Git 历史，不恢复一套并行维护的 glibc 目录。下一个面板的 musl 配方、私有 ABI 和包选择不适用于此分支。
 
 {% endcollapse %}
 
-{% collapse musl/LLVM：逐项合并实验配置 %}
+{% collapse musl/LLVM：逐项合并当前配置 open %}
 
-保留官方 stage3 的正常 Portage 用户和沙箱；只合并实验目录中逐项验证的配置与补丁组，不复制测试夹的 root 编译设置或整套 PC 配置。当前已完成 GLib/HarfBuzz 引导和 Pillow `truetype` 恢复；完整桌面安装进行中。
+保持官方 stage3 的正常 Portage 用户与沙箱，先初始化本教程前文的仓库，再检查配置和补丁。不要把测试夹中的 root 编译设置带入新机。
 
 ```bash
 portageq envvar ELIBC
 portageq envvar FEATURES
 id portage
+cp -a /etc/portage /root/portage-stage3-backup
+cd /root/dotfiles/gentoo_setting/pc
+python3 scripts/restore-repository-patches.py
+# 全部预检通过、确认目标仓库后才写入：
+python3 scripts/restore-repository-patches.py --apply
 ```
 
-应确认 `ELIBC=musl`，并保留 `sandbox`、`userpriv`、`usersandbox` 等默认功能。所需 SonicDE/XLibre 仓库、USE、关键字、兼容包约束和补丁的状态见[实验目录](https://github.com/Cyberl-ty02/dotfiles/tree/main/gentoo_setting/pc)。不把未完成的配置拼成可直接覆盖的新机安装包。
+确认 ELIBC=musl，以及 sandbox、userpriv、usersandbox 等默认功能。先审阅 make.conf 的 CPU、并行度、VIDEO_CARDS、USE、签名路径和 package.*；新机密钥必须自行生成。使用 rsync -an --itemize-changes 预览自己的合并，不用 --delete，也不整目录覆盖。
+
+官方 stage3 仍用可用的 LLVM linker 引导。当前配置默认 mold／ThinLTO，因此先在未切换全局设置时正常安装 mold，再合并对应配置；不要在 mold 尚不存在时先写入全局选择：
+
+```bash
+emerge --pretend sys-devel/mold
+emerge --ask sys-devel/mold
+mold --version
+# 合并经过审阅的配置后核验，而不是复制上面备份的 glibc 配置。
+bash scripts/configure-linker.sh --linker mold --dry-run
+bash scripts/configure-lto.sh --dry-run
+```
+
+完整桌面与正常沙箱安装已经通过。曾出现的 GLib／HarfBuzz／Pillow 引导环、Rust 宿主脚本和线程栈问题及其移除条件，在[迁移复盘](/posts/gentoo-musl-llvm-pc-migration/gentoo-musl-llvm-pc-migration/)及各补丁组说明中；临时 Pillow truetype 开关必须恢复。仓库同步可能覆盖配方差异，之后重新预检，不把补丁强行套入新代码。
 
 {% endcollapse %}
 
@@ -707,11 +666,13 @@ dmesg | grep -Ei 'secure boot|integrity|verification|lockdown'
 
 {% endcollapse %}
 
-{% collapse musl/LLVM：内核与NVIDIA %}
+{% collapse musl/LLVM：内核与NVIDIA open %}
 
-内核、签名、initramfs、NVIDIA 用户态和模块的完整整合尚未完成。现有 `x11-drivers/nvidia-drivers` 依赖 glibc/GCC，本轮不将它直接装入 musl 根。
+本路线已完成 Clang／LLD ThinLTO 内核、签名模块／GSP、私有用户态、initramfs、真实启动和 CUDA 回读，不能再照旧说明把 NVIDIA 一概当作不支持。现有 Gentoo 配方以 modules-only 构建配套模块，私有用户态和数据层由现有仓库补丁管理；不能直接套用 glibc 完整驱动配方。
 
-目前只有开源模块编译、原生 CUDA 最小 kernel、私有兼容前缀图形测试及官方 Flatpak NVIDIA 扩展测试通过；这些不能替代真机显示、PRIME、外接显示与冷启动验收。先停在[迁移记录](/posts/gentoo-musl-llvm-pc-migration/gentoo-musl-llvm-pc-migration/)明确的验收边界，保留原系统和启动项。
+新机先按配置仓库 kernel／secureboot 的说明生成自己的材料并完成登记，再按 NVIDIA 补丁组的顺序核对内核 build tree、模块、GSP、vermagic、签名、节点与 initramfs。配套版本和签名权限是升级门槛，不因目录名记录历史版本就自动沿用。CPU／固件与 root 参数取自目标机器。
+
+首次重启前核对 root／home 挂载、内核命令行、EFI 文件及签名，保留该机器自己的救援入口；首次登录后才检查显示、普通用户 CUDA／NVML、音频／网络与实际设备。私有 SDK 和 Flatpak 下载可在 chroot 准备，GUI、GPU 和账号不能以 chroot 安装成功代替。细节与已验证边界见[迁移记录](/posts/gentoo-musl-llvm-pc-migration/gentoo-musl-llvm-pc-migration/)和[配置根说明](https://github.com/Cyberl-ty02/dotfiles/tree/main/gentoo_setting/pc)。
 
 {% endcollapse %}
 
@@ -1382,14 +1343,14 @@ doom doctor
 
 {% collapse musl/LLVM：编辑器选择 %}
 
-实验根的 Neomacs 0.0.20 已安装，SQLite、私有 GUI 和 Fcitx/Rime 中文输入通过。目标根可以选择：
+Neomacs 已原生安装，SQLite、GUI 与 Fcitx/Rime 中文输入通过，完整 Doom 的普通用户／root 独立配置也已验收。目标根可以选择：
 
 ```bash
 eselect editor set neomacs
 source /etc/profile
 ```
 
-共享 Bash/Zsh 配置已改为尊重系统编辑器选择。Doom core 与 early-init 的最小非交互测试通过，但旧模块、插件和完整 UI 尚未验收；不直接运行旧的 GNU Emacs 部署脚本，也不复制旧 `.eln`。现有 glibc 与 Windows 配置保留，实际迁移边界见[迁移记录](/posts/gentoo-musl-llvm-pc-migration/gentoo-musl-llvm-pc-migration/)。
+共享 Bash/Zsh 配置尊重系统编辑器选择；普通用户在真实登录后运行 sh gentoo_setting/scripts/deploy-doom.sh，同步官方记录的模块子仓库与插件，不复制旧 .eln／字节码。root 采用自己所有的独立副本，不执行普通用户可写配置。Windows 共享配置已同步，当前完整模块及验收边界见[迁移记录](/posts/gentoo-musl-llvm-pc-migration/gentoo-musl-llvm-pc-migration/)。
 
 {% endcollapse %}
 

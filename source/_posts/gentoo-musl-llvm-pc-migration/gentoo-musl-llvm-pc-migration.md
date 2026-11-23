@@ -18,9 +18,9 @@ tags:
 
 这篇记录我从官方 musl/LLVM/OpenRC stage3 验证 Gentoo PC 安装的过程，目标仍是 SonicDE、XLibre 和 NVIDIA/CUDA，并尽量保留微信、腾讯会议、WPS、VSCodium 等日常使用体验。系统已有一套 glibc/LLVM 安装，因此实验的前提是保留原根、家目录和引导入口，先证明新环境能工作，再安排切换。
 
-> **当前状态：已在合并用户环境后的 musl 新根真机登录，正在复验代理、凭据与完整工作流。**
-> 下文早期批次保留当时的验收边界，最新进度以文末真机复验为准。
-> 本文是进行中的实验记录。依赖预演、编译通过、应用启动和完整真机迁移是不同的验收项，不能把其中一步通过写成整套安装已完成。原有[实体机安装指南](/posts/gentoo-endeavouros-btrfs-openrc-install/gentoo-endeavouros-btrfs-openrc-install/)仍按 glibc 主线维护。
+> **当前状态：musl／LLVM／OpenRC 已完成真机迁移并转为默认 PC 配置。**
+> 2026-11-23 已完成归档实际恢复和 CUDA Python 专项检查，日常使用与 Windows 配置同步已人工确认。用户决定退役旧系统恢复资料，不再安排回退启动。
+> 开头表格与文末收口为当前结论；中间按阶段保留当时的失败与边界，不应再当作仍有实验根或待运行队列。通用安装步骤见[实体机安装指南](/posts/gentoo-endeavouros-btrfs-openrc-install/gentoo-endeavouros-btrfs-openrc-install/)，差异按 glibc／musl 面板分开。
 
 ## 从哪个 stage3 开始
 
@@ -36,20 +36,18 @@ default/linux/amd64/23.0/musl/llvm
 
 ## 已经验证了什么
 
-| 项目 | 本轮结果 | 尚未覆盖 |
+| 项目 | 当前结果 | 按实际需要另行验证 |
 | --- | --- | --- |
-| 原生 UTF-8 | 中文文件名、文件内容和字符解码通过 | 旧编码文件、全部应用输入法 |
-| ICU 中文处理 | 日期、人民币、排序和 GB18030 转换通过 | 每个应用是否实际走 ICU |
-| NVIDIA/CUDA | 原生最小 kernel、托管 NVCC/CMake/GPU 数学验证通过；五个新模块已签名验签 | 新内核模块加载、PRIME、外接显示、完整数学库/PyTorch |
-| NVIDIA 原生图形 | 私有补丁加载器下 EGL 1.5 / OpenGL 4.6 离屏渲染与像素回读通过 | XLibre 显示、PRIME、外接显示、休眠恢复、Vulkan |
-| Flatpak | 由 musl 原生编译，完成应用部署和安装后触发器复核 | 真机桌面 Portal 和设备交互 |
-| 微信 | 独立显示中出现中文登录界面 | 未登录；聊天、中文输入、音视频 |
-| VSCodium | 八个选定扩展实际激活，中文 notebook 读取和 Jupyter 原生 ZeroMQ 中文消息往返通过 | notebook kernel 执行、调试、所有扩展与凭据 |
-| SonicDE/XLibre/Rime | 完整桌面安装、合并 HOME 后真机 X11 登录通过；原生 Qt、GTK 及 Flatpak VSCodium 隔离中文输入通过 | 其他应用输入法、持续使用及完整硬件工作流 |
-| 全新 stage3 安装基础 | 正确权限解压、默认用户与沙箱完整桌面安装通过，Pillow truetype 已恢复 | 新内核安装及真机验收 |
-| 新根启动 | EFI 文件部署、musl 新内核与目标子卷真机启动、返回旧根及合并 HOME 后再次登录通过 | 多次启动、更新、备份与完整回退演练 |
+| UTF-8／ICU／字体 | 中文文件、字符处理、格式化、系统与 Flatpak 字体匹配通过 | 旧编码与逐个应用的语言实现 |
+| NVIDIA／CUDA | 新内核模块真实加载、CUDA／NVML、NVCC／CMake／RDC、八项 Python 数学检查与600秒有限负载通过 | 长期生产模型、多 GPU、GPUDirect、完整数学边界 |
+| 原生显示 | SonicDE／XLibre 真机登录及日常桌面已人工确认，私有 EGL 离屏回读通过 | 特定外接显示、PRIME、Vulkan、休眠与功耗 |
+| Flatpak／日常应用 | 系统部署与触发器通过；用户确认微信、WPS、VSCodium、音视频与 FlClash TUN 日常正常 | 逐款账号、DRM、会议共享与所有设备场景 |
+| IDE／Java | Dragonwell Standard21、Oracle Java、Maven模板／JUnit及精选插件通过，Windows 配置同步已人工完成 | 其他插件组合和具体课程／业务项目 |
+| 新机基础 | 官方 stage3 正确解压、默认 Portage 用户／沙箱构建、完整桌面安装通过 | 新硬件驱动选择、签名登记和现场设备验收 |
+| 系统与用户 | 新根多次启动、普通更新、唯一 HOME、root／用户独立 Zsh／Doom 与资料接续完成 | 不以日常反馈替代全部应用专项测试 |
+| 归档与退役 | 旧 root／home／boot 实际隔离恢复及只读 scrub 通过；按明确授权已删除三份旧密文及专用恢复凭据 | 不再安排旧系统回退启动，也不声称做过该测试 |
 
-VSCodium 本轮验证的扩展包括 Python、debugpy、Jupyter、Jupyter Renderers、Ruff、rust-analyzer、Tinymist 和 Office。没有把原用户的凭据复制到实验环境，也没有把“扩展目录存在”当作“扩展加载成功”。
+插件清单、补丁与运行入口在配置仓库维护；历史测试中出现的版本不是永久锁。安装、私有 GUI、真实硬件与用户操作始终分别验收，不能把目录存在写成插件已加载。
 
 ## 将 mold 设为全局默认
 
@@ -539,7 +537,7 @@ NVIDIA 620.70.06 现有配方增加了版本限定的 modules-only 分支，沿�
 
 启动准备中还补齐了新根自己的五个仓库副本，固定在已验证版本，profile 不再依赖临时挂载；国内镜像优先与 Gentoo 同步签名检查保留，验收期间暂不自动同步。XanMod/CJKTTY 的内核依赖预演已通过，完整内核和签名仍待实际构建。签名工具会需要 GNU binutils，LLVM 也提供 libgcc ABI 库，这不等于安装 GNU GCC 编译器套件。NVIDIA 的开源 `nvidia-modprobe` 620.70.06 已按固定 Gentoo Manifest 校验官方源码，并在新根用 Clang/musl 构建、运行版本与帮助检查通过；它尚未安装或用于加载模块，不代表完整驱动集成已完成。
 
-候选 Btrfs 布局是在现有文件系统内新增 `@musl`，保留原 `@`、`@home` 和启动项。`/dev/nvme1n1p2` 是分区设备，不是要赋给子卷的名字，也不需要仅为此次迁移重新格式化分区。
+候选 Btrfs 布局是在现有文件系统内新增 `@musl`，保留原 `@`、`@home` 和启动项。分区设备节点不能用作 Btrfs 子卷名，也不需要仅为此次迁移重新格式化分区。
 
 实机已建立 `@musl` 与 `@home-musl`：前者从已验收的软件根写时复制，后者是原 home 的在线快照。匹配账户、根 UUID／子卷挂载与 `preempt=full` 参数已落实；1,350 个原生包、Portage 配置和 world 与验收源一致，无原生 GCC／glibc。普通用户离线 chroot 中 Dragonwell Standard 21 与 FlClash 19 个动态 ELF 依赖检查通过，内核／initramfs 哈希匹配，内核公钥验签通过。真实 ESP 已按原教程整理为根目录的 `vmlinuz-7.2.14-musl-x64v3` 与匹配 `initramfs-7.2.14-musl-x64v3.img`；`EFI/Gentoo/musl.conf` 保存独立 musl 菜单，主 rEFInd 配置只追加受管理的排除与 include 块。原内核、活动 EFI 程序、旧根参数、磁盘默认选择记录与固件 BootOrder 保留，Windows 入口保持原样。密钥仍在原 `/etc/kernel/secureboot`，未搬到 ESP；尚未重启，固件菜单及首次启动仍待真机验收。
 
@@ -617,7 +615,7 @@ VSCodium 真正的运行参数文件是 `~/.vscode-oss/argv.json`，其中设置
 GitHub 登录跨编辑器重启仍待实测。旧钱包密码与新登录密码可能不同，需要本机解锁，
 不把令牌改成明文，也不关闭钱包自动锁定。
 
-`/boot` 保留 root 专用权限，普通文件管理器无法进入是原有保护。旧 Doom PATH 注入
+当时 `/boot` 的 root 专用权限使普通文件管理器无法进入；后续已改为普通用户可读、仅 root 可写，见文末。旧 Doom PATH 注入
 已从新用户 shell 移除，原脚本与导入资料保留。缓存、备份卷和旧根按验收门槛分批
 处理，不在刚能登录时删除回退路径；PostgreSQL 逻辑迁移也仍是独立任务。
 
@@ -853,3 +851,95 @@ sh gentoo_setting/pc/scripts/cuda-python.sh --run -c 'import torch; print(torch.
 默认使用用户 XDG 数据目录中的 gentoo-gpu/.venv；项目可设置绝对路径 CUDA_PYTHON_HOME，以该目录作为受限工作区。安装只接受 wheel；SDK Python 次版本改变时重建环境。运行默认无网络，需要时显式设置 CUDA_SDK_NETWORK=1。不要在 musl shell 直接执行此环境的 Python 或激活它；这部分包由 pip 管理，不能把它们算成 Portage 已安装库。维护入口、兼容边界与补丁移除条件集中在配置仓库的 CUDA 补丁组 README。
 
 实测使用 SDK Python3.14.9、PyTorch2.14.1+cu130、NumPy2.5.4 和 cuDNN9.24。矩阵、FFT、线性求解、卷积、反向传播、稀疏运算、独立 cuRAND 设备输出与 NumPy 回读八项检查通过，pip check 正常；核心 NVCC 的跨翻译单元 RDC 设备链接及32项 GPU 输出也通过。另以1024阶矩阵、每轮50ms间隔执行600秒，共11,774轮，最高46°C、峰值张量分配23.3MiB，确认未混用核心工具包库。这里记录的是有限合成负载，不是满载性能或长期稳定性结论；多 GPU、NCCL／NVSHMEM、GPUDirect、完整数学边界与具体生产模型仍按实际用途验证。版本仅记录本次基线，脚本不锁死后续上游更新，未向 musl 宿主引入 GCC／glibc。
+
+
+## 报错复盘与维护索引
+
+这里汇总迁移中有复用价值的失败现象。相同错误的重复重试、下载进度、进程号和机器私有路径不逐条复制；原始日志也不直接公开。上文按阶段保留当时的结论，下表给出最后采用的处理方式。某项只有对照证据时，会明确保留这个边界。
+
+### 安装基础与构建
+
+| 现象或日志关键字 | 原因与采用的处理 | 后续维护 |
+| --- | --- | --- |
+| stage3 解压后不能以默认 Portage 用户编译 | 早期实验夹的属主、权限不适合作为安装基础。重新从已验签 stage3 保留 numeric owner、xattrs 和权限解压，检查归档条目及基础包，先用默认用户和沙箱编译小包 | 不把 root 编译成功当作新机可安装；解压设备节点所需权限只用于目标目录 |
+| GLib／docutils／Pillow／HarfBuzz 循环依赖 | 临时关闭 Pillow 的 truetype，完成引导依赖后恢复并重建 truetype | 临时开关不进入最终配置；检查字体功能已恢复 |
+| Darts 的 random_shuffle 编译失败 | 旧源码不兼容编译器默认 C++17，限定受影响版本使用 Clang C++14 | 上游改用新接口后删除例外，不回装 GCC |
+| Rime 动态加载报 initial-exec TLS | LevelDB 引入 tcmalloc；使用已有 -tcmalloc USE 重建后，实际输入“你好”通过 | 不给整个桌面设置 LD_PRELOAD |
+| Sonic 图像编辑找不到 Highway，登录管理器缺 POSIX 类型 | 分别补配方依赖／标准 CMake Config，以及直接包含 sys/types.h | 配方与源码分层；上游已包含的修正不反向撤回 |
+| KWayland 缺 WaylandProtocols，scanner 不接受 PRIVATE_CODE | SonicDE ECM 不提供 KDE 的两个 finder。旧可选后端能关闭时先按应用处理；后来真实依赖 KWayland 时，在该包构建目录使用有许可证的 KDE 上游模块回退 | 不替换全局 ECM；系统恢复模块时自动跳过回退 |
+| lowdown 配置宏冲突、ipset 导出符号不存在、nftables Ethernet 重定义 | 各自采用上游回补或小型版本范围源码补丁 | 不修改系统头文件、不全局放宽链接检查；对应补丁组记录移除条件 |
+| Neomacs 的 execinfo、终端类型及 SQLite 编译问题 | musl 条件编译及类型修正放源码补丁，SQLite 特性放现有配方补丁 | 先严格应用／撤回检查，live 源码改变时停止复核 |
+| Neomacs 引导时 mprotect/mmap: ENOMEM | 原栈段剩余空间被误当作消耗量，栈分配递增；每段重置探针并正确处理展开后，调用与 Lisp 引导通过 | 诊断内存上限不进入生产；已验收的增量构建不冒充空缓存重建 |
+| curl ThinLTO 链接时 mold／LLVMgold SIGSEGV | 同对象 LLD 成功，仅改 mold 默认线程栈为8MiB也成功。正常配方仅在 musl 下设置非可执行8MiB默认栈，再以旧故障对象复验 | 首次只用 LLD 引导重建 mold；不改变全局 mold／ThinLTO。检测 ELF 时应读 p_memsz，不是 p_filesz |
+| Firefox 的 LLVM helper 导出冲突，Rust build.rs 报 Dynamic loading not supported | 先对齐该 Firefox 配方的 eclass 接口；再为 musl 宿主构建脚本使用动态 musl 的临时 rustc wrapper | 不改全局 Rust 或 libc；已有 RUSTC_WRAPPER 时拒绝覆盖 |
+| Bun 的 libstdc++／SONAME 检查不通过 | 验签并校验 Alpine 运行库，只在私有包中调整 musl／LLVM ABI 的 NEEDED 名称 | 不建立全局 libc 别名，不用屏蔽 QA 代替修复；完整博客构建已在原生 musl 验证，空缓存依赖下载是另一项 |
+| LLDB 与现有 LLVM ThinLTO 静态库链接失败 | 仅该包使用 linker-lld，原生 C++ 断点、变量、表达式与继续运行通过 | 不因此替换全局 linker 或宣称全部 GDB 功能等价 |
+| sec-keys 包的 gpg-agent IPC 失败 | 深工作目录使 browser socket 超出 Unix socket 路径限制；把临时 GNUPGHOME 缩到包私有构建根。只缩到临时目录仍对较长包名不够 | 保持导入、签名、Manifest 和沙箱校验；不使用个人 keyring |
+| 依赖预演拉入 LLVM 新主版本或其他 JVM | 临时预演曾漏掉既定 autounmask 策略；Java 插件又自行捆绑要求 JDK25 | 恢复原策略重新预演；统一 Dragonwell Standard21，Oracle Java 扩展版本号不是 JDK 版本号 |
+| NVIDIA helper 安装提示预剥离或手册压缩 QA | 使用上游 Makefile 的 DO_STRIP=、MANPAGE_GZIP= 关闭厂商安装阶段的剥离／压缩，由 Portage 正常安装与处理 | 不用 QA 白名单掩盖警告 |
+| NVIDIA 模块已存在但 CUDA 无法打开设备 | 模块加载和设备节点准备是两步，使用已有仓库中的官方小型 nvidia-modprobe helper 及 OpenRC 准备节点 | 检查真实 GPU 调用前后 root:video 0660；不改成所有用户可写。内核／模块／GSP／签名成套升级 |
+
+源码基线、补丁应用顺序和移除条件集中在[配置仓库补丁索引](https://github.com/Cyberl-ty02/dotfiles/tree/main/gentoo_setting/pc/patchsets)。历史精确版本用于复验，不把所有日常规则锁死在这些版本；已有等效上游修复时跳过，不兼容就停止。
+
+### 私有运行库、桌面与数据
+
+| 现象 | 处理与验收边界 |
+| --- | --- |
+| gcompat 下部分闭源工具连版本查询都崩溃 | 不把它当作通用 glibc。优先复用成熟 Flatpak 运行时；私有运行库不加入宿主全局搜索路径 |
+| FlClash 出现窗口但内容灰白 | 单文件对照确认 Flutter AOT 被通用 ELF 重写破坏；保留无 DT_NEEDED 的 AOT 和静态 Core 原字节。普通 ELF 使用私有解释器／RPATH，同时恢复原生子进程环境 |
+| FlClash 看似启动但代理端口拒绝连接 | 没有活动配置不等于代理已工作；Core RPC 初始化后必须配置并启动 listener。GUI 的全局端口又可能覆盖 YAML；实际验证 HTTP 正文、停止后端口关闭，以及隔离 TUN 流量 |
+| 手工拼装腾讯会议运行时没有界面，进程却退出0 | 原厂启动器、布局、网络及私有库对照均保留；最终由维护中的正常包安装路径通过 GUI。不能仅凭可选 dlsym 探测或 clone EPERM 断言是致命 libc 问题，也不为此禁用沙箱 |
+| WPS 测试配置复制失败 | 旧缓存中有 Unix socket／FIFO。关闭写入者，排除缓存和特殊节点后复制，DOCX 的 CRC／XML 与重开显示通过；复制失败不是文档损坏 |
+| 新用户密码、doas、字体、壁纸和 HOME 不完整 | 软件根不是完整用户安装。按 UID／GID、正常 HOME、权限和导出配置分别补齐；密码在本机设置，活动数据库与认证存储不直接照搬 |
+| Codex 报没有完整本地包，codium 命令不存在 | 复用已安装扩展携带的静态 CLI，并提供原生 Flatpak 启动器；Flatpak 内看到的命令与宿主不相同，支持时以 no-daemon 接续 |
+| 中文回退到楷体或 locale 看似切换无效 | 同时检查宿主／Flatpak 字体匹配、musl 环境变量和 ICU／应用处理。HarmonyOS Sans 与 Nerd Font 由系统包维护；不复制 glibc locale archive |
+| GitHub 反复提示授权 | 使用实际 argv.json 参数和解锁后的 KWallet Secret Service；基础账户持久化、旧密文解密失败与扩展新增 read:org 权限分开处理，不清空账户或把令牌改成明文 |
+| Actions 编辑器误报固定提交不存在 | 经代理验证实际 GitHub API；Chromium 与 Node 扩展进程各自需要正确代理。保留固定 SHA 与证书校验，已有编辑器必须正常退出再从新环境启动 |
+| NetworkManager 偶发受限网络 | 区分探测地址不可达、Fake-IP 与真实路由；采用实测直连可达的标准正文／门户探测，只重载配置 |
+| root Zsh 或编辑器终端仍异常 | root 使用自己所有的独立 Zim／Doom 文件；清空环境的测试要提供 ZIM_HOME。编辑器终端通过 host-spawn 使用宿主 Zsh，恢复的旧 sh 会话不会自动变成 Zsh |
+| Neomacs 空白欢迎页或 Doom 模块不全 | 轻量 Evil／SPC 配置不是完整发行版；最终按官方 Doom 框架补齐记录的模块子仓库并 sync。普通用户与 root 分别验收 GUI／TTY、模块和插件，不共用可写缓存 |
+| Konsole 最小化似乎关闭 | 实际进程未死，窗口从管理器撤出；回补上游对隐藏兼容 QWidget 的 WindowMinimized 掩码修复，验证正常／最大化状态下的最小化与恢复 |
+| Konsole 标签与正文漏出壁纸 | 用 X11 ARGB 确认透明横行，普通 RGB 截图不足。最终按真实 desktop／任务栏入口、新窗口和标签验证，并覆盖顶底、显示隐藏及半透明组合；保持正文透明度 |
+| 登录自动打开多个旧窗口 | 改用 emptySession，不删除当前工作会话，不把保存会话与真正自启动混为一谈 |
+| /boot 在 Dolphin 中不可读 | FAT remount 未实际更改权限时正常卸载再挂载；root 所有、目录755／文件644，普通用户可读不可写。更新内核仍需管理员权限，不添加免密码改写规则 |
+| 启动图标变成通用企鹅 | 独立 ESP 的手动菜单显式引用 Gentoo 图标；Ventoy 只做已知卷标的原生匹配，未知介质不保证自动识别 |
+| PyTorch 下载超时、libcuda.so.1 缺失或找不到 cuRAND | 分别修正本次调用代理、只移除核心工具包库前缀并保留驱动路径、从 wheel 元数据定位新版库目录。八项数学检查及有限负载结果见前节 |
+
+### 编排、空间与校验中的教训
+
+- 深路径、缺失挂载点、缺少 setpriv、临时目录权限、socket／FIFO、测试输出多一个换行，以及错误的 ELF 字段索引，都曾让验证夹具先失败。先确认失败发生在准备、编译、安装还是检查阶段；不因检查脚本退出1就重复已经成功安装的大包。
+- Polkit 授权随进程、重启或既定范围结束而失效。核对 PID、启动时间、boot ID、实际子进程与队列；旧 identity／status 文件不证明权限进程还活着。一个根只能有一个 Portage 写入者，正常沙箱与签名检查不因失败关闭。
+- 文件镜像也会占用承载分区空间；Btrfs 逻辑 du、共享 extents 和延迟回收不等于立即增加的可用空间。复制曾因 reflink=always 与 sparse=always 组合失败，改用 sparse=auto；触及20GiB底线就停止，不能降低阈值继续。
+- 父子卷只读属性曾使旧快照搬移报 EROFS。先检查属性、来源 UUID 与当前挂载，不把只读保护当作普通权限不足去递归 chmod。子卷不是分区，改名不改变分区 UUID；启动参数和 fstab 的固定 subvolid 只能来自本机盘点。
+- 国内镜像404、厂商 extra-data 慢或中断属于抓取阶段。临时改路由后仍按已签名元数据校验长度与强哈希，完成后恢复镜像优先级；不把下载完成当作安装完成。退出前要撤销临时 FETCH 设置、卸载镜像并处理自己的进程组。
+- GitHub OAuth 不等于原生 Git 已有凭据；SSH 验证成功但返回无 shell 的退出码1也不是认证失败。带全局 prune 设置时，跟踪 main 应使用完整 refs/heads/main 映射和 no-prune，不能误删跟踪引用后以为远端分支消失。
+- Gentoo 目录的通用文本属性曾使 PNG 入索引时被换行规范化；追加更具体的 binary 属性，仅重新规范化该资源，比较工作区／索引／安装文件摘要后再提交。不要为了通过检查改写图标或签名载荷。
+- Hexo 可选更新通知曾因网络超时打印 ERROR，但正文构建与生成检查已退出0；应按每一步的真实状态判断，并为本次调用提供代理，不关闭 TLS。远端 Pages 构建成功与生产部署成功也不是同一件事。
+
+## 迁移收口与新线程接续
+
+本机已完成 musl 真机启动、普通更新、配置与用户资料合并；Windows 配置同步和日常应用已由用户确认。旧归档实际恢复与只读 scrub 已通过。用户最终明确决定把旧恢复资料、旧配置备份与已审定残留一并退役，不再安排旧系统回退启动；这不是声称旧系统启动已经验证。
+
+签名密钥、当前账户与钱包、数据库、Doom／Zsh 正式配置、现用内核／initramfs／EFI 程序以及 CUDA Python 环境不属于旧缓存。历史测试日志只保留已提炼的现象、原因与验收边界；不公开密码、令牌、订阅、网络配置、原始截图或个人文件名。模板中的用户名是匿名身份，真实账户由目标机器确定；设备取自 findmnt／lsblk，不能跨机复制本文的历史子卷 ID 或磁盘编号。
+
+后续新线程从配置仓库的 AGENTS.md、gentoo_setting/pc/README.md 开始，再按任务读 world-migration.tsv、repository-baseline.tsv 和对应补丁组。私有历史实验目录不再是安装前提，也没有长期存在的实验根或授权进程。先在目标机器检查：
+
+```sh
+uname -r
+findmnt -no FSTYPE,FSROOT,OPTIONS --mountpoint /
+findmnt -no FSTYPE,FSROOT,OPTIONS --mountpoint /home
+findmnt -no FSTYPE,OPTIONS --mountpoint /boot
+eselect java-vm show system
+# 在配置仓库根目录运行，仅校验，不写配置。
+sh gentoo_setting/scripts/verify.sh pc
+```
+
+需要更新时再预演 world／preserved-rebuild，先恢复并预检仓库补丁，不直接复用旧安装命令、固定版本和私有路径。持续生产 CUDA、特殊显示／休眠、多 GPU 和 GPUDirect 按实际业务单独验收；没有这些需求不继续扩大迁移范围。博客只有在正文、隐私、构建与远端检查通过后，才按用户明确授权手工部署。
+
+本次清理先做固定路径、文件身份、挂载与活进程检查。整目录清理曾被自动审批拒绝，因为目录内可能含仍需保留的配置或密钥；用户对旧配置、专用恢复凭据和 ESP 遗留进一步明确授权后，改为逐文件计划。预检又拦住旧构建缓存中5个 GnuPG socket，确认全部网络命名空间中无活动引用后，只移除这几枚过时节点，不处理个人 keyring。最终清理27个审定目标，三份旧密文及其专用恢复凭据、旧配置备份、旧编辑器副本和历史测试／构建缓存已删除。ESP 的旧 GRUB 碎片与过时菜单备份也已移除，现用 EFI／内核／initramfs 前后摘要相同；当前账户、钱包、数据库、签名密钥和运行库保持。
+
+清理后数据盘可用约453GiB、系统分区约43GiB，实际数值会随使用改变；Btrfs 共享与延迟回收使它不等于各目录 du 的相加。CUDA 和显式加载的 Doom 引导／CLI 复查通过。旧系统归档已不能再作为恢复来源，后续日常数据备份另行管理。
+
+隐私复查覆盖本次正文、配置与可达文本历史：没有检出实际私钥或令牌；第三方前端的 API 密钥占位提示不是用户凭据，不改写其原始资源。真实用户名、路径、个性化卷标和设备号不进入新机默认值，原有匿名模板身份保留；一份已删除旧指南中的本机家目录及相关历史文本也已匿名化，其他内容、日期、提交说明与他人署名保持；本人可确认的个人邮箱署名改用公开的 GitHub noreply 身份。历史改写不撤销外部已有克隆；若将来发现真实凭据泄露，应先撤销或轮换，而不能只改提交。
+
+由于隐私匿名化改写了 main 的历史，其他机器（包括 Windows）的旧克隆不能再按普通快进更新。先保存本地文件改动和未推送提交，优先在新目录重新克隆 main，再迁入确实要保留的自有变化。不要直接合并新旧两套历史，也不要重置尚未保存的工作；Windows 插件与用户数据不会因远端历史改写自动迁移或删除。
