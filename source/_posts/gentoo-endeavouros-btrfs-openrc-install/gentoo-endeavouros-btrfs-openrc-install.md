@@ -491,6 +491,37 @@ bash scripts/configure-lto.sh --dry-run
 
 完整桌面与正常沙箱安装已经通过。曾出现的 GLib／HarfBuzz／Pillow 引导环、Rust 宿主脚本和线程栈问题及其移除条件，在[迁移复盘](/posts/gentoo-musl-llvm-pc-migration/gentoo-musl-llvm-pc-migration/)及各补丁组说明中；临时 Pillow truetype 开关必须恢复。仓库同步可能覆盖配方差异，之后重新预检，不把补丁强行套入新代码。
 
+##### Portage 的 xmake 优先入口
+
+这一步统一常见 GNU Make／Ninja 的调用入口，保留上游构建图与后端，不把 Qt、CMake
+或 Kbuild 改写成 xmake.lua，也不替换 `/usr/bin/make`。它是可撤销的使用偏好，不能
+据此认为编译更快。部署细节、补丁移除条件和验收边界集中在配置仓库的
+[xmake 说明](https://github.com/Cyberl-ty02/dotfiles/tree/main/gentoo_setting/pc/patchsets/xmake-trybuild)。
+
+完成前面的仓库同步、补丁预检和包级配置合并后，在目标 chroot 的 PC 配置目录执行：
+
+```bash
+python3 scripts/configure-portage-xmake.py
+# 审阅预览后，部署执行器、包级环境与可选的 Ninja eclass 钩子：
+python3 scripts/configure-portage-xmake.py --apply
+emerge --pretend --oneshot dev-build/xmake
+emerge --ask --oneshot dev-build/xmake
+```
+
+stage3 尚无 xmake 时，适配器直接调用原后端；xmake、Make、Portage 自身及内核、
+引导、NVIDIA 构建也保留原入口，避免 bootstrap 环和未验收的核心链变更。
+Ninja 的依赖声明仍由原 eclass 提供。本机以 QtSerialPort 的真实 Portage 暂存构建、
+两项上游测试和 tree 的 GNU Make 路径验证过；Qt 两条路径的暂存产物摘要一致。
+这些不等于整个 world 或整台新机器的验收，详细边界见上面的配置说明。执行器只保存目标系统路径，不依赖安装现场
+的临时目录、账户名或磁盘 UUID；从 LiveCD 部署时也可使用脚本的 `--root` 参数。
+上游补丁预检失败或已有受管文件被修改时先停止复核，不强行写入；可以先跳过这个
+可选入口、按原 Portage 后端继续安装，不为偏好阻断新机的基本引导。
+
+默认优先复用本机二进制包，命中时不发生源码编译；新增源码补丁或更改编译器、CPU、
+LTO／链接选项后，对受影响包显式使用 `--usepkg=n`，不能假定旧二进制包自动识别
+这些变化。需要整体撤销兼容入口时，执行
+`python3 scripts/configure-portage-xmake.py --remove --apply`；后端软件继续保留。
+
 #### glibc／LLVM：使用独立配置
 
 main 的 PC Portage 目录与 world 已是 musl，不能复制到 glibc。保留该 glibc stage3 的配置，按对应 profile 和 Handbook 单独设置；需要原 PC 配置时参考 Git 历史，不恢复一套并行维护的 glibc 目录。musl 小节的 musl 配方、私有 ABI 和包选择不适用于此分支。
