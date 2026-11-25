@@ -85,3 +85,16 @@ Icons missing from the theme's Font Awesome set are pinned under
 manifest copies these local resources and license. Rebuild with `bun run
 build:runtime` after changes; `tests/share.test.ts` checks encoding, instances,
 PJAX, clipboard fallback and donation defaults.
+
+
+## Publishing
+
+GitHub Actions publishes pushes to `main` after the build and validation pass.
+Pull requests run validation only. To pause publication during maintenance, open
+**Settings → Secrets and variables → Actions → Variables** and set the repository
+variable `PAGES_DEPLOY_DISABLED` to `true`. Builds continue. Cancel any ongoing
+publishing run separately if it must stop.
+
+To resume, delete the variable or set it to `false`. The next push to `main`
+publishes after validation. To publish the current tip without another push,
+run **Build** manually on `main` with **deploy** selected.
