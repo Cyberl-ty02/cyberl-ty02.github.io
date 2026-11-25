@@ -83,32 +83,53 @@ share:
   title: "分享这一刻"
   message: "让朋友们也来瞅瞅！"
   platforms:
-    - name: "微博"
-      icon: "weibo"
-      color: "#e6162d"
-      link: "https://service.weibo.com/share/share.php?title=$TITLE&url=$URL"
     - name: "QQ"
       icon: "qq"
-      color: "#12b7f5"
-      link: "https://connect.qq.com/widget/shareqq/index.html?title=$TITLE&url=$URL&desc=$SUMMARY"
-    - name: "QQ空间"
-      icon: "star"
-      color: "#f9ce00"
-      link: "https://sns.qzone.qq.com/cgi-bin/qzshare/cgi_qzshare_onekey?title=$TITLE&url=$URL&desc=$SUMMARY"
-
-
+      color: "#0088bb"
+      link: "https://connect.qq.com/widget/shareqq/index.html?title=$TITLE&url=$URL&summary=$SUMMARY"
+    - name: "微博"
+      icon: "weibo"
+      color: "#d6162d"
+      link: "https://service.weibo.com/share/share.php?title=$TITLE&url=$URL"
+    - name: "微信"
+      icon: "weixin"
+      color: "#198b30"
+      link: "#share-wechat"
+    - name: "Facebook"
+      icon: "facebook"
+      color: "#1877f2"
+      link: "https://www.facebook.com/sharer/sharer.php?u=$URL"
+    - name: "X / Twitter"
+      icon: "twitter"
+      color: "#24292f"
+      link: "https://twitter.com/intent/tweet?text=$TITLE&url=$URL"
+    - name: "Misskey / 分支"
+      icon: '<img src="/share/icons/misskey.svg" alt="" aria-hidden="true" />'
+      color: "#587c18"
+      link: "#share-misskey"
+    - name: "B站动态"
+      icon: '<img src="/share/icons/bilibili.svg" alt="" aria-hidden="true" />'
+      color: "#d13c68"
+      link: "#share-bilibili"
+    - name: "Bluesky"
+      icon: '<img src="/share/icons/bluesky.svg" alt="" aria-hidden="true" />'
+      color: "#0879d9"
+      link: "https://bsky.app/intent/compose?text=$TEXT"
+    - name: "复制链接"
+      icon: "link"
+      color: "#455469"
+      link: "#share-copy"
+    - name: "系统分享"
+      icon: "share-alt"
+      color: "#455469"
+      link: "#share-native"
 
 # 打赏组件设置
 donate:
   enable: false
   title: "赞助喵"
   message: 非常感谢您的喜欢！ <i class="fa fa-heart" style="color:#d43f57"></i>
-  qrcode_placeholder: "https://dev.krt.moe/demo-assets/donate.webp"
-  platforms:
-    - name: "模拟支付"
-      icon: "credit-card"
-      color: "skyblue"
-      qrcode: "example_payment"
+  platforms: []
 
 # 版权说明
 copyright_notice:
@@ -157,5 +178,7 @@ additional_injections:
     <link rel="stylesheet" href="/katex/katex.min.css?v=0.19.0" />
     <link rel="stylesheet" href="/katex/katex-overrides.css?v=20261027-1" />
     <link rel="stylesheet" href="/comments/comments.css?v=20261028-1" />
+    <link rel="stylesheet" href="/share/share.css?v=20261126-1" />
   after_footer: |
     <script defer type="module" src="/comments/comments.js?v=20261028-1"></script>
+    <script defer type="module" src="/share/share.js?v=20261126-1"></script>

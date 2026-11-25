@@ -20,6 +20,18 @@ describe("runtime artifact manifest", () => {
       })),
     ).toEqual([
       {
+        source: "frontend/share.ts",
+        output: "source/share/share.js",
+        target: "browser",
+        format: "esm",
+      },
+      {
+        source: "frontend/share.css",
+        output: "source/share/share.css",
+        target: "browser",
+        format: "css",
+      },
+      {
         source: "frontend/comments.ts",
         output: "source/comments/comments.js",
         target: "browser",
@@ -66,7 +78,7 @@ describe("runtime artifact manifest", () => {
     ).toHaveLength(9);
     expect(
       vendoredRuntimeArtifacts.filter((artifact) => artifact.format === "license"),
-    ).toHaveLength(2);
+    ).toHaveLength(3);
     expect(
       vendoredRuntimeArtifacts
         .filter((artifact) => artifact.output.startsWith("source/comments/twikoo/"))

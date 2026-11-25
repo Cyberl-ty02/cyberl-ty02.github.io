@@ -33,6 +33,9 @@ let articleCount = 0;
 for await (const path of articleGlob.scan({ cwd: process.cwd(), onlyFiles: true })) {
   articleCount += 1;
   const html = await Bun.file(path).text();
+  if (!html.includes('/share/share.js') || !html.includes('/share/share.css')) {
+    problems.push(`${path}: 缺少本地分享运行时或样式`);
+  }
   if (html.includes('id="kr-donate-modal"') || html.includes("krOpenDonateModal()")) {
     problems.push(`${path}: 生成页面仍包含捐赠入口或弹窗`);
   }

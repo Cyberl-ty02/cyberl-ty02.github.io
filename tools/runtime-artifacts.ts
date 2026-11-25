@@ -6,6 +6,7 @@ export type RuntimeFormat =
   | "vendor-script"
   | "vendor-stylesheet"
   | "font"
+  | "image"
   | "license";
 
 export interface BundledRuntimeArtifact {
@@ -26,7 +27,7 @@ export interface VendoredRuntimeArtifact {
   source: string;
   output: string;
   target: "browser" | "none";
-  format: "vendor-script" | "vendor-stylesheet" | "font" | "license";
+  format: "vendor-script" | "vendor-stylesheet" | "font" | "image" | "license";
   ownership: "third-party-vendored";
   licenseOutput: string;
 }
@@ -34,6 +35,28 @@ export interface VendoredRuntimeArtifact {
 export type RuntimeArtifact = BundledRuntimeArtifact | VendoredRuntimeArtifact;
 
 export const bundledRuntimeArtifacts = [
+  {
+    kind: "bundle",
+    source: "frontend/share.ts",
+    output: "source/share/share.js",
+    target: "browser",
+    format: "esm",
+    bunFormat: "esm",
+    minify: true,
+    ownership: "first-party-generated",
+    licenseOutput: null,
+  },
+  {
+    kind: "bundle",
+    source: "frontend/share.css",
+    output: "source/share/share.css",
+    target: "browser",
+    format: "css",
+    bunFormat: "esm",
+    minify: true,
+    ownership: "first-party-generated",
+    licenseOutput: null,
+  },
   {
     kind: "bundle",
     source: "frontend/comments.ts",
@@ -143,6 +166,26 @@ export const katexFontFamilies = [
 export const katexFontExtensions = ["ttf", "woff", "woff2"] as const;
 
 export const vendoredRuntimeArtifacts = [
+  ...["misskey", "bilibili", "bluesky"].map(
+    (name): VendoredRuntimeArtifact => ({
+      kind: "copy",
+      source: `vendor/share-icons/${name}.svg`,
+      output: `source/share/icons/${name}.svg`,
+      target: "browser",
+      format: "image",
+      ownership: "third-party-vendored",
+      licenseOutput: "source/share/icons/LICENSE",
+    }),
+  ),
+  {
+    kind: "copy",
+    source: "vendor/share-icons/LICENSE.md",
+    output: "source/share/icons/LICENSE",
+    target: "none",
+    format: "license",
+    ownership: "third-party-vendored",
+    licenseOutput: "source/share/icons/LICENSE",
+  },
   {
     kind: "copy",
     source: "node_modules/twikoo/dist/twikoo.min.js",
