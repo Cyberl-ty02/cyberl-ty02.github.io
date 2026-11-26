@@ -495,27 +495,26 @@ bash scripts/configure-lto.sh --dry-run
 
 这一步统一常见 GNU Make／Ninja 的调用入口，保留上游构建图与后端，不把 Qt、CMake
 或 Kbuild 改写成 xmake.lua，也不替换 `/usr/bin/make`。它是可撤销的使用偏好，不能
-据此认为编译更快。部署细节、补丁移除条件和验收边界集中在配置仓库的
+据此认为编译更快。部署、撤销方法和验收边界集中在配置仓库的
 [xmake 说明](https://github.com/Cyberl-ty02/dotfiles/tree/main/gentoo_setting/pc/patchsets/xmake-trybuild)。
 
 完成前面的仓库同步、补丁预检和包级配置合并后，在目标 chroot 的 PC 配置目录执行：
 
 ```bash
 python3 scripts/configure-portage-xmake.py
-# 审阅预览后，部署执行器、包级环境与可选的 Ninja eclass 钩子：
+# 审阅预览后，部署执行器、包级环境与本地 Portage bashrc：
 python3 scripts/configure-portage-xmake.py --apply
 emerge --pretend --oneshot dev-build/xmake
 emerge --ask --oneshot dev-build/xmake
 ```
 
-stage3 尚无 xmake 时，适配器直接调用原后端；xmake、Make、Portage 自身及内核、
-引导、NVIDIA 构建也保留原入口，避免 bootstrap 环和未验收的核心链变更。
-Ninja 的依赖声明仍由原 eclass 提供。本机以 QtSerialPort 的真实 Portage 暂存构建、
-两项上游测试和 tree 的 GNU Make 路径验证过；Qt 两条路径的暂存产物摘要一致。
-这些不等于整个 world 或整台新机器的验收，详细边界见上面的配置说明。执行器只保存目标系统路径，不依赖安装现场
-的临时目录、账户名或磁盘 UUID；从 LiveCD 部署时也可使用脚本的 `--root` 参数。
-上游补丁预检失败或已有受管文件被修改时先停止复核，不强行写入；可以先跳过这个
-可选入口、按原 Portage 后端继续安装，不为偏好阻断新机的基本引导。
+安装 xmake 是可选步骤。stage3 尚无 xmake 时，Make 适配器直接调用 GNU Make，
+Ninja 沿用原搜索路径。也可先跳过整个兼容入口，等系统引导完成后再启用。
+xmake、Make、Portage 自身及内核、引导、NVIDIA 构建保留原入口。
+QtSerialPort 和 tree 已在 Portage 中用本地配置完成暂存构建，分别覆盖 Ninja
+及 GNU Make。部署文件不依赖安装现场的临时目录、用户名或磁盘 UUID。使用
+`--root` 时可先将本地文件部署到目标根。已有自定义 bashrc 时须先检查并合并，
+正常仓库同步无需恢复 xmake 专用 eclass 或 ebuild 补丁。
 
 默认优先复用本机二进制包，命中时不发生源码编译；新增源码补丁或更改编译器、CPU、
 LTO／链接选项后，对受影响包显式使用 `--usepkg=n`，不能假定旧二进制包自动识别

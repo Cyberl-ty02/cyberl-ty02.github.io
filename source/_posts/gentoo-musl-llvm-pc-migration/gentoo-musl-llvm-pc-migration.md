@@ -439,6 +439,24 @@ Actions 扩展曾把有效固定提交误报为不存在，实际是 Node 进程
 
 ## Stage 5：日常桌面与后续维护
 
+### 整机源码重建与 xmake 接入
+
+同版本源码重建清单覆盖 1353 项。分批合并日志与清单逐项核对，全部完成。
+这项计数包括只能重新打包的二进制、固件和虚拟包。引导、内核及配套驱动、
+数据库与缺失原配方的项目沿用各自的验证流程。
+
+Make 和 Ninja 从本地 Portage 配置优先经过 xmake 转发，依旧使用包的上游构建规则。
+本次日志可确认 774 个已合并包出现过转发命令。适配器就绪的提示本身不纳入计数。
+原生试点单独验证过，整机批次最终移除了专用 ebuild 和 USE 试点，也撤回了
+原先依赖的 Ninja eclass 补丁。新机未安装 xmake 时直接使用原后端。
+
+重建中遇到两类中断。公钥包的 GPG 套接字超长通过缩短构建镜像挂载路径解决，
+保留签名和沙箱校验。下载因网络变化出现停滞或失败时，先验证实际源码端点，
+再按包版本与来源从原清单扣除已确认合并的包。仅靠 `--resume` 可能漏掉被
+`--keep-going` 跳过的项目。Neomacs 的源码用浅克隆减少传输，OpenCV 的源码在
+网络恢复后重新下载，两者最终均合并成功。官方源与代理只对本批单独生效。
+
+
 ### 桌面服务和会话行为
 
 #### OpenRC、电源与网络
@@ -498,7 +516,7 @@ Sonic Terminal 26.08.3 最小化后从任务栏消失，实际进程仍活着，
 | Firefox 的 LLVM helper 导出冲突，Rust build.rs 报 Dynamic loading not supported | 先对齐该 Firefox 配方的 eclass 接口；再为 musl 宿主构建脚本使用动态 musl 的临时 rustc wrapper | 不改全局 Rust 或 libc；已有 RUSTC_WRAPPER 时拒绝覆盖 |
 | Bun 的 libstdc++／SONAME 检查不通过 | 验签并校验 Alpine 运行库，只在私有包中调整 musl／LLVM ABI 的 NEEDED 名称 | 不建立全局 libc 别名，不用屏蔽 QA 代替修复；完整博客构建已在原生 musl 验证，空缓存依赖下载是另一项 |
 | LLDB 与现有 LLVM ThinLTO 静态库链接失败 | 仅该包使用 linker-lld，原生 C++ 断点、变量、表达式与继续运行通过 | 不因此替换全局 linker 或宣称全部 GDB 功能等价 |
-| sec-keys 包的 gpg-agent IPC 失败 | 深工作目录使 browser socket 超出 Unix socket 路径限制；把临时 GNUPGHOME 缩到包私有构建根。只缩到临时目录仍对较长包名不够 | 保持导入、签名、Manifest 和沙箱校验；不使用个人 keyring |
+| sec-keys 包的 gpg-agent IPC 失败 | 深工作目录使 browser socket 超出 Unix socket 路径限制；把临时 GNUPGHOME 缩到包私有构建根。后来的全量重编译又遇到同类失败，因为整个工作区更深。将原构建镜像挂到较短的私有路径后复验，LLVM、GnuPG 等公钥包通过 | 保持导入、签名、Manifest 和沙箱校验；不使用个人 keyring |
 | 依赖预演拉入 LLVM 新主版本或其他 JVM | 临时预演曾漏掉既定 autounmask 策略；Java 插件又自行捆绑要求 JDK 25 | 恢复原策略重新预演；统一 Dragonwell Standard 21，Oracle Java 扩展版本号不是 JDK 版本号 |
 | NVIDIA helper 安装提示预剥离或手册压缩 QA | 使用上游 Makefile 的 DO_STRIP=、MANPAGE_GZIP= 关闭厂商安装阶段的剥离／压缩，由 Portage 正常安装与处理 | 不用 QA 白名单掩盖警告 |
 | NVIDIA 模块已存在但 CUDA 无法打开设备 | 模块加载和设备节点准备是两步，使用已有仓库中的官方小型 nvidia-modprobe helper 及 OpenRC 准备节点 | 检查真实 GPU 调用前后 root:video 0660；不改成所有用户可写。内核／模块／GSP／签名成套升级 |
