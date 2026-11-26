@@ -197,22 +197,18 @@ test -x /mnt/gentoo/bin/bash
 ls -ld /mnt/gentoo/{etc,usr,var}
 ```
 
-### 在 chroot 前保存配置仓库
+### 可选：在 LiveCD 中保存公共配置
 
-EndeavourOS LiveCD 有 Git，可以先把配置仓库带入目标根。先将配置仓库克隆到目标根。
-
-#### 仅通用脚本参考
+全新 glibc stage3 已自带 Portage 基础，可直接进入 chroot。需要本文后面的 doas、Zsh 或 Doom 模板时，再把公共配置克隆到目标根：
 
 ```bash
-sudo git clone https://github.com/Cyberl-ty02/dotfiles.git \
-  /mnt/gentoo/root/dotfiles
+mountpoint -q /mnt/gentoo &&
+  test -f /mnt/gentoo/etc/gentoo-release &&
+  sudo git clone --branch main \
+    https://github.com/Cyberl-ty02/dotfiles.git /mnt/gentoo/root/dotfiles
 ```
 
-此 checkout 用于读取通用配置，例如 doas、Shell 和编辑器；Portage 使用本篇 stage3 自带的配置和目标机自己的包清单。
-
-#### 检查目标配置
-
-这一步只保存参考文件，尚不覆盖 `/etc/portage`。不同硬件应重写 `COMMON_FLAGS`、`MAKEOPTS`、`VIDEO_CARDS` 和签名路径，不把 `-march=native` 构建结果当作通用二进制镜像。
+离线也可将 U 盘里的公开仓库用 `git archive HEAD` 导出到该目录。进入 chroot 后从 `/root/dotfiles` 读取公共模板。Portage 继续使用 glibc stage3 的独立配置。
 
 ### 用 genfstab 生成目标系统挂载表
 
@@ -330,22 +326,33 @@ passwd
 127.0.1.1   <host>.localdomain <host>
 ```
 
-### 初始化软件仓库
+### 在 chroot 中准备 glibc Portage
 
-**目标 chroot／root。** `emerge-webrsync` 提供主树基础；SonicDE、XLibre 和 Gentoo-Zh 的配方需要对应仓库。先安装管理工具：
+已运行 `emerge-webrsync` 并选好 glibc LLVM profile 后，先检查 ABI 并安装管理工具：
 
 ```bash
+portageq envvar ELIBC CHOST
+eselect profile show
 emerge --ask dev-vcs/git app-eselect/eselect-repository app-portage/portage-utils
-eselect repository list
 ```
 
-用 `eselect repository list` 核对仓库名。只按选定的硬件和桌面启用所需的 Gentoo-Zh、SonicDE 或 XLibre 仓库，再执行 `emerge --sync`。可以先用 Gentoo 主树装基础系统，等首次启动通过后再加桌面仓库。
+输出应是 `glibc`、`x86_64-pc-linux-gnu` 和 `default/linux/amd64/23.0/llvm`。如果只需基础系统，现有 Gentoo 主树即可。选择本篇的 XanMod、SonicDE 和 XLibre 路线时，先从 `eselect repository list` 核对这些仓库；在列表存在时分别启用需要的仓库，再同步：
 
-### 核对 glibc Portage 配置
+```bash
+eselect repository enable gentoo-zh
+eselect repository enable sonicde
+eselect repository enable xlibre
+LC_ALL=C.UTF-8 emerge --sync
+portageq get_repos /
+```
 
-#### 使用独立配置
+仓库未收录或名称变更时，按其上游说明登记，避免在 `repos.conf` 中重复定义。全新 glibc 安装保留 stage3 的 `make.conf` 和 profile，只为目标内核、登录器等追加本篇对应的包级配置。若只是复原自己的旧 glibc 安装，可将审核后的 `package.*`、`env/` 和与当前配方匹配的 `patches/` 先复制到 `/root/glibc-portage`，逐文件比较、备份后合并；`make.profile` 继续由目标系统管理。
 
-在目标根执行 `portageq envvar CHOST ELIBC`，应返回 `x86_64-pc-linux-gnu` 和 `glibc`。保留 stage3 的包级配置和工具链，按 Handbook 调整 CPU、并行度及显卡 USE。
+```bash
+emerge --pretend --verbose --autounmask=n --update --deep --newuse @world
+```
+
+glibc 直接使用 Gentoo 的配方及自身需要的补丁。因此不使用 PC musl 或 WSL 的部署脚本分支，也不装 musl 的私有 NVIDIA 模块配方。
 
 ## 配置内核与可信启动链
 

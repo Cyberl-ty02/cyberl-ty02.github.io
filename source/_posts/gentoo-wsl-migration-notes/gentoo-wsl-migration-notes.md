@@ -329,56 +329,66 @@ SDDM
 
 这会少很多系统层维护成本。
 
-### 导入 Gentoo WSL 到指定目录
+### 导入 OpenRC WSL 并以 root 登录
 
-如果有 `gentoo.wsl` 或 rootfs tar 文件，可以用：
+在 [Gentoo 官方 WSL OpenRC 目录](https://distfiles.gentoo.org/releases/amd64/autobuilds/current-stage4-amd64-wsl-openrc/) 下载同一版本的 `.wsl`、`.asc` 和 `.DIGESTS`，用[发行签名说明](https://www.gentoo.org/downloads/signatures/)中的密钥核对签名和摘要。Microsoft 的手工导入方式见 [WSL 文档](https://learn.microsoft.com/windows/wsl/use-custom-distro)。
 
-```powershell
-wsl --shutdown
-
-New-Item -ItemType Directory -Force "D:\WSL\Gentoo"
-
-wsl --import Gentoo "D:\WSL\Gentoo" "D:\Downloads\gentoo.wsl" --version 2
-```
-
-查看：
+在已启用 WSL2 的 Windows PowerShell 执行。示例中的发行版名称与路径可替换，已有同名发行版时应另取名字：
 
 ```powershell
+New-Item -ItemType Directory -Force 'D:\WSL\Gentoo'
+wsl --import Gentoo 'D:\WSL\Gentoo' 'D:\Downloads\gentoo.wsl' --version 2
 wsl -l -v
+wsl -d Gentoo -u root
 ```
 
-启动：
+### 在 WSL 根中部署 Portage
 
-```powershell
-wsl -d Gentoo
-```
+这节使用配置仓库的 [deploy-portage.py](https://github.com/Cyberl-ty02/dotfiles/blob/main/gentoo_setting/scripts/deploy-portage.py)。
 
-### profile 选择
-
-在 WSL 中，我最后更倾向选择：
-
-```text
-default/linux/amd64/23.0/desktop
-```
-
-当前列表中的编号会随仓库状态改变，因此先查找再选择，不要长期照抄某个数字：
+在刚打开的 WSL root shell 用 stage4 自带的下载器和 Portage。先准备主树和 Git：
 
 ```bash
-eselect profile list
-doas eselect profile set PROFILE_INDEX
+emerge-webrsync &&
+  emerge --ask dev-vcs/git &&
+  eselect profile list
 ```
 
-这里的 `PROFILE_INDEX` 要替换成列表中 `default/linux/amd64/23.0/desktop` 的实际编号。当前配置保留 stable、OpenRC 和 multilib，不采用 systemd、LLVM experimental profile 或具体桌面环境的子 profile。`desktop` 只提供较通用的桌面/开发 USE 基线，并不意味着必须在 WSL 中安装完整图形桌面。虽然 profile 不是 LLVM 变体，当前 WSL `make.conf` 仍显式选择 Clang、LLVM binutils、libc++ 与 mold；早期章节中的单包 GCC 回退只用于当时已确认的不兼容包。
+如果 profile 尚未是 `default/linux/amd64/23.0/desktop`，用 `eselect profile set 编号` 选中对应条目。核对 `portageq envvar ELIBC CHOST` 输出为 `glibc` 和 `x86_64-pc-linux-gnu`。先装 WSL 的构建工具，再读取配置：
 
-WSL 的目标不是再装一套完整 Gentoo 桌面，而是作为开发环境使用。
+```bash
+emerge --ask llvm-core/clang llvm-core/lld llvm-core/llvmgold sys-devel/mold &&
+  git clone --branch main https://github.com/Cyberl-ty02/dotfiles.git /root/dotfiles &&
+  cd /root/dotfiles &&
+  python3 gentoo_setting/scripts/deploy-portage.py wsl repos
+```
 
-### WSL 与 PC 的镜像配置不要合并
+也可以从挂载在 `/mnt/d` 的 Windows 磁盘导出一份已核对的 Git 配置到 `/root/dotfiles`。后续命令在 WSL 的 Linux 文件系统里执行：
 
-当前两套配置都通过 USTC Git 镜像浅克隆并增量同步 Gentoo 主树，使用 Portage 管理的 Gentoo Release Key 验证提交签名、保留默认密钥刷新，并拒绝超过三天的仓库时间戳。CERNET 是第一备用，但部分后端只提供 Git dumb HTTP，启用时必须同时设置 `sync-depth = 0`；官方 Git 保留在 TUNA 之前，TUNA 因同步队列特性放在最后。distfiles 的顺序都是 USTC、华为、阿里、Gentoo 官方和 TUNA；gentoo-zh 使用 CERNET 联合入口，GURU、XLibre 等没有对应配置的 overlay 仍直连各自上游。
+```bash
+cd /root/dotfiles &&
+  python3 gentoo_setting/scripts/deploy-portage.py wsl repos --apply &&
+  LC_ALL=C.UTF-8 emerge --sync &&
+  python3 gentoo_setting/scripts/deploy-portage.py wsl config
+```
 
-差异也很明确：WSL 使用与 `default/linux/amd64/23.0/desktop` 对应的 `x86-64` 官方 binhost；PC 的 LLVM profile 使用 `x86-64_llvm`，并额外保留华为 binhost。两边都要求验证二进制包签名。PC 已有 curl，所以显式设置了 Portage 下载命令；WSL 要兼容刚解压、可能尚无 curl 的 stage3，继续使用 Portage 的 wget 默认值。SonicDE overlay 也只属于 PC 配置。
+核对 `gentoo_setting/wsl/portage/make.conf` 的并行度、WSLg 和下载设置。应用后只先预演，按需挑选 dev 工具：
 
-Bun/npm、pip/uv、Cargo、Go 与 Pixi 的用户级镜像可以共用，具体文件和临时切回官方源的方法集中记录在 [development_mirrors/README](https://github.com/Cyberl-ty02/dotfiles/blob/main/gentoo_setting/development_mirrors/README.md)。其中 Go 没有使用 2026-09-01 实测不兼容的 CERNET Go Proxy，而按“华为 → 阿里 → `proxy.golang.org` → `direct`”回退；`GOSUMDB` 仍保持 `sum.golang.org`。镜像同步或动态调度出现延迟时，应临时切回官方源排查，不要关闭 TLS、Manifest、签名或校验和。
+```bash
+cd /root/dotfiles &&
+  python3 gentoo_setting/scripts/deploy-portage.py wsl config --apply &&
+  emerge --pretend --verbose --update --deep --newuse @world &&
+  xargs -a gentoo_setting/wsl/world_packages.txt \
+    emerge --pretend --verbose --noreplace
+```
+
+随后用 `emerge --ask` 安装准备保留的包。WSL 使用 `x86-64` binhost、wget 引导，不部署实体机引导、完整桌面、显卡内核模块或 musl 补丁。CUDA 用户态按需求安装，GPU 由 Windows 驱动提供。若想设默认用户，先在 WSL 创建本地账户和密码，再按目标账号编辑 `/etc/wsl.conf` 的 `[user]` 段；用 PowerShell 的 `wsl --terminate Gentoo` 重启此发行版后核对。
+
+### 镜像与历史故障
+
+首次引导保留主树现用同步方式。需要换国内 Git 镜像时，按 WSL 配置目录的仓库节执行；Git 验证提交签名，binhost 验证二进制包签名。glibc LLVM 的 `x86-64_llvm` 和 musl 的 `x86-64_musl_llvm` 对应实体机的另两篇指南。用户级镜像见 [development_mirrors](https://github.com/Cyberl-ty02/dotfiles/tree/main/gentoo_setting/development_mirrors)。
+
+以下保留原 WSL 排错记录。具体版本、profile 和包图应在重新导入后以实际输出为准。
 
 ## Gentoo WSL 中的 Portage / Python 迁移问题
 

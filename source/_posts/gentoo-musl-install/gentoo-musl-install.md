@@ -200,22 +200,29 @@ test -x /mnt/gentoo/bin/bash
 ls -ld /mnt/gentoo/{etc,usr,var}
 ```
 
-### 在 chroot 前保存配置仓库
+### 在 LiveCD 中把安装配置带进目标根
 
-EndeavourOS LiveCD 有 Git，可以先把配置仓库带入目标根。先将配置仓库克隆到目标根。
-
-#### main 配置
+先确认 `/mnt/gentoo` 是刚解压 stage3 的根。LiveCD 能联网时，直接将公开仓库克隆进去：
 
 ```bash
-sudo git clone --branch main \
-  https://github.com/Cyberl-ty02/dotfiles.git /mnt/gentoo/root/dotfiles
+mountpoint -q /mnt/gentoo &&
+  test -f /mnt/gentoo/etc/gentoo-release &&
+  sudo git clone --branch main \
+    https://github.com/Cyberl-ty02/dotfiles.git /mnt/gentoo/root/dotfiles
 ```
 
-已验证脚本、必要配置和补丁索引在 `gentoo_setting/pc/`，main 为当前 musl 默认配置。先核对上游基线、CPU、设备与签名，再合并；不复制历史实验夹。
+LiveCD 离线时，可以提前把公开仓库带到 U 盘。假设已挂载到 `/mnt/usb`，用已核对的提交导出一份配置到同一位置：
 
-#### 检查目标配置
+```bash
+set -o pipefail
+mountpoint -q /mnt/gentoo &&
+  test -f /mnt/gentoo/etc/gentoo-release &&
+  sudo mkdir -m 0700 /mnt/gentoo/root/dotfiles &&
+  git -C /mnt/usb/dotfiles archive HEAD |
+    sudo tar -xf - -C /mnt/gentoo/root/dotfiles
+```
 
-这一步只保存参考文件，尚不覆盖 `/etc/portage`。不同硬件应重写 `COMMON_FLAGS`、`MAKEOPTS`、`VIDEO_CARDS` 和签名路径，不把 `-march=native` 构建结果当作通用二进制镜像。
+两种方法任选一种。进入 chroot 后，该目录就是 `/root/dotfiles`。整个配置、脚本及补丁都从这里读取；安装软件的网络仍须在 chroot 内可用。
 
 ### 用 genfstab 生成目标系统挂载表
 
@@ -332,56 +339,76 @@ passwd
 127.0.1.1   <host>.localdomain <host>
 ```
 
-### 初始化软件仓库
+### 在 chroot 中部署 Portage
 
-**目标 chroot／root。** `emerge-webrsync` 提供主树基础；SonicDE、XLibre 和 Gentoo-Zh 的配方需要对应仓库。先安装管理工具：
+部署命令使用配置仓库的 [deploy-portage.py](https://github.com/Cyberl-ty02/dotfiles/blob/main/gentoo_setting/scripts/deploy-portage.py)。
 
-```bash
-emerge --ask dev-vcs/git app-eselect/eselect-repository app-portage/portage-utils
-eselect repository list
-```
+以下各段都以目标 chroot 的 root 执行。前面应已运行 `emerge-webrsync`，并核对 `portageq envvar ELIBC CHOST` 返回 `musl` 和 `x86_64-pc-linux-musl`。
 
-musl 当前配置的仓库节位于 `gentoo_setting/pc/portage/repos.conf/`。逐节审阅名称、location、URI、优先级和签名选项后，合并到目标 `/etc/portage/repos.conf/`；不要与 eselect 生成的同名节重复。日常源优先国内：Gentoo 主树用 USTC、Gentoo-Zh 用南京大学，其余没有已验证国内镜像的 overlay 保留上游。
+#### 第一步：登记 overlay 并同步
 
-若主树仍由 rsync／webrsync 建立，不能只改 `sync-type = git` 后原地使用。按文末镜像小节先核对并备份旧树，再同步。仓库全部可用后才检查配方补丁：
+保留目标 stage3 的主树配置和下载器，先安装 Git，再登记 Gentoo-Zh、GURU、SonicDE、XLibre。每次 `--apply` 写入前都会打印一份 `/root/portage-before-…/portage` 备份的路径：
 
 ```bash
-emerge --sync
-portageq get_repos /
+cd /root/dotfiles &&
+  emerge --ask dev-vcs/git app-eselect/eselect-repository app-portage/portage-utils &&
+  python3 gentoo_setting/scripts/deploy-portage.py musl repos
 ```
 
-已有系统同步前先保存仓库中的本地差异；同步后重新预检，不把已安装包数据库当作配方仍然存在的证据。
-
-### 分阶段应用当前 Portage 配置
-
-#### 逐项合并当前配置
-
-保持官方 stage3 的正常 Portage 用户与沙箱，先初始化上一小节的仓库，再检查配置和补丁。不要把测试夹中的 root 编译设置带入新机。
+预览确认后执行：
 
 ```bash
-portageq envvar ELIBC
-portageq envvar FEATURES
-id portage
-cp -a /etc/portage /root/portage-stage3-backup
-cd /root/dotfiles/gentoo_setting/pc
-python3 scripts/restore-repository-patches.py
-# 全部预检通过、确认目标仓库后才写入：
-python3 scripts/restore-repository-patches.py --apply
+cd /root/dotfiles &&
+  python3 gentoo_setting/scripts/deploy-portage.py musl repos --apply &&
+  LC_ALL=C.UTF-8 emerge --sync &&
+  portageq get_repos /
 ```
 
-确认 `ELIBC=musl`、`portageq envvar CHOST` 为 `x86_64-pc-linux-musl`，并核对 sandbox、userpriv、usersandbox 等默认功能。先审阅 make.conf 的 CPU、并行度、VIDEO_CARDS、USE、签名路径和 package.*；新机密钥必须自行生成。把审阅通过的 `package.*`、`env/` 和所需 `sets/` 逐文件并入 `/etc/portage`。先保留 stage3 的链接器与优化参数；可以用 `diff -ru /etc/portage portage` 审查差异。涉及仅在特定硬件使用的规则时，只合并本机需要的条目。源码用户补丁按[补丁组索引](https://github.com/Cyberl-ty02/dotfiles/tree/main/gentoo_setting/pc/patchsets)说明放入 `/etc/portage/patches/`；恢复脚本只处理仓库配方，不会自动部署全部源码补丁。
+如果这台机已有同名 overlay，先比较它的仓库节。既有 rsync 主树可先用于安装，切换国内 Git 主树属于独立操作，见「Portage 国内镜像分工」。
 
-官方 stage3 仍用可用的 LLVM linker 引导。当前配置默认 mold／ThinLTO，因此先在未切换全局设置时正常安装 mold，并在内核章节之后补齐同槽 LLVMgold，再启用全局 mold／ThinLTO。此时可先合并设备、签名和包级规则：
+#### 第二步：恢复 ebuild 补丁并装齐链接工具
+
+仓库同步结束后，先让脚本对所有目标配方做一次严格预检。仓库 HEAD 已变化时，已有同样改动会跳过，冲突则停在安装之前。详细适用范围见[补丁组索引](https://github.com/Cyberl-ty02/dotfiles/tree/main/gentoo_setting/pc/patchsets)。
 
 ```bash
-emerge --pretend sys-devel/mold
-emerge --ask sys-devel/mold
-mold --version
+cd /root/dotfiles/gentoo_setting/pc &&
+  python3 scripts/restore-repository-patches.py
 ```
 
-完整桌面与正常沙箱安装已经通过。曾出现的 GLib／HarfBuzz／Pillow 引导环、Rust 宿主脚本和线程栈问题及其移除条件，在[Gentoo musl 迁移复盘](/posts/gentoo-musl-llvm-pc-migration/gentoo-musl-llvm-pc-migration/)及各补丁组说明中；临时 Pillow truetype 开关必须恢复。仓库同步可能覆盖配方差异，之后重新预检，不把补丁强行套入新代码。
+确认各组适用后执行这批命令。mold 的 musl 修正在仓库配方侧，因此先恢复配方，再用 stage3 设置装链接器：
 
-##### Portage 的 xmake 优先入口
+```bash
+cd /root/dotfiles/gentoo_setting/pc &&
+  python3 scripts/restore-repository-patches.py --apply &&
+  emerge --ask --autounmask=n net-misc/curl sys-devel/mold llvm-core/llvmgold &&
+  mold --version
+```
+
+LLVMgold 应与实际使用的 LLVM 槽相符。Portage 若要顺带换整套 LLVM，先审阅预演结果。
+
+#### 第三步：应用构建配置和源码补丁
+
+先审阅 `/root/dotfiles/gentoo_setting/pc/portage/make.conf` 的 `COMMON_FLAGS`、`MAKEOPTS`、`VIDEO_CARDS`，并检查 `package.*` 的可选应用和硬件规则。签名路径可以预先填写，密钥在下章生成。系统从一台机器迁往另一台时，可先把 `COMMON_FLAGS` 改为 `-O2 -pipe`。
+
+```bash
+cd /root/dotfiles &&
+  python3 gentoo_setting/scripts/deploy-portage.py musl config
+```
+
+确认后执行：
+
+```bash
+cd /root/dotfiles &&
+  python3 gentoo_setting/scripts/deploy-portage.py musl config --apply &&
+  portageq envvar CHOST ELIBC LD FEATURES &&
+  emerge --pretend --verbose --autounmask=n sys-kernel/installkernel
+```
+
+这一步会检查 curl 与工具链，试链接一个 Clang ThinLTO 程序，然后部署包级设置、make.conf、binhost 及登记的源码补丁。源码补丁由 Portage 在解包后读取 `/etc/portage/patches/`；对应版本的补丁目录会随上游升级自然失效。CUDA 等由配方处理的补丁仍走上一步。已有同名配置内容不同，先比较再合并，保留现有备份供核对。
+
+首次安装如果确实遇到 GLib、Pillow 和 HarfBuzz 的依赖环，才在目标的 `/etc/portage/package.use/` 新建一个临时条目 `dev-python/pillow -truetype`。先预演并安装 GLib、HarfBuzz、Pillow，再删掉该临时条目，重新预演并按最终 USE 重建 Pillow。过程见[Gentoo musl 迁移复盘](/posts/gentoo-musl-llvm-pc-migration/gentoo-musl-llvm-pc-migration/)。第一次编译要验证用户补丁时，在相应 emerge 命令加 `--usepkg=n --getbinpkg=n`。
+
+#### 可选：Portage 的 xmake 优先入口
 
 这一步统一常见 GNU Make／Ninja 的调用入口，保留上游构建图与后端，不把 Qt、CMake
 或 Kbuild 改写成 xmake.lua，也不替换 `/usr/bin/make`。它是可撤销的使用偏好，不能
@@ -592,26 +619,14 @@ menuentry "Gentoo musl" {
 
 先确认生成结果含目标文件系统、存储控制器与所需模块，随后重启登记 MOK，再验证普通用户的 NVML／CUDA、显示输出和设备权限。
 
-### 完成链接器与基础维护工具配置
+### 核对构建工具链
 
-#### 链接器选择
-
-前文已用 stage3 工具链安装 mold。启用全局 ThinLTO 前，核对 [mold 的 musl 线程栈修正](https://github.com/Cyberl-ty02/dotfiles/tree/main/gentoo_setting/pc/patchsets/mold-musl-stack)与同槽 LLVMgold。先在原设置下装好依赖，再合并审阅过的 make.conf 构建设置并确认有效值：
+Portage 部署阶段已启用 mold／ThinLTO。内核和 UEFI 组件按包使用 LLD／BFD。再次检查配置是否仍符合预期：
 
 ```bash
-cd /root/dotfiles/gentoo_setting/pc
-emerge --pretend llvm-core/llvmgold
-emerge --ask llvm-core/llvmgold
-# 合并已审阅的构建设置后，预览，再分别启用。
-bash scripts/configure-linker.sh --linker mold --dry-run
-bash scripts/configure-linker.sh --linker mold
-bash scripts/configure-lto.sh --dry-run
-# 确认依赖和包级例外齐备后才启用。
-bash scripts/configure-lto.sh --mode thin
-portageq envvar CHOST ELIBC LD CFLAGS LDFLAGS
+portageq envvar LD CFLAGS LDFLAGS
+emerge --pretend --verbose @preserved-rebuild
 ```
-
-不要一次接受新 LLVM 主版本来凑依赖；先核对实际槽位及预演。内核使用 LLD，GNU-EFI／rEFInd 保留 BFD。这里改变后续构建默认，不会自动重链接已装软件；详细证据见迁移文章。
 
 ## 安装系统工具与桌面
 
