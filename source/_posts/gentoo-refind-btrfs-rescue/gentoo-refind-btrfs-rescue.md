@@ -21,7 +21,7 @@ tags:
 
 本文只记录这次实际修复路线，不作为通用安装教程。对应的 Portage 与 Secure Boot 配置保存在 [dotfiles 的 Gentoo PC 配置目录](https://github.com/Cyberl-ty02/dotfiles/tree/main/gentoo_setting/pc)；可复用的示例启动参数见 [`refind_linux.conf.example`](https://github.com/Cyberl-ty02/dotfiles/blob/main/gentoo_setting/pc/kernel/secureboot/refind_linux.conf.example)。
 
-全新安装参见两篇独立指南。下面保留原救援经过；当前 musl 实机以显式菜单配对内核与 initramfs，升级时应先核对实际入口。 [musl 安装](/posts/gentoo-musl/gentoo-musl/) · [glibc 安装](/posts/gentoo-glibc/gentoo-glibc/)
+全新安装参见两篇独立指南。下面保留原救援经过；当前 musl 实机以显式菜单配对内核与 initramfs，升级时应先核对实际入口。[Gentoo musl 安装指南](/posts/gentoo-musl/gentoo-musl/) · [Gentoo glibc 安装指南](/posts/gentoo-glibc/gentoo-glibc/)
 
 ## 故障定位
 

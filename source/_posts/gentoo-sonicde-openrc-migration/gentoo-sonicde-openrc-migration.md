@@ -18,7 +18,7 @@ tags:
 
 对应的 Portage、Portal、登录管理器补丁和软件清单保存在 [dotfiles 的 Gentoo PC 目录](https://github.com/Cyberl-ty02/dotfiles/tree/main/gentoo_setting/pc)。本文解释选择与边界，不建议整目录照搬。
 
-下面记录 SonicDE 的迁移过程。新机安装按所选 libc 的指南设置登录管理器、Portal 和音量组件。 [musl 安装](/posts/gentoo-musl/gentoo-musl/) · [glibc 安装](/posts/gentoo-glibc/gentoo-glibc/)
+下面记录 SonicDE 的迁移过程。新机安装按所选 libc 的指南设置登录管理器、Portal 和音量组件。[Gentoo musl 安装指南](/posts/gentoo-musl/gentoo-musl/) · [Gentoo glibc 安装指南](/posts/gentoo-glibc/gentoo-glibc/)
 
 ## Stage 1：先定义迁移边界
 

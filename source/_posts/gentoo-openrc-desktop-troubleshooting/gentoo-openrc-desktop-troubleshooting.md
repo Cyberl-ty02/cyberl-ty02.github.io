@@ -202,7 +202,7 @@ locale -a | grep -E 'C\.utf8|zh_CN\.utf8|en_US\.utf8'
 
 ## musl 实验与桌面语言的边界
 
-本文原有修复记录来自 glibc 系统。当前 musl 实机已完成桌面验收，新的 Fontconfig、Portal、PipeWire 和登录配置见[Gentoo musl 安装](/posts/gentoo-musl/gentoo-musl/)；glibc 新机见[对应指南](/posts/gentoo-glibc/gentoo-glibc/)。实验边界见[迁移复盘](/posts/gentoo-musl-llvm-pc-migration/gentoo-musl-llvm-pc-migration/)。
+本文原有修复记录来自 glibc 系统。当前 musl 实机已完成桌面验收，新的 Fontconfig、Portal、PipeWire 和登录配置见[Gentoo musl 安装指南](/posts/gentoo-musl/gentoo-musl/)；glibc 新机见[Gentoo glibc 安装指南](/posts/gentoo-glibc/gentoo-glibc/)。实验边界见[Gentoo musl 迁移复盘](/posts/gentoo-musl-llvm-pc-migration/gentoo-musl-llvm-pc-migration/)。
 
 检查中文问题时，分别确认登录环境、SonicDE 用户区域设置、字体/Fcitx 和应用运行时。`locale` 显示 zh_CN 并不能证明 musl 具备完整中文日期、货币、排序或旧编码转换。Flatpak 内的 glibc locale 也应单独运行 `locale -a` 核验；安装脚本只负责安装，不在 chroot 内启动桌面或 Portal。
 
