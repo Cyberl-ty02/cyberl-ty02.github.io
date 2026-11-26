@@ -1,10 +1,10 @@
 ---
-title: Gentoo 定制安装指南：从 EndeavourOS LiveCD 到 Btrfs、OpenRC、SonicDE 与 rEFInd
+title: Gentoo musl 安装
 comments: true
 toc: true
 donate: false
 share: true
-date: 2026-08-18 20:00:00
+date: 2026-11-26 09:00:00
 categories: Linux 与 BSD
 tags:
 - Linux
@@ -12,76 +12,18 @@ tags:
 sticky: 1
 ---
 
-这篇文章整理我现在使用的 Gentoo 实体机安装路线：以 EndeavourOS LiveCD 作为安装环境，把 Gentoo 安装到 Btrfs 的 `@`、`@home` 子卷，使用 `genfstab` 生成挂载表，再通过 `arch-chroot` 进入新系统。目标系统采用 OpenRC、LLVM profile、Gentoo-Zh XanMod distribution kernel（启用 CJKTTY）、XLibre、SonicDE、NVIDIA，以及 shim + rEFInd Secure Boot 启动链。
-
-全新安装的 glibc／musl 两条路线都可直接使用 `@`、`@home`。现有系统迁移时可先用 `@musl` 隔离验证；验收后再将旧根改名为 `@glibc-backup`、新根改名为 `@`，同步修正挂载与启动参数并验证回退。临时子卷名不代表需要新增磁盘分区，具体阶段见[迁移记录](/posts/gentoo-musl-llvm-pc-migration/gentoo-musl-llvm-pc-migration/)。
-
-它不是 Gentoo Handbook 的替代品。Handbook 负责解释 Gentoo 安装中长期稳定的规则；本文则把这些规则落实到我的磁盘布局和公开配置仓库。涉及版本、overlay 和 USE flag 的内容会随时间变化，实际安装时应同时打开 [Gentoo AMD64 Handbook](https://wiki.gentoo.org/wiki/Handbook:AMD64) 核对。
-
-> **记录基线**
-> 本文初稿写于 2026-08-18，当时运行内核为 `7.1.8-gentoo-cjk-dist`；2026-08-20 已切回 Gentoo-Zh 的 XanMod。2026-10-13 核验时，实际启动 release 与所选源码树均为 `7.2.10-x64v3`。这里严格区分“仓库可安装”和“已经启动验证”，版本号只作为迁移记录，不要求读者固定安装相同版本。
-
-> **危险操作提醒**
-> 分区、格式化、生成 fstab 和安装 EFI 启动项都可能造成数据损失或启动失败。命令中的设备名全部是占位示例。执行前必须用 `lsblk -f`、`findmnt` 和固件启动模式确认自己的目标，双系统环境尤其不能格式化已有 Windows ESP。
-
-> **当前默认：musl／LLVM；glibc 小节保留作历史参考**
-> 有差异的内容用独立小节依次列出 musl／LLVM（当前默认）与 glibc／LLVM（历史参考）；每节只执行所选分支，共用步骤在分支之外。配置仓库 main 的 PC 配置已经只维护 musl，不可导入 glibc 根。两条路线的 init 都是 OpenRC；LiveCD 命令另有阶段标识。
-> 2026-11-23 已完成 [musl 真机迁移与收口](/posts/gentoo-musl-llvm-pc-migration/gentoo-musl-llvm-pc-migration/)，日常使用与 Windows 配置同步已人工确认，归档实际恢复通过。新机器仍需核验自己的硬件、仓库与签名；不要仅切换 profile 来迁移 libc。
-
 ## 简介
 
-### 如何阅读这篇指南
+这是我现在使用的 Gentoo AMD64 安装路线。用 EndeavourOS LiveCD 准备 Btrfs 的 `@` 和 `@home`，随后从官方 musl LLVM stage3 安装 OpenRC。桌面使用 SonicDE 与 XLibre，可信启动使用 shim 与 rEFInd。需要 glibc 原生环境时，走 [Gentoo glibc 安装](/posts/gentoo-glibc/gentoo-glibc/)。已有系统迁移及踩坑见[迁移复盘](/posts/gentoo-musl-llvm-pc-migration/gentoo-musl-llvm-pc-migration/)。
 
-正文按准备安装环境、磁盘、stage3、chroot、Portage、内核与启动、系统工具、首次登录和维护展开。每章先说明目标，再列出配置与检查。需要选择 libc 的地方，先读 musl 当前方案；glibc 小节仅供旧配置对照，两者不连续执行。两条路线都使用 OpenRC，这里没有新增 systemd 安装路线。
+分区和格式化前，用 `lsblk -f` 与 `findmnt` 核对实际设备。双系统应保留 Windows 与其已有 ESP。命令中的设备、账户、UUID 和内核版本须按目标机器填写。
 
-| 执行环境 | 操作范围 |
+| 环境 | 操作 |
 | --- | --- |
-| LiveCD | 联网、分区、挂载、stage3 验签与解压 |
-| 目标 chroot／root | Portage、系统配置、内核、启动链与服务登记 |
-| 首次启动后的管理员 | 运行服务、检查驱动与签名、配置系统工具 |
-| 桌面普通用户 | 输入法、Shell、编辑器与应用资料 |
-
-命令块不带 `root #` 或 `user $` 提示符，便于复制；身份和目录由对应小节说明。设备、账户和密钥取自目标机器，不复制本文历史机器的值。
-
-### 选择安装路线
-
-#### musl／LLVM：当前默认
-
-工具链采用 Clang／LLVM、libc++，普通构建使用 mold／ThinLTO，内核与 UEFI 保留 LLD／BFD 例外，profile 为 `default/linux/amd64/23.0/musl/llvm`。主系统、SonicDE/XLibre 与输入法使用原生 musl；闭源桌面应用优先采用独立的 Flatpak glibc 运行时。本轮不默认安装 GCC 或 GNU Emacs。
-
-全新 stage3 默认 Portage 用户／沙箱的完整桌面安装、普通软件更新、内核／NVIDIA 整合、真实登录与用户资料接续已通过。当前 gentoo_setting/pc 即 musl 参考；world 只作逐项审阅清单，不跨硬件照装。旧归档恢复也已通过，用户随后决定退役旧恢复来源；不再安排旧系统回退启动。
-
-#### glibc／LLVM：历史配置参考
-
-以下是原 glibc 安装的历史目标，不代表 main 中当前 PC 配置：
-
-```text
-LiveCD：EndeavourOS
-架构：amd64 / x86_64
-init：OpenRC
-profile：default/linux/amd64/23.0/llvm
-工具链：Clang/LLVM，少数包按 package.env 回退 GCC
-文件系统：Btrfs，根子卷 @，家目录子卷 @home
-交换空间：zram swap，由 util-linux 的 zramctl 与 OpenRC local.d 动态创建
-内核：sys-kernel/xanmod-kernel[cjk,cjk32,clang,modules-sign,secureboot]
-桌面：SonicDE + XLibre/X11
-显卡：Intel modesetting + NVIDIA
-音频：PipeWire / PulseAudio compatibility
-网络：NetworkManager + iwd
-启动：shim + rEFInd + 本地 MOK
-```
-
-### 配置入口与安装顺序
-
-维护本文时先对照官方 Handbook、对应 Gentoo Wiki 和已安装包的 man／`--help`。安装、服务启停和升级优先使用上游或发行版入口；本文只补充 musl ABI、Btrfs／ESP 布局与验收差异。上游已提供等价能力时撤下重复的手工步骤，补丁按现有移除条件复核；静态文章不保证在上游发布后自动更新，执行前仍需查看链接中的当前说明。
-
-本文链接的旧迁移、桌面排错与 Doom 文章可能保留 glibc 阶段快照；它们用于解释故障与方案来源。当前包名、服务状态与操作入口以本文的 musl 小节及配置仓库 PC README 为准，不从旧文恢复已经退役的临时补丁、旧版本锁或实验根。
-
-当前 PC 约束见 [`gentoo_setting/pc/README.md`](https://github.com/Cyberl-ty02/dotfiles/blob/main/gentoo_setting/pc/README.md)，Gentoo 多环境入口见上级 README。共享 [`manifests/`](https://github.com/Cyberl-ty02/dotfiles/tree/main/gentoo_setting/manifests) 只用于审阅角色，不作为 musl 的整套安装输入；当前原生直接选择保存在 [`world_packages.txt`](https://github.com/Cyberl-ty02/dotfiles/blob/main/gentoo_setting/pc/world_packages.txt)。这里不会把所有软件都解释一遍，而是着重保证第一次重启前已经具备能启动、联网和进入桌面的条件。
-
-当前 musl 路线先初始化仓库、复核补丁，在 stage3 的可用 LLVM 工具链上准备 mold／LLVMgold，再合并最终构建配置。签名材料在安装内核与外部模块前准备；shim＋rEFInd、内核、固件和 NVIDIA 必须配套检查。随后按需求安装原生组件与 Flatpak 应用，登记 OpenRC 服务，完成总检查后首次重启。输入法、Zsh 和 Doom 的用户层配置留到真实登录后。
-
-这里沿用本机先准备可信启动链、再安装签名内核的顺序；Handbook 的通用章节顺序可用于理解各步骤职责，不必把两套不同的启动方案交叉执行。
+| LiveCD | 联网、分区、挂载、验证并解压 stage3 |
+| 目标 chroot／root | Portage、内核与引导、账号和 OpenRC 服务 |
+| 首次启动后的管理员 | 核对挂载、签名、硬件及系统服务 |
+| 桌面普通用户 | 输入法、Shell、编辑器和应用配置 |
 
 ## 准备安装环境
 
@@ -213,9 +155,9 @@ lsblk -f
 
 ### 选择 LLVM／OpenRC 归档
 
-#### musl／LLVM：选择 stage3
+#### 选择 stage3
 
-在同一官方目录选择 `current-stage3-amd64-musl-llvm-openrc`，不要与普通 musl、glibc 或 systemd stage3 混用。替换实际时间戳后设置：
+从 [Gentoo 官方 musl LLVM OpenRC 目录](https://distfiles.gentoo.org/releases/amd64/autobuilds/current-stage3-amd64-musl-llvm-openrc/) 下载归档和同名的 `.asc`、`.DIGESTS`，不要与普通 musl、glibc 或 systemd stage3 混用。替换实际时间戳后设置：
 
 ```bash
 stage3='stage3-amd64-musl-llvm-openrc-<timestamp>.tar.xz'
@@ -223,17 +165,9 @@ stage3='stage3-amd64-musl-llvm-openrc-<timestamp>.tar.xz'
 
 本机曾使用的归档版本只是验收基线；新机器应重新核验当时的归档和发布签名。
 
-#### glibc／LLVM：选择 stage3
-
-在 [官方 amd64 autobuilds](https://distfiles.gentoo.org/releases/amd64/autobuilds/) 中选择 `current-stage3-amd64-llvm-openrc`，下载归档及对应 `.DIGESTS` / 签名文件。替换实际时间戳后设置：
-
-```bash
-stage3='stage3-amd64-llvm-openrc-<timestamp>.tar.xz'
-```
-
 ### 验证签名、校验和与解压
 
-两条分支都在 LiveCD 中验证所选归档，再以 root 权限保留属主和扩展属性解压。以下命令使用刚才选定的 `stage3` 变量，工作目录中应已有归档、同名 `.asc` 和 `.DIGESTS`。
+在 LiveCD 中验证所选归档，再以 root 权限保留属主和扩展属性解压。以下命令使用刚才选定的 `stage3` 变量，工作目录中应已有归档、同名 `.asc` 和 `.DIGESTS`。
 
 先按 [Gentoo 发布签名说明](https://www.gentoo.org/downloads/signatures/) 从可信来源取得发行密钥并核对完整指纹。EndeavourOS 不是 Gentoo 官方介质，不能假定已有 Gentoo keyring；`Good signature` 也不能替代指纹核对。准备好密钥后：
 
@@ -267,9 +201,9 @@ ls -ld /mnt/gentoo/{etc,usr,var}
 
 ### 在 chroot 前保存配置仓库
 
-EndeavourOS LiveCD 有 Git，可以先把配置仓库带入目标根。两条路线使用同一落点，只执行所选分支：
+EndeavourOS LiveCD 有 Git，可以先把配置仓库带入目标根。先将配置仓库克隆到目标根。
 
-#### musl／LLVM：main 配置
+#### main 配置
 
 ```bash
 sudo git clone --branch main \
@@ -278,16 +212,7 @@ sudo git clone --branch main \
 
 已验证脚本、必要配置和补丁索引在 `gentoo_setting/pc/`，main 为当前 musl 默认配置。先核对上游基线、CPU、设备与签名，再合并；不复制历史实验夹。
 
-#### glibc／LLVM：仅通用脚本参考
-
-```bash
-sudo git clone https://github.com/Cyberl-ty02/dotfiles.git \
-  /mnt/gentoo/root/dotfiles
-```
-
-main 中的 PC 配置已改为 musl。glibc 使用自己的 stage3 配置和 profile；此 checkout 仅供阅读通用脚本，不复制 pc/portage 或 pc/world。旧配置只从历史记录或既有本地归档标签参考。
-
-#### 共用：检查目标配置
+#### 检查目标配置
 
 这一步只保存参考文件，尚不覆盖 `/etc/portage`。不同硬件应重写 `COMMON_FLAGS`、`MAKEOPTS`、`VIDEO_CARDS` 和签名路径，不把 `-march=native` 构建结果当作通用二进制镜像。
 
@@ -300,33 +225,20 @@ command -v genfstab
 command -v arch-chroot
 ```
 
-stage3 已经带有 `/etc/fstab` 模板。第一次生成前先备份并清空模板，然后按当前挂载状态追加：
+保留 stage3 自带的示例。先单独生成挂载表，核对实际条目，再把它接在示例下方，中间隔三行空行：
 
 ```bash
-sudo cp -a /mnt/gentoo/etc/fstab /mnt/gentoo/etc/fstab.stage3
-sudo sh -c ': > /mnt/gentoo/etc/fstab'
-sudo genfstab -U /mnt/gentoo | \
-  sudo tee -a /mnt/gentoo/etc/fstab
+sudo genfstab -U /mnt/gentoo > /tmp/gentoo-fstab.mounts
+cat /tmp/gentoo-fstab.mounts
 ```
 
-`genfstab -U` 按当前挂载树输出 UUID 标识的条目，默认排除伪文件系统；`tee` 同时把结果写入文件并显示。重点不是“生成成功”，而是逐行复核：
+编辑 `/tmp/gentoo-fstab.mounts`，确认 `/` 和 `/home` 分别对应 `@` 和 `@home`，`/boot` 指向目标 ESP。删除重复条目和 LiveCD 遗留项。若希望普通用户可在 Dolphin 浏览 ESP，FAT 的选项可设为 `defaults,uid=0,gid=0,dmask=0022,fmask=0133,nosuid,nodev,noexec,noatime`，目录和文件分别为 0755、0644，写入仍由管理员控制。下例仅用于首次生成，重新生成时先备份并编辑实际条目：
 
 ```bash
-sudo sed -n '1,200p' /mnt/gentoo/etc/fstab
+sudo cp -an /mnt/gentoo/etc/fstab /mnt/gentoo/etc/fstab.stage3
+sudo sh -c 'cat /mnt/gentoo/etc/fstab.stage3; printf "\n\n\n"; cat /tmp/gentoo-fstab.mounts' \
+  | sudo tee /mnt/gentoo/etc/fstab
 ```
-
-至少确认：
-
-```text
-/      使用 @ 子卷
-/home  使用 @home 子卷
-/boot  指向正确 ESP
-没有已经弃用的实体 swap 条目
-没有 LiveCD 自身的挂载项
-没有重复条目
-```
-
-如果调整挂载后重新运行 `genfstab`，不要再次盲目追加，否则会得到重复条目。应先保留备份，再清空并重新生成。
 
 ## 进入新系统并配置 Portage
 
@@ -341,7 +253,7 @@ sudo cp -L /etc/resolv.conf /mnt/gentoo/etc/resolv.conf
 sudo arch-chroot /mnt/gentoo /bin/bash
 ```
 
-进入后加载 Gentoo 环境并醒目标记提示符：
+进入后加载 Gentoo 环境并标记提示符：
 
 ```bash
 source /etc/profile
@@ -361,7 +273,7 @@ cat /etc/gentoo-release
 
 ### 初始化 Portage 与 profile
 
-先核对 stage3 的 profile，保留正常 Portage 用户和沙箱；musl／LLVM 是本仓库当前选择，不代表 Gentoo 已把该实验组合列为所有新用户的默认路线。
+先核对 stage3 的 profile，保留正常 Portage 用户和沙箱。
 
 先获取 Gentoo repository：
 
@@ -377,7 +289,7 @@ eselect news read
 eselect profile show
 ```
 
-#### musl／LLVM：profile 与 locale
+#### profile 与 locale
 
 `eselect profile show` 应对应：
 
@@ -393,29 +305,9 @@ bash scripts/configure-locale.sh --dry-run
 bash scripts/configure-locale.sh --lang zh_CN.UTF-8 --timezone Asia/Shanghai
 ```
 
-需要英文登录环境时，改为 `--lang en_US.UTF-8`，仍可保留上海时区。musl 分支不执行 `locale-gen`，不复制 glibc locale archive。脚本保留原配置备份；日期、货币、排序与编码转换仍须按应用检查，详见迁移文章。
+需要英文登录环境时，改为 `--lang en_US.UTF-8`，仍可保留上海时区。musl 不执行 `locale-gen`，不复制 glibc locale archive。脚本保留原配置备份；日期、货币、排序与编码转换仍须按应用检查，详见迁移文章。
 
-#### glibc／LLVM：profile 与 locale
-
-`eselect profile show` 应对应：
-
-```text
-default/linux/amd64/23.0/llvm
-```
-
-配置上海时区并生成所需 glibc locale；已有相同声明时不重复追加：
-
-```bash
-echo 'Asia/Shanghai' > /etc/timezone
-emerge --config sys-libs/timezone-data
-printf '%s\n' 'en_US.UTF-8 UTF-8' 'zh_CN.UTF-8 UTF-8' >> /etc/locale.gen
-locale-gen
-eselect locale list
-eselect locale set zh_CN.utf8
-env-update
-```
-
-#### 共用：更新环境与主机身份
+#### 更新环境与主机身份
 
 若 profile 不符，先核对 stage3，不通过直接切换 profile 修正下载错误。配置后更新当前 shell；桌面和用户 D-Bus 需重新登录才继承语言：
 
@@ -457,11 +349,11 @@ emerge --sync
 portageq get_repos /
 ```
 
-已有系统同步前先保存仓库中的本地差异；同步后重新预检，不把已安装包数据库当作配方仍然存在的证据。glibc 历史分支只启用自己需要的仓库，不复制 musl 私有配方规则。
+已有系统同步前先保存仓库中的本地差异；同步后重新预检，不把已安装包数据库当作配方仍然存在的证据。
 
 ### 分阶段应用当前 Portage 配置
 
-#### musl／LLVM：逐项合并当前配置
+#### 逐项合并当前配置
 
 保持官方 stage3 的正常 Portage 用户与沙箱，先初始化上一小节的仓库，再检查配置和补丁。不要把测试夹中的 root 编译设置带入新机。
 
@@ -476,17 +368,14 @@ python3 scripts/restore-repository-patches.py
 python3 scripts/restore-repository-patches.py --apply
 ```
 
-确认 ELIBC=musl，以及 sandbox、userpriv、usersandbox 等默认功能。先审阅 make.conf 的 CPU、并行度、VIDEO_CARDS、USE、签名路径和 package.*；新机密钥必须自行生成。使用 rsync -an --itemize-changes 预览自己的合并，不用 --delete，也不整目录覆盖。源码用户补丁还需按各补丁组说明放入 `/etc/portage/patches/`；恢复脚本只处理仓库配方，不会自动部署全部源码补丁。
+确认 `ELIBC=musl`、`portageq envvar CHOST` 为 `x86_64-pc-linux-musl`，并核对 sandbox、userpriv、usersandbox 等默认功能。先审阅 make.conf 的 CPU、并行度、VIDEO_CARDS、USE、签名路径和 package.*；新机密钥必须自行生成。把审阅通过的 `package.*`、`env/` 和所需 `sets/` 逐文件并入 `/etc/portage`。先保留 stage3 的链接器与优化参数；可以用 `diff -ru /etc/portage portage` 审查差异。涉及仅在特定硬件使用的规则时，只合并本机需要的条目。源码用户补丁按[补丁组索引](https://github.com/Cyberl-ty02/dotfiles/tree/main/gentoo_setting/pc/patchsets)说明放入 `/etc/portage/patches/`；恢复脚本只处理仓库配方，不会自动部署全部源码补丁。
 
-官方 stage3 仍用可用的 LLVM linker 引导。当前配置默认 mold／ThinLTO，因此先在未切换全局设置时正常安装 mold，再合并对应配置；不要在 mold 尚不存在时先写入全局选择：
+官方 stage3 仍用可用的 LLVM linker 引导。当前配置默认 mold／ThinLTO，因此先在未切换全局设置时正常安装 mold，并在内核章节之后补齐同槽 LLVMgold，再启用全局 mold／ThinLTO。此时可先合并设备、签名和包级规则：
 
 ```bash
 emerge --pretend sys-devel/mold
 emerge --ask sys-devel/mold
 mold --version
-# 合并审阅过的 musl 配置后核验；备份只是原 stage3 配置。
-bash scripts/configure-linker.sh --linker mold --dry-run
-bash scripts/configure-lto.sh --dry-run
 ```
 
 完整桌面与正常沙箱安装已经通过。曾出现的 GLib／HarfBuzz／Pillow 引导环、Rust 宿主脚本和线程栈问题及其移除条件，在[迁移复盘](/posts/gentoo-musl-llvm-pc-migration/gentoo-musl-llvm-pc-migration/)及各补丁组说明中；临时 Pillow truetype 开关必须恢复。仓库同步可能覆盖配方差异，之后重新预检，不把补丁强行套入新代码。
@@ -520,10 +409,6 @@ QtSerialPort 和 tree 已在 Portage 中用本地配置完成暂存构建，分�
 LTO／链接选项后，对受影响包显式使用 `--usepkg=n`，不能假定旧二进制包自动识别
 这些变化。需要整体撤销兼容入口时，执行
 `python3 scripts/configure-portage-xmake.py --remove --apply`；后端软件继续保留。
-
-#### glibc／LLVM：使用独立配置
-
-main 的 PC Portage 目录与 world 已是 musl，不能复制到 glibc。保留该 glibc stage3 的配置，按对应 profile 和 Handbook 单独设置；需要原 PC 配置时参考 Git 历史，不恢复一套并行维护的 glibc 目录。musl 小节的 musl 配方、私有 ABI 和包选择不适用于此分支。
 
 ## 配置内核与可信启动链
 
@@ -589,7 +474,7 @@ grep -R --line-number --fixed-strings 'secureboot' \
 emerge -pv sys-boot/refind sys-boot/shim sys-kernel/installkernel
 ```
 
-期望四个变量都指向 `/etc/kernel/secureboot/MOK.pem`，rEFInd 启用 `secureboot` USE，installkernel 则启用本教程需要的 `dracut` 与 `refind`。若检查结果不同，先修正 Portage 配置；不要靠安装脚本在最后偷偷补签。
+期望四个变量都指向 `/etc/kernel/secureboot/MOK.pem`，rEFInd 启用 `secureboot` USE，installkernel 启用 `dracut -refind`，由后文显式准备 rEFInd 内核入口。若检查结果不同，先修正 Portage 配置；不要靠安装脚本在最后偷偷补签。
 
 ### 使用上游安装器配置 shim＋rEFInd
 
@@ -655,109 +540,77 @@ mokutil --list-new
 
 ### 安装内核、固件和 NVIDIA
 
-#### musl／LLVM：内核与 NVIDIA
+#### 安装 distribution kernel 与固件
 
-本路线已完成 Clang／LLD ThinLTO 内核、签名模块／GSP、私有用户态、initramfs、真实启动和 CUDA 回读，不能再照旧说明把 NVIDIA 一概当作不支持。现有 Gentoo 配方以 modules-only 构建配套模块，私有用户态和数据层由现有仓库补丁管理；不能直接套用 glibc 完整驱动配方。
-
-新机先准备本章的签名材料、安装器与 MOK 请求，再按 NVIDIA 补丁组核对内核 build tree、模块、GSP、vermagic、签名、节点与 initramfs；最后在首次重启的 MokManager 中完成登记。配套版本和签名权限是升级门槛，不因目录名记录历史版本就自动沿用。CPU／固件与 root 参数取自目标机器。
-
-首次重启前核对 root／home 挂载、内核命令行、EFI 文件及签名，保留该机器自己的救援入口；首次登录后才检查显示、普通用户 CUDA／NVML、音频／网络与实际设备。私有 SDK 和 Flatpak 下载可在 chroot 准备，GUI、GPU 和账号不能以 chroot 安装成功代替。细节与已验证边界见[迁移记录](/posts/gentoo-musl-llvm-pc-migration/gentoo-musl-llvm-pc-migration/)和[配置根说明](https://github.com/Cyberl-ty02/dotfiles/tree/main/gentoo_setting/pc)。
-
-#### glibc／LLVM：内核与 NVIDIA
-
-Gentoo Handbook 建议第一次启动优先使用 distribution kernel，以减少“系统配置错误”和“自定义内核漏选驱动”混在一起的概率。我的机器选择 Gentoo-Zh 的 XanMod distribution kernel，并通过 `cjk` USE 应用 CJKTTY 补丁。当前 overlay 的 ebuild 会继承 `cjktty` eclass；`cjk` 提供 16×16 CJK 字体，`cjk32` 再加入 32×32 字体，用于解决本机高分辨率控制台上中文过小的问题。字体资源进入内核后镜像增加数 MiB 属预期结果；低分辨率 framebuffer 通常不必照抄 `cjk32`。
-
-distribution kernel 通常依赖 initramfs 才能覆盖模块化的存储与文件系统驱动。当前 包级配置已为 `sys-kernel/installkernel` 启用 `dracut` 和 `refind`；安装前仍要从 Portage 计划中确认这些 flag 生效：
+本机启动验收的是 `7.2.14-musl-x64v3`，使用 XanMod、CJKTTY 和 Clang／LLD ThinLTO。新机以 [PC 内核配置](https://github.com/Cyberl-ty02/dotfiles/tree/main/gentoo_setting/pc/kernel) 和配方为起点，选与当前仓库和驱动匹配的版本。在目标根核对 `/boot` 已挂载，按前文准备签名并完成包级规则后，预览并安装：
 
 ```bash
-emerge -pv sys-kernel/installkernel sys-kernel/xanmod-kernel
+findmnt --mountpoint /boot
+emerge --pretend --verbose --autounmask=n \
+  sys-kernel/installkernel sys-kernel/linux-firmware sys-kernel/xanmod-kernel
+emerge --ask --autounmask=n \
+  sys-kernel/installkernel sys-kernel/linux-firmware sys-kernel/xanmod-kernel
+ls -ld /lib/modules/*/build
+ls -l /boot/vmlinuz-*
 ```
 
-确认计划包含 initramfs 生成器后再安装：
+内核配置要覆盖目标机器的存储、根文件系统、显卡和固件；微码按 Intel 或 AMD 平台选择。验收内核的调度参数为 `preempt=full`，只有目标内核支持动态 full preemption 时才使用。记录实际安装的 kernel release，后面用它匹配模块及 initramfs。
+
+#### 按需安装 NVIDIA 与私有用户态
+
+有 NVIDIA 时，先确认该 release 的 build tree、生成头文件和 `Module.symvers`。按 [NVIDIA 补丁组](https://github.com/Cyberl-ty02/dotfiles/tree/main/gentoo_setting/pc/patchsets/nvidia-620.70.06) 的次序预演并安装 modules-only、匹配 GSP、私有加载器、用户态与设备节点 helper。模块的 `KERNEL_DIR` 应指向目标内核，chroot 内 `uname -r` 显示的是 LiveCD 内核。使用集显的机器可以直接去掉这些选择，CUDA SDK 同样按需安装。
+
+安装之后检查实际目标 release 的 vermagic、签名和固件。升级时内核、外部模块、GSP 和私有用户态须成套预演；旧验收版本只是复现基线。
+
+#### 重建 initramfs 并设置 rEFInd 入口
+
+先审阅 [dracut 配置](https://github.com/Cyberl-ty02/dotfiles/tree/main/gentoo_setting/pc/dracut.conf.d)。验收机用按设备缩减的镜像。首次在 LiveCD 的 chroot 里安装，可先生成不依赖宿主自动探测的通用镜像；需要早期加载 NVIDIA 等模块时，按实际设备显式配置驱动。填入安装到目标 `/lib/modules` 的 release，待所需模块和固件装齐后再生成：
 
 ```bash
-emerge --ask sys-kernel/linux-firmware sys-kernel/xanmod-kernel
+read -r -p '目标内核 release：' release
+test -n "$release" &&
+  test -d "/lib/modules/$release" &&
+  test -f "/boot/vmlinuz-$release" &&
+  dracut --force --no-hostonly "/boot/initramfs-$release.img" "$release"
+lsinitrd "/boot/initramfs-$release.img"
+sbverify --list "/boot/vmlinuz-$release"
 ```
 
-当前配置让 installkernel 生成版本化内核和 initramfs，并由 rEFInd 自动配对。安装后检查，而不是只看 emerge 返回值：
-
-```bash
-eselect kernel list
-readlink -f /usr/src/linux
-ls -l /boot/vmlinuz-* /boot/initramfs-*.img
-ls -ld /lib/modules/*
-```
-
-安装 NVIDIA 驱动时，`dist-kernel`、`modules` 和 `modules-sign` 会把模块绑定到内核 subslot 并签名：
-
-```bash
-emerge --ask x11-drivers/nvidia-drivers
-```
-
-版本变化时 Portage 重建 NVIDIA 是正常的 subslot 行为。XanMod、独立 CJK kernel、CJKTTY、回退内核与 Secure Boot 的双向迁移记录见：[Gentoo 内核迁移记录：XanMod、CJKTTY、NVIDIA 与 Secure Boot](/posts/gentoo-xanmod-to-cjk-kernel-migration/gentoo-xanmod-to-cjk-kernel-migration/)。
-
-2026-10-13 的真机只确认 `/boot` 中有一个实际使用的 `7.2.10-x64v3`。因此本文把“保留上一内核用于回滚”列为后续升级前的建议，不声称当前已经有第二个可启动内核。
-
-内核和 initramfs 出现后，再检查或创建 `refind_linux.conf`。从 LiveCD 生成的内容可能继承 LiveCD 的 `/proc/cmdline`，必须删除 `archiso*` 等介质参数，并核对 Btrfs UUID 与 `rootflags=subvol=/@`。稳定布局依靠：
+在安装器实际写入的 `refind.conf` 添加一个 Gentoo 入口。下面的 `<release>`、`<btrfs-uuid>` 均从目标机填写，`rootflags` 与 fstab 对应。新装可用子卷路径 `subvol=/@`；如果选择固定 ID 的布局，就实测 ID 并在两处统一使用 `subvolid=`。rEFInd 中指定的路径相对于 ESP：
 
 ```text
-vmlinuz-<kernel-release>
-initramfs-<kernel-release>.img
+menuentry "Gentoo musl" {
+    icon /EFI/refind/icons/os_gentoo.png
+    loader /vmlinuz-<release>
+    initrd /initramfs-<release>.img
+    options "root=UUID=<btrfs-uuid> rw rootfstype=btrfs rootflags=subvol=/@"
+}
 ```
 
-rEFInd 可自动配对版本化文件，kernel options 只保留通用 root/Btrfs 参数。前文的 `mokutil --import` 已创建待处理请求，但只有在首次重启的 MokManager 中确认后，证书才真正进入信任链。
+先核对图标在实际目录中，随后启用手工菜单扫描（已有 `scanfor` 时加入 `manual`，保留 Windows 和外部介质所需类型）。已有可启动入口应保留，`refind_linux.conf` 如继续参与自动扫描也要剔除 LiveCD 参数。用手工菜单的单根新机在升级时更新成对的内核与 initramfs 路径；本机用于原双根迁移的更新脚本不作为新机前置依赖。
 
-成功启动 Gentoo 后完成闭环检查：
-
-```bash
-mokutil --sb-state
-mokutil --test-key /etc/kernel/secureboot/MOK.cer
-sbverify --list /boot/EFI/refind/grubx64.efi
-modinfo -F signer nvidia
-dmesg | grep -Ei 'secure boot|integrity|verification|lockdown'
-```
-
-`mokutil --sb-state`、MOK 测试、EFI 签名和模块 signer 应相互印证。某一项失败时保留原固件启动项和 LiveCD，回到对应层排查，不要先删除已知可启动的 EFI 文件。
+先确认生成结果含目标文件系统、存储控制器与所需模块，随后重启登记 MOK，再验证普通用户的 NVML／CUDA、显示输出和设备权限。
 
 ### 完成链接器与基础维护工具配置
 
-#### musl／LLVM：链接器选择
+#### 链接器选择
 
-当前 musl 配置默认 mold／ThinLTO，LLD 是首次引导和特定包的例外，不是最终全局默认。前文应已安装 mold；启用 ThinLTO 前还需安装与当前 LLVM 同槽的 LLVMgold，并按补丁组完成 mold 的 musl 线程栈修正。准备就绪后，在目标 chroot 中执行：
+前文已用 stage3 工具链安装 mold。启用全局 ThinLTO 前，核对 [mold 的 musl 线程栈修正](https://github.com/Cyberl-ty02/dotfiles/tree/main/gentoo_setting/pc/patchsets/mold-musl-stack)与同槽 LLVMgold。先在原设置下装好依赖，再合并审阅过的 make.conf 构建设置并确认有效值：
 
 ```bash
 cd /root/dotfiles/gentoo_setting/pc
 emerge --pretend llvm-core/llvmgold
 emerge --ask llvm-core/llvmgold
+# 合并已审阅的构建设置后，预览，再分别启用。
 bash scripts/configure-linker.sh --linker mold --dry-run
 bash scripts/configure-linker.sh --linker mold
 bash scripts/configure-lto.sh --dry-run
 # 确认依赖和包级例外齐备后才启用。
 bash scripts/configure-lto.sh --mode thin
-portageq envvar LD
+portageq envvar CHOST ELIBC LD CFLAGS LDFLAGS
 ```
 
 不要一次接受新 LLVM 主版本来凑依赖；先核对实际槽位及预演。内核使用 LLD，GNU-EFI／rEFInd 保留 BFD。这里改变后续构建默认，不会自动重链接已装软件；详细证据见迁移文章。
-
-#### glibc／LLVM：链接器选择
-
-启动链和内核完成后，先用临时非 mold LDFLAGS 安装 linker 本身及后续维护工具：
-
-```bash
-emerge --ask sys-devel/mold app-portage/gentoolkit \
-  app-eselect/eselect-repository dev-vcs/git \
-  sys-fs/btrfs-progs sys-fs/genfstab
-mold --version
-```
-
-确认 `mold --version` 成功后，再把 `/etc/portage/make.conf` 切回正式状态：
-
-```conf
-#LDFLAGS="-Wl,-O1 -Wl,--as-needed -Wl,-z,pack-relative-relocs"
-LDFLAGS="-fuse-ld=mold -Wl,-O1 -Wl,--as-needed -Wl,-z,pack-relative-relocs"
-```
-
-这一步之后才执行完整 world 更新，能保证后续包看到的 linker 与公开配置一致。
 
 ## 安装系统工具与桌面
 
@@ -777,9 +630,20 @@ emerge --ask @preserved-rebuild
 
 ### 选择并安装桌面软件
 
-#### musl／LLVM：原生组件与 Flatpak 主包
+#### 原生组件与 Flatpak 主包
 
 不复用旧 PC world 或 GNU Emacs/GCC fallback 清单。SonicDE、XLibre、Fcitx/Rime 与字体由目标 Portage 配置管理；闭源桌面主包按独立 Flatpak 清单安装，运行时不能满足宿主 Portage 依赖。
+
+先安装原生图形和会话的基础组件。若选择 iwd 作为 Wi-Fi 后端，先安装 `net-wireless/iwd` 并按 NetworkManager 当前配置文档设置 `wifi.backend=iwd`。预演成功后用 `--ask` 合并，再按现有 XLibre 兼容包、输入法、字体和声音包的依赖图补齐：
+
+```bash
+emerge --pretend --verbose x11-base/xlibre-server x11-base/xorg-server::xlibre \
+  sonicde-base/sonicde-meta sonicde-base/sonic-login-manager \
+  net-misc/networkmanager net-firewall/firewalld media-video/pipewire \
+  sys-auth/elogind sys-apps/dbus app-admin/sysklogd net-misc/chrony \
+  media-fonts/noto-cjk \
+  app-shells/zsh sys-apps/flatpak
+```
 
 在 Flatpak 本体、CA 证书与字体已安装的目标 root chroot 中：
 
@@ -799,49 +663,7 @@ xargs emerge --pretend --verbose --noreplace \
   < gentoo_setting/pc/world_packages.txt
 ```
 
-审核依赖图及目标清单后，才把选定包的 `--pretend` 改为 `--ask`。
-
-#### glibc／LLVM：角色清单与 world
-
-以下仅说明原 glibc 方案的角色划分；共享清单与 main 的 PC world 会继续更新，历史 glibc 重建应使用自己审核保存的清单。原方案先使用角色清单，每次都先预览。基础、实体机引导和桌面可以依次检查：
-
-```bash
-cd /root/dotfiles
-xargs emerge --pretend --verbose --noreplace \
-  < gentoo_setting/manifests/core.txt
-xargs emerge --pretend --verbose --noreplace \
-  < gentoo_setting/manifests/pc-host.txt
-xargs emerge --pretend --verbose --noreplace \
-  < gentoo_setting/manifests/desktop.txt
-```
-
-确认各轮的 profile、overlay、USE、关键字和 license 变化后，再把对应命令中的 `--pretend` 改为 `--ask`。NVIDIA、development 与 optional 也分别预览；`optional.txt` 不应默认全部安装。
-
-历史 glibc 系统使用自己的清单，不读取 main 中已经转为 musl 的 PC world：
-
-```bash
-xargs emerge --pretend --verbose --noreplace \
-  < /path/to/reviewed-glibc-world.txt
-xargs emerge --ask --verbose --noreplace \
-  < /path/to/reviewed-glibc-world.txt
-```
-
-安装完成后再次对齐完整依赖图：
-
-```bash
-emerge -pajvuDN @world
-emerge -ajvuDN @world
-```
-
-完整 world 不仅有基础系统，还包括 SonicDE、KDE 应用、办公软件、开发工具、CUDA、输入法、邮件客户端和 PostgreSQL。第一次安装可能耗时很长，不应把所有失败都归因于 Gentoo 本身。角色清单已经把原先建议的三轮进一步变成可执行边界：
-
-```text
-第一轮：内核、固件、网络、日志、编辑器、启动链
-第二轮：XLibre、NVIDIA、SonicDE、Sonic Login Manager、字体、PipeWire
-第三轮：开发工具、CUDA、办公、邮件和其他应用
-```
-
-这份历史清单只适合复原原方案，不等于所有 Gentoo 用户的推荐列表。特别是 CUDA、PostgreSQL 和专有应用，都应根据实际需求删减。
+审核依赖图及目标清单后，将选定 atom 交给 `emerge --ask` 分批安装。
 
 ### 核对直接选择与用户配置
 
@@ -854,7 +676,7 @@ sort -u /root/dotfiles/gentoo_setting/pc/world_packages.txt \
 comm -3 /tmp/gentoo-selected.txt /tmp/gentoo-tracked.txt
 ```
 
-`qlist -IC` 中的大量软件是依赖，不必全加进 world。glibc 使用自己的目标文件，不与当前 musl PC 清单比较。
+`qlist -IC` 中的大量软件是依赖，不必全加进 world。
 
 原博客中仍需单独执行、但不是缺失 Portage atom 的内容包括：
 
@@ -868,7 +690,7 @@ MOK 注册和 rEFInd ESP 文件
 按需选择的 zram OpenRC 服务配置
 ```
 
-其中 Portage 软件包已经在原 `world_packages.txt` 中；用户层初始化统一放到首次成功启动之后。若未来旧博客出现新的明确 atom，应先用 `emerge -pv` 验证，再决定加入 world 清单。
+首次启动后再完成用户层初始化。服务数据按用途单独配置，例如 PostgreSQL 的数据目录和认证规则。
 
 ### 新装系统中的 XLibre
 
@@ -1055,7 +877,7 @@ clamscan --recursive --infected ~/Downloads
 
 我的习惯是先把必要软件、配置和服务都准备好，再进行第一次 Gentoo 启动。`rc-update add` 在 chroot 中只创建启动级别关联，不要求服务此刻真的运行。
 
-#### musl／LLVM：已登记的最小组合
+#### 已登记的最小组合
 
 在目标 chroot 内静态登记，不启动真实服务：
 
@@ -1069,33 +891,9 @@ rc-update add sysklogd default
 rc-update add chronyd default
 ```
 
-这组基础登记及后续真机启动已完成；新机仍需在自己的首次启动中检查。Sonic 登录器提供 display-manager，不另启 xdm；iwd 由 D-Bus 激活，PipeWire 由普通用户会话启动。本机另有蓝牙、打印、power-profiles-daemon 与 NVIDIA 节点准备服务，按目标需求另行启用，不因软件已经安装就自动启动数据库或扫描服务。
+这组基础登记及后续真机启动已完成；新机仍需在自己的首次启动中检查。Sonic 登录器提供 display-manager，不另启 xdm；iwd 由 D-Bus 激活，PipeWire 由普通用户会话启动。蓝牙和打印按需启用。本机安装了 `sys-power/power-profiles-daemon`，用 `rc-update add power-profiles-daemon default` 登记；使用匹配的 NVIDIA 私有用户态且已安装节点服务时，执行 `rc-update add nvidia-device-files boot`，不因软件已经安装就自动启动数据库或扫描服务。
 
-#### glibc／LLVM：原桌面服务组合
-
-基础桌面需要：
-
-```bash
-rc-update add NetworkManager default
-rc-update add dbus default
-rc-update add elogind default
-rc-update add soniclogin default
-rc-update add sysklogd default
-rc-update add chronyd default
-rc-update add cronie default
-```
-
-原 glibc 桌面当时还启用了这些硬件或桌面服务：
-
-```bash
-rc-update add bluetooth default
-rc-update add cupsd default
-rc-update add firewalld default
-rc-update add power-profiles-daemon default
-rc-update add netmount default
-```
-
-#### 共用：按需服务与最终检查
+#### 按需服务与最终检查
 
 PostgreSQL 不是启动桌面的必要条件。只有已经初始化对应版本的数据目录并确实需要开机启动时，才添加类似：
 
@@ -1137,7 +935,7 @@ emaint --check world
 ```bash
 findmnt /
 findmnt /boot
-cat /etc/fstab
+findmnt --verify --verbose
 eselect profile show
 eselect kernel list
 ls -l /boot/vmlinuz-* /boot/initramfs-*.img
@@ -1153,7 +951,7 @@ fstab 中 @、@home 与 ESP 没有重复或指错，也没有遗留实体 swap �
 内核、initramfs、/lib/modules 的 release 一致
 rEFInd 能看到正确的版本化内核文件
 目标内核和 NVIDIA 模块已经签名
-NetworkManager、日志、时间同步、dbus、elogind、soniclogin 位于所选路线的正确 runlevel（musl 的 elogind 在 boot）
+NetworkManager、日志、时间同步、dbus、elogind、soniclogin 位于正确 runlevel（elogind 在 boot）
 普通用户、密码与提权规则已经准备
 world 更新没有未处理的 blocker
 ```
@@ -1191,7 +989,7 @@ chronyc tracking
 mokutil --sb-state
 ```
 
-NVIDIA 机器先做两条路线共用的模块检查：
+NVIDIA 机器先检查模块：
 
 ```bash
 modinfo -F signer nvidia
@@ -1199,7 +997,7 @@ cat /sys/module/nvidia/version
 lspci -k
 ```
 
-#### musl／LLVM：私有用户态与节点
+#### 私有用户态与节点
 
 ```bash
 rc-service nvidia-device-files status
@@ -1209,15 +1007,7 @@ command -v nvidia-musl-run
 
 当前路线不默认提供普通 glibc 驱动包的 `nvidia-smi`，不能把命令不存在判为内核驱动失败。接着按 NVIDIA／CUDA 补丁组做普通用户的实际 CUDA／NVML 回读，并在调用前后核对节点保持 root:video 0660；入口存在或模块已加载都不代替运算检查。
 
-#### glibc／LLVM：历史驱动工具
-
-完整驱动包提供该工具时再运行：
-
-```bash
-nvidia-smi
-```
-
-#### 共用：桌面会话
+#### 桌面会话
 
 桌面会话中检查：
 
@@ -1389,7 +1179,7 @@ test -d ~/.zim/modules/powerlevel10k
 
 ### 恢复 Doom Emacs
 
-#### musl／LLVM：编辑器选择
+#### 编辑器选择
 
 Neomacs 已原生安装，SQLite、GUI 与 Fcitx/Rime 中文输入通过，完整 Doom 的普通用户／root 独立配置也已验收。首次启动后，以管理员选择系统编辑器，再在当前普通用户 shell 刷新环境：
 
@@ -1409,37 +1199,6 @@ doom doctor
 
 脚本先同步 Doom core 记录的模块子仓库，再同步插件，不只克隆 core，也不追踪子模块远端分支；不复制旧 `.eln`／字节码。root 采用自己所有的独立副本，不执行普通用户可写配置。Windows 共享配置已同步，当前完整模块及验收边界见[迁移记录](/posts/gentoo-musl-llvm-pc-migration/gentoo-musl-llvm-pc-migration/)。
 
-#### glibc／LLVM：编辑器选择
-
-原 glibc PC 与保留的 WSL 历史清单曾选择 `app-editors/emacs`，当前 musl PC 已改用 Neomacs；WSL 当前未安装，这一选择只用于未来重建。Windows 已完成 Scoop Emacs 部署并复用同一组 Doom 私人配置，Neovim 过渡文件也已从 dotfiles 删除。Doom 的私人配置位于 dotfiles 的 [`dot_config/doom/`](https://github.com/Cyberl-ty02/dotfiles/tree/main/dot_config/doom)，Gentoo 框架本体则由部署脚本检出到 `~/.config/emacs`。
-
-先在已经审核的 dotfiles checkout 中预览并应用普通用户配置：
-
-```bash
-cd /path/to/dotfiles
-gentoo_setting/scripts/bootstrap-user.sh
-gentoo_setting/scripts/bootstrap-user.sh --apply
-gentoo_setting/scripts/deploy-doom.sh
-```
-
-`bootstrap-user.sh --apply` 会交互式应用 chezmoi 配置；部署脚本复制已审核的 Doom 私人配置、在目标不存在时克隆框架，并执行 `doom sync --env`。脚本遇到已存在但不是 Git checkout 的 `~/.config/emacs` 会停止，避免覆盖未知目录。只有明确需要更新框架时才使用：
-
-```bash
-gentoo_setting/scripts/deploy-doom.sh --upgrade
-```
-
-完成后验证实际目录和启动状态：
-
-```bash
-emacs --version
-command -v doom
-emacs --batch --eval \
-  '(message "user-emacs-directory=%s" user-emacs-directory)'
-doom doctor
-```
-
-本机当前使用 `~/.config/emacs` 作为 Doom 主程序目录、`~/.config/doom` 作为私人配置目录；旧布局中的 `~/.emacs.d` 和 `~/.doom.d` 均不需要兼容符号链接。若确实需要 root 的独立配置，可在审阅脚本后使用 `deploy-doom.sh --root`；不要让普通用户与 root 共用可写的包、缓存或状态目录。旧 glibc／Windows 布局的说明见：[Doom Emacs 安装、同步与清理](/posts/doom-emacs-windows/doom-emacs-windows/)。
-
 ### VSCodium 的宿主入口与认证
 
 系统级 Flatpak 安装后，可以直接 `flatpak run com.vscodium.codium`。需要 shell 入口和 Chromium／Node 扩展代理时，先审阅 PC `scripts/launch-codium.py`：它按进程转发调用 shell 的代理，并为 Node 启用 `NODE_USE_ENV_PROXY`，不关闭 TLS 或把代理写成全局默认。完整安装和验证边界见迁移文章及跨平台 VSCodium 配置说明。
@@ -1450,7 +1209,7 @@ VSCodium 的运行参数在 `~/.vscode-oss/argv.json`，账户加密使用 `"pas
 
 ### musl 路线的 Java 与 IDE
 
-#### musl／LLVM：统一 Dragonwell Standard 21
+#### 统一 Dragonwell Standard 21
 
 宿主采用现有仓库补丁组提供的 Dragonwell **Standard 21 LTS**，通过 Portage 与 `eselect java-vm` 管理。Flatpak 内的 Java 工具使用同版本的私有 glibc 构建，不把 musl JVM 与 glibc JNI 混用；不启用要求 JDK 25 的扩展。
 
@@ -1528,7 +1287,7 @@ musl 同步后还需先在 PC 配置目录执行仓库补丁恢复预检，确�
 | --- | --- | --- |
 | Gentoo ebuild 主树 | USTC Git 浅克隆 | Gentoo Release Key 验证提交签名、拒绝超过三天的仓库时间戳；备用源按可达性临时选择，保留签名验证 |
 | distfiles 源码包 | USTC → 华为 → 阿里 → TUNA → 官方 | 国内源优先，临时回官方也保留强哈希校验 |
-| 官方 binhost | musl 当前为 USTC 的 `x86-64_musl_llvm`；glibc 历史地址单列 | `verify-signature = true`；来源必须匹配当前 LLVM profile |
+| 官方 binhost | USTC 的 `x86-64_musl_llvm` | `verify-signature = true`；来源必须匹配当前 LLVM profile |
 | gentoo-zh | 南京大学 Git 镜像 | Git 提交与 ebuild 自身的校验链不因镜像而关闭 |
 | GURU、SonicDE、XLibre | 各自上游 | 不为追求形式统一而改写没有对应镜像的仓库 |
 
@@ -1552,7 +1311,7 @@ sync-uri = https://mirrors.ustc.edu.cn/gentoo.git
 GENTOO_MIRRORS="https://mirrors.ustc.edu.cn/gentoo https://repo.huaweicloud.com/gentoo https://mirrors.aliyun.com/gentoo https://mirrors.tuna.tsinghua.edu.cn/gentoo https://distfiles.gentoo.org"
 ```
 
-#### musl／LLVM：binhost
+#### binhost
 
 ```ini
 # /etc/portage/binrepos.conf/gentoo.conf
@@ -1564,17 +1323,7 @@ verify-signature = true
 
 镜像暂未同步时，可临时使用官方对应目录，保留相同 ABI 路径与签名验证。不要只更换域名而混用 `x86-64_llvm` 与 `x86-64_musl_llvm`。
 
-#### glibc／LLVM：binhost
-
-```ini
-# /etc/portage/binrepos.conf/gentoo.conf
-[gentoo]
-sync-uri = https://mirrors.cernet.edu.cn/gentoo/releases/amd64/binpackages/23.0/x86-64_llvm
-priority = 1
-verify-signature = true
-```
-
-#### 共用：签名与镜像切换
+#### 签名与镜像切换
 
 复制这些片段时不能只改 URI：binhost 的 profile/ABI 必须与目标系统一致，Git 提交签名、Release Key 刷新与二进制包签名验证也应保留。WSL 使用 `x86-64` binhost、没有 PC 的华为 binhost，并保留兼容初始 stage3 的 wget 下载方式；因此两套 Portage 目录不能直接覆盖彼此。
 
@@ -1616,7 +1365,7 @@ GOSUMDB=sum.golang.org
 
 ## 参考资料
 
-- [musl／LLVM 当前安装与迁移说明](/posts/gentoo-musl-llvm-pc-migration/gentoo-musl-llvm-pc-migration/)：本机当前方案与验收边界；旧故障文章用于理解原因。
+- [musl／LLVM 迁移复盘](/posts/gentoo-musl-llvm-pc-migration/gentoo-musl-llvm-pc-migration/)：本机当前方案与验收边界；旧故障文章用于理解原因。
 - [VSCodium 跨平台配置](/posts/vscodium-sync/vscodium-sync/)：当前 Java21、扩展与宿主桥接入口。
 
 - [Gentoo AMD64 Handbook：完整安装篇](https://wiki.gentoo.org/wiki/Handbook:AMD64/Full/Installation)：本文章节组织的参照，具体工具选择仍按 musl／OpenRC 与本机启动方案区分。

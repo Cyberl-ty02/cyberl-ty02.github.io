@@ -21,6 +21,8 @@ tags:
 
 本文只记录这次实际修复路线，不作为通用安装教程。对应的 Portage 与 Secure Boot 配置保存在 [dotfiles 的 Gentoo PC 配置目录](https://github.com/Cyberl-ty02/dotfiles/tree/main/gentoo_setting/pc)；可复用的示例启动参数见 [`refind_linux.conf.example`](https://github.com/Cyberl-ty02/dotfiles/blob/main/gentoo_setting/pc/kernel/secureboot/refind_linux.conf.example)。
 
+全新安装参见两篇独立指南。下面保留原救援经过；当前 musl 实机以显式菜单配对内核与 initramfs，升级时应先核对实际入口。 [musl 安装](/posts/gentoo-musl/gentoo-musl/) · [glibc 安装](/posts/gentoo-glibc/gentoo-glibc/)
+
 ## 故障定位
 
 ### 故障背景
@@ -131,7 +133,7 @@ initrd=\...            rEFInd 所在文件系统中可识别的 initramfs 路径
 
 ### shim、rEFInd 与 Secure Boot
 
-当前配置使用 shim 进入已签名的 rEFInd，再由 rEFInd 加载内核。仓库中的 [`Secure Boot README`](https://github.com/Cyberl-ty02/dotfiles/blob/main/gentoo_setting/pc/kernel/secureboot/README.md) 记录了文件检查和密钥注册流程；Portage 侧的开关见 [`package.use/secureboot`](https://github.com/Cyberl-ty02/dotfiles/blob/main/gentoo_setting/pc/portage/package.use/secureboot)。
+当前配置使用 shim 进入已签名的 rEFInd，再由 rEFInd 加载内核。仓库中的 [`Secure Boot README`](https://github.com/Cyberl-ty02/dotfiles/blob/main/gentoo_setting/pc/kernel/secureboot/README.md) 记录了文件检查和密钥注册流程；Portage 侧的开关见 [`package.use/desktop`](https://github.com/Cyberl-ty02/dotfiles/blob/main/gentoo_setting/pc/portage/package.use/desktop)。
 
 Gentoo Wiki 的 [Shim](https://wiki.gentoo.org/wiki/Shim) 与 [rEFInd](https://wiki.gentoo.org/wiki/REFInd) 页面给出了一条较直接的安装路线。先启用 `sys-boot/refind[secureboot]`，并在 `make.conf` 中配置 `SECUREBOOT_SIGN_KEY` 与 `SECUREBOOT_SIGN_CERT`，让 Portage 签名 rEFInd 的 EFI 文件；随后安装所需软件：
 

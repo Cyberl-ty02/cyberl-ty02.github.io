@@ -11,6 +11,8 @@ tags:
 - Gentoo
 ---
 
+实体机的当期安装入口见[musl](/posts/gentoo-musl/gentoo-musl/)和[glibc](/posts/gentoo-glibc/gentoo-glibc/)。本文保留 WSL 与旧实体机迁移的历史现场。
+
 > **状态说明（2026-10-13）**
 > 本文主体记录一次“暂时以 Windows + WSL 为主”的历史迁移，不能作为当前机器角色说明。现在实体 Gentoo 已恢复日常维护，运行 OpenRC、LLVM profile、Gentoo-Zh XanMod、SonicDE/XLibre、NVIDIA 与 shim+rEFInd；Gentoo WSL 当前已经卸载。dotfiles 仍保留 WSL Portage、world、`wsl.conf` 与角色清单，作为未来重建输入，但这些文件没有在当前 WSL 实机重新验证。
 

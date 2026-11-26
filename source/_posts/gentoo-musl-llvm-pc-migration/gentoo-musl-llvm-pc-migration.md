@@ -1,5 +1,5 @@
 ---
-title: Gentoo musl/LLVM PC 安装与迁移：工具链、兼容环境与 SonicDE
+title: Gentoo musl/LLVM 迁移复盘
 comments: true
 toc: true
 donate: false
@@ -13,7 +13,7 @@ tags:
 
 这篇文章整理我把日常 Gentoo PC 从 glibc／LLVM 迁到 musl／LLVM 的安装路线。桌面继续使用 SonicDE、XLibre 和 OpenRC；闭源应用、Java 与 CUDA 则按各自的 ABI 和运行环境安排，不把所有兼容库塞进主系统。
 
-如果是全新安装，先按[实体机安装指南](/posts/gentoo-endeavouros-btrfs-openrc-install/gentoo-endeavouros-btrfs-openrc-install/)完成 LiveCD、分区、挂载和 chroot，选择其中的 musl 分支。本文集中解释 musl 带来的工具链、应用兼容和数据迁移差异；已有 glibc 系统不能仅靠切换 profile 迁移 libc。
+全新安装从[Gentoo musl 安装](/posts/gentoo-musl/gentoo-musl/)开始。本文记录 glibc 到 musl 的验证过程、兼容方案和重编结果。已有 glibc 系统迁移需要独立目标根。
 
 > **当前状态（2026-11-23）**
 > musl／LLVM／OpenRC 已完成真机迁移，是配置仓库 `gentoo_setting/pc/` 的默认 PC 方案。日常桌面与 Windows 配置同步已人工确认；旧系统归档完成隔离恢复后，按明确决定退役。下文保留有复用价值的故障与验证边界，不再按实验批次追加进度。
@@ -558,7 +558,8 @@ Sonic Terminal 26.08.3 最小化后从任务栏消失，实际进程仍活着，
 
 ### 安装与公开配置
 
-- [Gentoo 实体机安装指南](/posts/gentoo-endeavouros-btrfs-openrc-install/gentoo-endeavouros-btrfs-openrc-install/)
+- [Gentoo musl 安装](/posts/gentoo-musl/gentoo-musl/)
+- [Gentoo glibc 安装](/posts/gentoo-glibc/gentoo-glibc/)
 - [Gentoo AMD64 Handbook](https://wiki.gentoo.org/wiki/Handbook:AMD64)
 - [Gentoo musl 项目](https://wiki.gentoo.org/wiki/Project:Musl)
 - [当前 PC 配置与 README](https://github.com/Cyberl-ty02/dotfiles/tree/main/gentoo_setting/pc)

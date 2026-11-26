@@ -11,6 +11,8 @@ tags:
 - 系统维护
 ---
 
+Gentoo 上的实际部署入口见[musl 安装](/posts/gentoo-musl/gentoo-musl/)和[glibc 安装](/posts/gentoo-glibc/gentoo-glibc/)。扩展清单的同步与账号认证分别处理。
+
 这篇文章最初记录用 Zokugun Sync Settings 和私有 Git 仓库同步 VSCodium。当前配置已经换成更容易审阅的方式：用户设置由 [dotfiles](https://github.com/Cyberl-ty02/dotfiles) 中的 chezmoi source 部署，扩展则拆成通用、Linux 和 Windows 清单。编辑器内的同步扩展不再是必要依赖。
 
 > **更新说明（2026-10-04）**

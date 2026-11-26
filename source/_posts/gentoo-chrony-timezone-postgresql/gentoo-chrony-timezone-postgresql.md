@@ -11,6 +11,8 @@ tags:
 - Gentoo
 ---
 
+本文的旧集群使用 glibc locale。musl 新机的时区、locale 与 PostgreSQL ICU 选择见[安装指南](/posts/gentoo-musl/gentoo-musl/)；跨 libc 迁移采用逻辑导入导出。
+
 这篇文章整理 Gentoo OpenRC 环境中的三项相关配置：用 chrony 同步多组时间源、绕过 KDE 日期时间模块手工切换时区，以及初始化 PostgreSQL 18 并收紧本机认证。
 
 > **隐私说明**

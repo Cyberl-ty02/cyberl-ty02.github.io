@@ -18,6 +18,8 @@ tags:
 
 对应的 Portage、Portal、登录管理器补丁和软件清单保存在 [dotfiles 的 Gentoo PC 目录](https://github.com/Cyberl-ty02/dotfiles/tree/main/gentoo_setting/pc)。本文解释选择与边界，不建议整目录照搬。
 
+下面记录 SonicDE 的迁移过程。新机安装按所选 libc 的指南设置登录管理器、Portal 和音量组件。 [musl 安装](/posts/gentoo-musl/gentoo-musl/) · [glibc 安装](/posts/gentoo-glibc/gentoo-glibc/)
+
 ## Stage 1：先定义迁移边界
 
 这次从 Plasma 为主转向 SonicDE，主要是为了使用正在持续维护的 Sonic Workspace、窗口管理器与配套桌面组件，并把先前混杂的登录及 Portal 配置收敛成一条可复核路径。迁移不是因为 Plasma 应用本身“不可用”，所以成熟、没有等价替代品或更符合既有操作习惯的 KDE 应用仍然保留。

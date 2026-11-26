@@ -232,8 +232,16 @@ for await (const path of generatedGlob.scan({ cwd: process.cwd(), onlyFiles: tru
 
 const expectedRenderedText: ReadonlyArray<[string, string]> = [
   [
+    "public/posts/gentoo-musl/gentoo-musl/index.html",
+    "x86_64-pc-linux-musl",
+  ],
+  [
+    "public/posts/gentoo-glibc/gentoo-glibc/index.html",
+    "x86_64-pc-linux-gnu",
+  ],
+  [
     "public/posts/gentoo-endeavouros-btrfs-openrc-install/gentoo-endeavouros-btrfs-openrc-install/index.html",
-    "7.2.10-x64v3",
+    "url=/posts/gentoo-musl/gentoo-musl/",
   ],
   [
     "public/posts/gentoo-sonicde-openrc-migration/gentoo-sonicde-openrc-migration/index.html",
